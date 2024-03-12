@@ -8,5 +8,5 @@ def simulator_def(ctx: AnalysisContext) -> list[Provider]:
 
 
 
-rule
+
 

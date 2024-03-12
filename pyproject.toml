@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.poetry]
+name = "otl"
+version = "0.1.0"
+description = "otl is a system to describe tests for eda"
+authors = ["James <james@silogy.io>"]
+
+
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+
+
+
+
+

@@ -1,0 +1,15 @@
+
+
+# All the default toolchains, suitable for a quick demo or early prototyping.
+# Most real projects should copy/paste the implementation to configure them.
+
+
+
+
+load(":otl_py.bzl","otl_py_toolchain")
+
+otl_py_toolchain(
+    name = "otl_py",
+    interpreter="python3",
+    visibility = ["PUBLIC"],
+)
