@@ -5,6 +5,9 @@ from typing import Optional
 from argparse import ArgumentParser
 import json
 import shutil
+import sys
+
+from typing import Dict
 
 
 @dataclass(frozen=True)
@@ -25,18 +28,19 @@ class PrebuiltSimulator(SimulatorTarget):
         return sim_provider
 
     @staticmethod
-    def generate_target(prebuilt_sim_path: str, out_sim_path: str):
-        shutil.copy(prebuilt_sim_path, out_sim_path)
+    def generate_target(prebuilt_sim_path: str, output: str):
+        shutil.copy(prebuilt_sim_path, output)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(
         description="Parses out commands for generating a prebuilt simulator")
     parser.add_argument('--args', type=str, help='JSON string of arguments')
+    parser.add_argument('--outputs', type=str, help='JSON string of arguments')
 
     args = parser.parse_args()
-
-    # Convert the JSON string into a Python dictionary
-    args_dict = json.loads(args.argstr)
+    args_dict = json.loads(args.args)
+    outputs = args.outputs
+    args_dict['output'] = outputs
 
     PrebuiltSimulator.generate_target(**args_dict)
