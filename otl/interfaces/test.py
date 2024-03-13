@@ -1,14 +1,18 @@
-from typing import Dict
+from typing import TypedDict
 from abc import ABC
 
 
+class TestTargetProvider(TypedDict):
+    results_dir: str
+
+
 class TestTarget(ABC):
-    def to_buck2_rule(self) -> str:
+    def to_buck2_target(self) -> str:
         ...
 
-    def outputs(self) -> Dict[str, str]:
+    def outputs(self) -> TestTargetProvider:
         ...
 
     @classmethod
-    def generate_target(self):
+    def execute_test(self):
         ...

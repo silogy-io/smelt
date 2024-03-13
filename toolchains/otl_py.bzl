@@ -9,7 +9,6 @@ def _otl_py_bootstrap(ctx) -> list[Provider]:
         OtlPythonToolchainInfo(interpreter=ctx.attrs.interpreter),
     ]
 
-
 _PY_INTERPRETER = "python3"
 
 

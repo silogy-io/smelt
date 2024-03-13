@@ -10,9 +10,6 @@ py_otl_library(
 )
 
 
-
-
-
 otl_simulator(
   name="my_simulator",
   ex_script="otl/otl_targets/prebuilt_simulator.py",

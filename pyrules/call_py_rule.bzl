@@ -59,5 +59,6 @@ python_caller = rule(
             attrs.dep(providers=[OtlLibSrcs]), default=["//:otl_lib"]
         ),
         "py_toolchain": attrs.toolchain_dep(default="toolchains//:otl_py"),
+        "gcc_toolchain": attrs.toolchain_dep(default="toolchains//:riscv-gcc")
     },
 )

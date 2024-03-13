@@ -17,6 +17,12 @@ class PrebuiltSimulator(SimulatorTarget):
     output_path: str = None
 
     def to_buck2_target(self) -> str:
+        return """otl_simulator(
+          name="my_simulator",
+          ex_script="otl/otl_targets/prebuilt_simulator.py",
+          args={"prebuilt_sim_path" : "toy_simulator.sh"},
+          output="the_simulator"
+        )"""
         raise NotImplementedError
 
     @property
