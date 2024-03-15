@@ -1,6 +1,8 @@
 
 from typing_extensions import Annotated
 from pathlib import Path, PosixPath
+
+from otl.importer import get_all_targets
 import typer
 
 from otl.rc import OtlRC
@@ -43,7 +45,10 @@ def init(rule_path: RulePath = "otl_rules"):
 
 @app.command()
 def targets(rule_path: RulePath = "otl_rules", help="Prints out all visibile targets"):
-    rule_path.absolute()
+    otlrc = OtlRC.try_load()
+    rules_dir: Path = otlrc.abs_rules_dir
+    targets = get_all_targets(rules_dir)
+    print(targets)
 
 
 @ app.command()

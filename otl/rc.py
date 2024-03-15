@@ -5,6 +5,8 @@ from pathlib import Path
 from otl.path_utils import get_git_root
 import toml
 
+from pprint import pprint
+
 
 @dataclass
 class OtlRC:
@@ -42,4 +44,9 @@ class OtlRC:
             toml.dump(default.__dict__, outfile)
         otl_rules_dir = Path(
             f"{git_root}/{default.otl_rules_dir}").mkdir(exist_ok=True)
-        print(f"Initialized .otlrc at {rc_path}")
+        pprint(f"Initialized .otlrc at {rc_path}")
+
+    @property
+    def abs_rules_dir(self) -> Path:
+        git_root = get_git_root()
+        return Path(f"{git_root}/{self.otl_rules_dir}")

@@ -1,14 +1,31 @@
 import importlib
 import inspect
-from typing import List
+from typing import List, TypedDict, Dict
 from otl.interfaces.target import Target
+from pathlib import Path
 
 
-def get_all_targets(target_paths: List[str]):
+class DocumentedTarget:
+    target: Target
+    doc: str
+
+
+def get_all_files(targets_dir: Path) -> List[Path]:
+    rules_files = []
+    if targets_dir.exists() and targets_dir.is_dir():
+        rule_files = [maybe_target_file for maybe_target_file in targets_dir.walk(
+        ) if maybe_target_file.suffix == '.py' and maybe_target_file.is_file()]
+
+    return rules_files
+
+
+def get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
     default_target_modules = ["otl.default_targets"]
     classes = {}
     base_class_name = 'Target'
-    for path in target_paths + default_target_modules:
+
+    all_paths = get_all_files(targets_dir=targets_dir)
+    for path in default_target_modules:
         try:
             module = importlib.import_module(path)
             for name, cls in inspect.getmembers(module, inspect.isclass):
@@ -18,14 +35,14 @@ def get_all_targets(target_paths: List[str]):
                     if name != base_class_name:
                         classes[name] = cls
                         classes[name] = {
-                            'class': cls,
+                            'target': cls,
                             'doc': inspect.getdoc(cls)
                         }
 
         except ImportError:
             print(f"Failed to import rule definitions at {path}")
 
-    print(classes)
+    return classes
 
 
-get_all_targets([])
+get_all_targets(Path("null"))
