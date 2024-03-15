@@ -12,10 +12,13 @@ authors = ["James <james@silogy.io>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 typer = "^0.9.0"
+pyyaml = "^6.0.1"
 
 [tool.poetry.dev-dependencies]
 
 
 
 
+[tool.poetry.scripts]
+otl-cli = "otl.cli:main"
 
