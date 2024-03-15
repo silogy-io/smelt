@@ -1,12 +1,13 @@
 import importlib
 import inspect
-from typing import List, TypedDict, Dict
+from typing import List, TypedDict, Dict, Type
 from otl.interfaces.target import Target
 from pathlib import Path
+from otl.rc import OtlRC
 
 
 class DocumentedTarget:
-    target: Target
+    target: Type[Target]
     doc: str
 
 
@@ -19,13 +20,18 @@ def get_all_files(targets_dir: Path) -> List[Path]:
     return rules_files
 
 
-def get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
+def get_all_targets(cfg: OtlRC) -> Dict[str, DocumentedTarget]:
+    rules_dir: Path = cfg.abs_rules_dir
+    return _get_all_targets(rules_dir)
+
+
+def _get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
     default_target_modules = ["otl.default_targets"]
     classes = {}
     base_class_name = 'Target'
 
     all_paths = get_all_files(targets_dir=targets_dir)
-    for path in default_target_modules:
+    for path in default_target_modules + all_paths:
         try:
             module = importlib.import_module(path)
             for name, cls in inspect.getmembers(module, inspect.isclass):
@@ -45,4 +51,7 @@ def get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
     return classes
 
 
-get_all_targets(Path("null"))
+def target_validator(target_class: Type[Target]):
+    # TODO: do typechecking to make sure target attributes follow some set of rules
+    #      e.g. practically, we can only support types that are yaml serializable
+    pass

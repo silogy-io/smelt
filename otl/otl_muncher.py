@@ -1,6 +1,12 @@
 import yaml
+from otl.importer import DocumentedTarget
+from typing import Dict
 
 
-def parse_yaml(path_to_otl: str) -> None:
-    yaml_content = open(path_to_otl).read()
-    yaml.safe_load(yaml_content)
+def load_yaml(test_list: str, all_rules: Dict[str, DocumentedTarget]):
+    yaml_content = open(test_list).read()
+    items = yaml.safe_load(yaml_content)
+    print(items)
+
+
+load_yaml("examples/tests_only.otl", [])
