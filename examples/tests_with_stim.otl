@@ -1,0 +1,25 @@
+version: 0.2
+
+pointer_chase_32kb_compile: 
+  rule: compile_cpp_microbenchmark
+  rule_args: 
+    compiler_path: /path/to/compiler
+    benchmark: "path_to_cpp.cpp"
+    compile_args: "-DSIZE=1 -DDOG" 
+
+pointer_chase_32kb_run:
+  rule: run_binary
+  rule_args:
+    binary: pointer_chase_32kb_compile
+    sim_args:
+      benchmark: "path_to_cpp.cpp"         
+      compile_args: "-DSIZE=1 -DDOG" 
+
+
+openssl_compile: 
+  rule: openssl_dl_and_compile
+  rule_args: 
+    compiler_path: /path/to/compiler
+    compile_args: "-DSIZE=1 -DDOG" 
+    git_url : "https://openssl"
+

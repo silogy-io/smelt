@@ -13,6 +13,7 @@ class OtlTargetType(Enum):
 
 class Target(ABC):
     name: str
+    hidden_depdenencies: List['Target']
 
     def get_outputs(self) -> Dict[str, OtlPath]:
         ...

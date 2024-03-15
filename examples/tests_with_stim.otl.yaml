@@ -1,0 +1,24 @@
+version: 0.2
+
+pointer_chase_32kb_compile:
+  target_type: stimulus
+  script:
+    - "/path/to/compiler ${GIT_ROOT}/path_to_cpp.cpp -o ${TEST_ROOT}/pointer_chase_32kb.o"
+  runtime:
+    timeout: 600
+    memory_limit_mb: 1024
+    cpu_limit: 1
+
+pointer_chase_32kb_run:
+  target_type: test
+  script:
+    - "${GIT_ROOT}/build/cpu_simulator ${OTL_ROOT}/pointer_chase_32kb_compile/pointer_chase_32kb.o"
+  env:
+    DEBUG: 0
+    VERBOSE: 1
+  runtime:
+    timeout: 600
+    memory_limit_mb: 1024
+    cpu_limit: 1
+  dependencies:
+    - pointer_chase_32kb_compile
