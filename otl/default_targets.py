@@ -13,7 +13,7 @@ class passthrough_bash(Target):
     Environment variables avaible are: 
         * ${GIT_ROOT}: the git root of the current git workspace 
         * ${OTL_ROOT}: the root of the otl-workspace -- by default, this will be ${GIT_ROOT}/otl
-        * ${TARGET_ROOT}: the working space of 
+        * ${TARGET_ROOT}: the working space of the current target
     """
     script: List[str] = field(default_factory=list)
     outputs: Dict[str, str] = field(default_factory=dict)
@@ -23,3 +23,18 @@ class passthrough_bash(Target):
 
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {out_name: OtlPath.abs_path(out_path) for out_name, out_path in self.outputs.items()}
+
+
+@dataclass
+class run_spi(Target):
+    """
+    sanity test -- will move this to examples, eventually
+    """
+
+    seed: int
+
+    def gen_script(self) -> List[str]:
+        return ['echo "hello world"']
+
+    def get_outputs(self) -> Dict[str, OtlPath]:
+        return {}

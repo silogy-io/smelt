@@ -1,11 +1,14 @@
 
 from typing_extensions import Annotated
-from pathlib import Path, PosixPath
-
-from otl.importer import get_all_targets
+from pathlib import Path
 import typer
+import yaml
 
 from otl.rc import OtlRC
+from otl.importer import get_all_targets
+from otl.otl_muncher import otl_to_command_list
+from otl.serde import SafeDataclassDumper
+from otl.pyotlexec.naive import execute_command_list
 
 app = typer.Typer()
 
@@ -26,7 +29,7 @@ TlPath = Annotated[
 CommandPath = Annotated[
     Path,
     typer.Argument(
-        exists=True,
+        exists=False,
         file_okay=True,
         dir_okay=False,
         writable=False,
@@ -63,16 +66,21 @@ def targets(rule_path: RulePath = "otl_rules", help="Prints out all visibile tar
 
 
 @ app.command()
-def munch(otl_file: TlPath, output: CommandPath, help="Converts .otl files to a .command file"):
+def munch(otl_file: TlPath, output: CommandPath = "command.yaml", help="Converts .otl files to a command file"):
     typer.echo(f"Validating: {otl_file}")
     otlrc = OtlRC.try_load()
     targets = get_all_targets(otlrc)
+    commands = otl_to_command_list(test_list=otl_file, all_rules=targets)
+    yaml.dump(commands, open(output, 'w'),
+              Dumper=SafeDataclassDumper, sort_keys=False)
 
 
 @ app.command()
-def execute(testlist: TlPath, help="Goes through the entire"):
-    typer.echo(f"Executing: {testlist}")
+def execute(otl_file: TlPath, help="Goes through the entireflow, from otl file to executing a command list"):
     otlrc = OtlRC.try_load()
+    targets = get_all_targets(otlrc)
+    commands = otl_to_command_list(test_list=otl_file, all_rules=targets)
+    execute_command_list(commands, otlrc)
 
 
 def main():

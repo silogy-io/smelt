@@ -1,12 +1,12 @@
 import importlib
 import inspect
 from typing import List, TypedDict, Dict, Type
-from otl.interfaces.target import Target
+from otl.interfaces import Target, Command
 from pathlib import Path
 from otl.rc import OtlRC
 
 
-class DocumentedTarget:
+class DocumentedTarget(TypedDict):
     target: Type[Target]
     doc: str
 
@@ -14,8 +14,8 @@ class DocumentedTarget:
 def get_all_files(targets_dir: Path) -> List[Path]:
     rules_files = []
     if targets_dir.exists() and targets_dir.is_dir():
-        rule_files = [maybe_target_file for maybe_target_file in targets_dir.walk(
-        ) if maybe_target_file.suffix == '.py' and maybe_target_file.is_file()]
+        rule_files = [
+            maybe_target_file for maybe_target_file in targets_dir.glob("**/*.py")]
 
     return rules_files
 
@@ -49,9 +49,3 @@ def _get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
             print(f"Failed to import rule definitions at {path}")
 
     return classes
-
-
-def target_validator(target_class: Type[Target]):
-    # TODO: do typechecking to make sure target attributes follow some set of rules
-    #      e.g. practically, we can only support types that are yaml serializable
-    pass

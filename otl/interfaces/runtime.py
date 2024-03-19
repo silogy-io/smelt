@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import Literal
+from enum import Enum
 
 
 @dataclass
@@ -11,4 +13,7 @@ class RuntimeRequirements:
 
     @classmethod
     def default(cls):
-        return cls(num_threads=1, max_memory_mb=1024, timeout=600)
+        return cls(num_cpus=1, max_memory_mb=1024, timeout=600)
+
+
+
