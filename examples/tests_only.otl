@@ -1,14 +1,15 @@
-spi_seed_1000:
+- name: spi_seed_1000
   rule: run_spi
   rule_args:
     seed: 1000
 
-spi_seed_1500:
+- name: spi_seed_1500
   rule: run_spi
   rule_args:
     seed: 1500
 
-spi_seed_2000:
+- name: spi_seed_2000
   rule: run_spi
   rule_args:
     seed: 2000
+

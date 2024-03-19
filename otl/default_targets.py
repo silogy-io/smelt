@@ -8,10 +8,10 @@ from typing import List, Dict
 @dataclass
 class passthrough_bash(Target):
     """
-    Simple target for embedding raw bash commands in Otl 
+    Simple target for embedding raw bash commands in Otl
 
-    Environment variables avaible are: 
-        * ${GIT_ROOT}: the git root of the current git workspace 
+    Environment variables avaible are:
+        * ${GIT_ROOT}: the git root of the current git workspace
         * ${OTL_ROOT}: the root of the otl-workspace -- by default, this will be ${GIT_ROOT}/otl
         * ${TARGET_ROOT}: the working space of the current target
     """
@@ -37,4 +37,19 @@ class run_spi(Target):
         return ['echo "hello world"']
 
     def get_outputs(self) -> Dict[str, OtlPath]:
-        return {}
+        return {"log": OtlPath.abs_path(f"{self.name}.log")}
+
+
+@ dataclass
+class process_run_spi(Target):
+    """
+    """
+    spi_ref_path: Target
+
+    def gen_script(self):
+        path_to_spilog = self.spi_ref.get_outputs()['log']
+
+        return [f"cat {path_to_spilog}"]
+
+    def dependencies(self) -> List[Target]:
+        return [self.spi_ref_path]

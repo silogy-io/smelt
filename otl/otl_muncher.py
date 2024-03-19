@@ -8,6 +8,7 @@ from otl.rc import OtlRC
 
 
 class SerYamlTarget(BaseModel):
+    name: str
     rule: str
     rule_args: Dict[str, Any]
 
@@ -19,9 +20,9 @@ class PreTarget:
 
 
 def populate_rule_args(
-    target_name: str, rule_inst: Dict[str, str], all_rules: Dict[str, DocumentedTarget]
+        target_name: str, rule_payload: SerYamlTarget, all_rules: Dict[str, DocumentedTarget]
 ):
-    rule_payload = SerYamlTarget(**rule_inst)
+
     rule_payload.rule_args["name"] = target_name
     if rule_payload.rule not in all_rules:
         # TODO: make a pretty error that
@@ -42,10 +43,12 @@ def to_target(pre_target: PreTarget) -> Target:
 def otl_to_command_list(test_list: str, all_rules: Dict[str, DocumentedTarget]) -> List[Command]:
     yaml_content = open(test_list).read()
     rule_inst = yaml.safe_load(yaml_content)
+    print(rule_inst)
     # NOTE: semantically we split up validation of the otl file -> converting to target objects -> generating a command list
     # while dependency based
+    yaml_targets = [SerYamlTarget(**target) for target in rule_inst]
     pre_targets = {
-        name: populate_rule_args(name, args, all_rules) for name, args in rule_inst.items()
+        target.name: populate_rule_args(target.name, target, all_rules) for target in yaml_targets
     }
 
     inst_rules = {

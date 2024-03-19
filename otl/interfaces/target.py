@@ -20,7 +20,7 @@ class Target(ABC):
     name: str
 
     def get_outputs(self) -> Dict[str, OtlPath]:
-        ...
+        return {}
 
     def gen_script(self) -> List[str]:
         ...
@@ -34,9 +34,6 @@ class Target(ABC):
 
     def runtime_requirements(self) -> RuntimeRequirements:
         return RuntimeRequirements.default()
-
-    def target_type(self) -> OtlTargetType:
-        return OtlTargetType.Test
 
     def dependencies(self) -> List[TargetRef]:
         return []
