@@ -43,7 +43,7 @@ class Command:
 class CStatus(Enum):
     PASS = "pass"
     FAIL = "failed"
-    SKIPPED = ["skipped"]
+    SKIPPED = "skipped"
 
 
 CStatusStr = Literal[CStatus.PASS.value,

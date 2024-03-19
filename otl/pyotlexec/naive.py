@@ -54,7 +54,7 @@ def execute_command_list(commands: List[Command], rc: OtlRC) -> List[CResult]:
     for command in commands:
         if len(command.depdenencies) != 0:
             raise RuntimeError(
-                "We don't support depdenencies for the naive executor! Please bother james@silogy.io about this")
+                "We don't support depdenencies for the naive executor! File an issue against james@silogy.io about this")
 
     with Pool(processes=rc.jobs) as pool:
         bound_exec = partial(execute_command, rc)
