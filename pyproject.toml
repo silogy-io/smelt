@@ -1,5 +1,4 @@
-[build-system]
-requires = ["setuptools", "wheel"]
+
 
 [tool.poetry]
 name = "otl"
@@ -25,4 +24,15 @@ sphinx = "7.1.0"
 
 [tool.poetry.scripts]
 otl-cli = "otl.cli:main"
+
+
+
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+
 

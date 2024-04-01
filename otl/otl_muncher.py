@@ -43,14 +43,12 @@ def to_target(pre_target: PreTarget) -> Target:
 def otl_to_command_list(test_list: str, all_rules: Dict[str, DocumentedTarget]) -> List[Command]:
     yaml_content = open(test_list).read()
     rule_inst = yaml.safe_load(yaml_content)
-    print(rule_inst)
     # NOTE: semantically we split up validation of the otl file -> converting to target objects -> generating a command list
     # while dependency based
     yaml_targets = [SerYamlTarget(**target) for target in rule_inst]
     pre_targets = {
         target.name: populate_rule_args(target.name, target, all_rules) for target in yaml_targets
     }
-
     inst_rules = {
         name: to_target(pre_target) for name, pre_target in pre_targets.items()
     }

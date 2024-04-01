@@ -1,0 +1,43 @@
+---
+slug: /
+sidebar_position: 1
+title: Home
+hide_title: true
+---
+
+<div align="center">
+  <img id="logo" src="/img/logo.svg" height="250px" width="250px" />
+</div>
+<br />
+
+OTL is a task and test runner that aims to be a simple framework to declare, execute and analyze tests; OTL was designed specifically designed to make the testing of digital circuits simple.
+
+Once [installed](/installation), you just need to describe your tasks
+using a simple [YAML][yaml] schema in a file called `test.otl`:
+
+```yaml title="test.otl"
+version: "3"
+
+- name: say_hey
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - echo "hey"
+```
+
+And call it by running `otl-cli execute test.otl` from your terminal.
+
+The above example is just the start, you can take a look at the [usage](/usage)
+guide to check the full schema documentation and Task features.
+
+## Features
+
+- [Gradual adoption](/adoption): Gradually move your tests and build into OTL
+- [Extensible](/writing-rules): Define your tests with a simple python interface
+- [Programatic test generation](/python-api): Programatically generate tests with python!Spin up 1000s of tests with 10 lines of code
+- [Run anywhere](/runners): Launch tests locally, in the cloud, dispatch them to SLURM or LSF.
+
+{/* prettier-ignore-start */}
+[make]: https://www.gnu.org/software/make/
+[yaml]: http://yaml.org/
+{/* prettier-ignore-end */}

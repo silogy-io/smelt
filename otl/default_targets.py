@@ -6,7 +6,7 @@ from typing import List, Dict
 
 
 @dataclass
-class passthrough_bash(Target):
+class raw_bash(Target):
     """
     Simple target for embedding raw bash commands in Otl
 
@@ -15,7 +15,7 @@ class passthrough_bash(Target):
         * ${OTL_ROOT}: the root of the otl-workspace -- by default, this will be ${GIT_ROOT}/otl
         * ${TARGET_ROOT}: the working space of the current target
     """
-    script: List[str] = field(default_factory=list)
+    cmds: List[str] = field(default_factory=list)
     outputs: Dict[str, str] = field(default_factory=dict)
 
     def gen_script(self) -> List[str]:
