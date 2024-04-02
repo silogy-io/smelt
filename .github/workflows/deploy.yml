@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
           cache: yarn
-          cache-dependency-path: "./website/yarn."
+          cache-dependency-path: "./website/yarn.lock"
 
 
       - name: Install dependencies
