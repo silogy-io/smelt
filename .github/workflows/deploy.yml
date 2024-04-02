@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
           cache: yarn
-          cache-dependency-path: "./website/yarn.lock"
+          cache-dependency-path: "./website/yarn."
 
 
       - name: Install dependencies
@@ -36,7 +36,7 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build
+          path: ./website/build
 
   deploy:
     name: Deploy to GitHub Pages
