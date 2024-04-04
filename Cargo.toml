@@ -11,3 +11,6 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = "0.20.0"
 dice = {git = "https://github.com/facebook/buck2", branch="main"}
+thiserror = "1.0.58"
+serde = "1.0.197"
+serde_yaml = "0.9.34"

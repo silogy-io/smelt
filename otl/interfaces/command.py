@@ -15,16 +15,16 @@ class Command:
     depdenencies: CommandRef
     outputs: List[str]
     runtime: RuntimeRequirements
-    runtime_env: Dict[str, str]
 
     @classmethod
-    def from_target(cls, target: Target):
+    def from_target(cls, target: Target, default_root: str):
         name = target.name
         target_type = target.rule_type().value
         script = target.gen_script()
         runtime = target.runtime_requirements()
-        runtime_env = target.runtime_env_vars()
         dependencies = target.dependencies()
+        default_env = target.required_runtime_env_vars(default_root)
+        runtime.env.update(default_env)
 
         outputs = list(map(lambda path: str(path),
                            target.get_outputs().values()))
@@ -34,7 +34,6 @@ class Command:
             target_type=target_type,
             script=script,
             runtime=runtime,
-            runtime_env=runtime_env,
             depdenencies=dependencies,
             outputs=outputs,
         )
