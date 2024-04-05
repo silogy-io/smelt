@@ -3,6 +3,7 @@ from typing_extensions import Annotated
 from pathlib import Path
 import typer
 import yaml
+import cweb
 
 from otl.rc import OtlRC
 from otl.importer import get_all_targets
@@ -70,7 +71,8 @@ def munch(otl_file: TlPath, output: CommandPath = "command.yaml", help="Converts
     typer.echo(f"Validating: {otl_file}")
     otlrc = OtlRC.try_load()
     targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(test_list=otl_file, all_rules=targets)
+    commands = otl_to_command_list(
+        test_list=otl_file, all_rules=targets, rc=otlrc)
     yaml.dump(commands, open(output, 'w'),
               Dumper=SafeDataclassDumper, sort_keys=False)
 
@@ -79,7 +81,8 @@ def munch(otl_file: TlPath, output: CommandPath = "command.yaml", help="Converts
 def execute(otl_file: TlPath, help="Goes through the entireflow, from otl file to executing a command list"):
     otlrc = OtlRC.try_load()
     targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(test_list=otl_file, all_rules=targets)
+    commands = otl_to_command_list(
+        test_list=otl_file, all_rules=targets, rc=otlrc)
     execute_command_list(commands, otlrc)
 
 

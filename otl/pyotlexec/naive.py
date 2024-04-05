@@ -10,17 +10,8 @@ from otl.path_utils import get_git_root
 from otl.interfaces.command import CResult, Command
 
 
-def default_environment(rc: OtlRC, command: Command) -> Dict[str, str]:
-    git_root = get_git_root()
-    otl_root = f"{git_root}/{rc.otl_default_root}"
-    target_root = f"{otl_root}/{command.name}"
-
-    return dict(GIT_ROOT=git_root, OTL_ROOT=otl_root,
-                TARGET_ROOT=target_root)
-
-
-def create_scaffolding(rc: OtlRC, command: Command):
-    env = default_environment(rc, command)
+def create_scaffolding(command: Command):
+    env = command.runtime.env
     working_dir = Path(env['TARGET_ROOT'])
     script_file = working_dir / "command.sh"
     working_dir.mkdir(parents=True, exist_ok=True)
@@ -32,8 +23,8 @@ def create_scaffolding(rc: OtlRC, command: Command):
     return working_dir, script_file
 
 
-def execute_command(rc: OtlRC, command: Command) -> CResult:
-    working_dir, script_file = create_scaffolding(rc, command)
+def execute_command(command: Command) -> CResult:
+    working_dir, script_file = create_scaffolding(command)
     log_file = working_dir / "command.log"
     with log_file.open('w') as f:
         start_time = time.time()

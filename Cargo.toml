@@ -1,0 +1,24 @@
+[package]
+name = "cweb"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "cweb"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.20.0"
+dice = {git = "https://github.com/facebook/buck2", branch="main"}
+allocative = {git = "https://github.com/facebook/buck2", branch="main"}
+dupe = {git = "https://github.com/facebook/buck2", branch="main"}
+
+thiserror = "1.0.58"
+serde = "1.0.197"
+serde_yaml = "0.9.34"
+tokio = "1.37.0"
+futures = "0.3.30"
+
+derive_more = "0.99.17"
+async-trait = "0.1.79"
