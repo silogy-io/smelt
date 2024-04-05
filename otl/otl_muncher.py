@@ -6,6 +6,7 @@ from otl.importer import DocumentedTarget, get_all_targets
 from otl.interfaces import Target, Command
 from otl.rc import OtlRC
 from otl.path_utils import get_git_root
+from otl.pygraph import PyGraph
 
 
 class SerYamlTarget(BaseModel):
@@ -41,7 +42,6 @@ def to_target(pre_target: PreTarget) -> Target:
     return pre_target.target_typ(**pre_target.rule_args)
 
 
-
 def otl_to_command_list(test_list: str, all_rules: Dict[str, DocumentedTarget], rc: OtlRC) -> List[Command]:
     yaml_content = open(test_list).read()
     rule_inst = yaml.safe_load(yaml_content)
@@ -58,3 +58,8 @@ def otl_to_command_list(test_list: str, all_rules: Dict[str, DocumentedTarget], 
     command_list = [Command.from_target(otl_target, default_root=rc.otl_default_root)
                     for otl_target in inst_rules.values()]
     return command_list
+
+
+def otl_parse(test_list: str, all_rules: Dict[str, DocumentedTarget], rc: OtlRC) -> PyGraph:
+    command_list = otl_to_command_list(test_list, all_rules, rc)
+    return PyGraph.from_command_list(command_list)

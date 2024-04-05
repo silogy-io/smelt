@@ -1,4 +1,4 @@
-from typing import List, Dict, Literal
+from typing import List, Literal
 from enum import Enum
 from otl.interfaces.runtime import RuntimeRequirements
 from otl.interfaces.target import OtlTargetType, Target
