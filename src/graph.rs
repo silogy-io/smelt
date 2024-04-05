@@ -63,7 +63,9 @@ impl Key for CommandRef {
         let val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        execute_command(self.0.as_ref()).await.map_err(|err| Arc::new(err))
+        execute_command(self.0.as_ref())
+            .await
+            .map_err(|err| Arc::new(err))
     }
 
     fn equality(x: &Self::Value, y: &Self::Value) -> bool {
