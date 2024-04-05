@@ -9,7 +9,7 @@
   target_type: test
   script:
     - echo "hello world"
-  depdenencies: []
+  dependencies: []
   outputs:
     - spi_seed_1000.log
   runtime:
@@ -21,7 +21,7 @@
   target_type: test
   script:
     - echo "hello world"
-  depdenencies: []
+  dependencies: []
   outputs:
     - spi_seed_1500.log
   runtime:
@@ -33,7 +33,7 @@
   target_type: test
   script:
     - echo "hello world"
-  depdenencies: []
+  dependencies: []
   outputs:
     - spi_seed_2000.log
   runtime:
