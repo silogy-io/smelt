@@ -4,8 +4,8 @@ use allocative::Allocative;
 use derive_more::Display;
 use dupe::Dupe;
 
-use std::{fmt, io::Read, path::Path, sync::Arc};
-use tokio::io::AsyncWrite;
+use std::{fmt, path::Path, sync::Arc};
+
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::error::OtlErr;
@@ -88,21 +88,21 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
     let stdout_file = working_dir.join("command.out");
     tokio::fs::create_dir_all(&working_dir).await?;
     let mut file = File::create(&script_file).await?;
-    let mut stderr = File::create(&stderr_file).await?;
-    let mut stdout = File::create(&stdout_file).await?;
+    let stderr = File::create(&stderr_file).await?;
+    let stdout = File::create(&stdout_file).await?;
 
     let mut buf: Vec<u8> = Vec::new();
 
     use std::io::Write;
     for (env_name, env_val) in env.iter() {
-        writeln!(buf, "export {}={}", env_name, env_val);
+        writeln!(buf, "export {}={}", env_name, env_val)?;
     }
 
     for script_line in &command.script {
         writeln!(buf, "{}", script_line)?;
     }
 
-    file.write_all(&mut buf);
+    file.write_all(&mut buf).await?;
     file.flush().await?;
 
     let mut command = tokio::process::Command::new("bash");

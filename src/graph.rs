@@ -11,12 +11,10 @@ use futures::{
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{collections::BTreeMap, error::Error, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
-    command::{
-        execute_command, Command, CommandOutput, CommandScript, CommandScriptInner, TargetType,
-    },
+    command::{execute_command, Command, CommandOutput, TargetType},
     error::OtlErr,
 };
 use async_trait::async_trait;
@@ -62,7 +60,7 @@ impl Key for CommandRef {
     async fn compute(
         &self,
         ctx: &mut DiceComputations,
-        cancellations: &CancellationContext,
+        _cancellations: &CancellationContext,
     ) -> Self::Value {
         let deps = self.0.script.as_slice();
         let command_deps = get_command_deps(ctx, deps).await?;
@@ -79,15 +77,13 @@ impl Key for CommandRef {
                 },
             )
         }));
-        let val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
+        let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        execute_command(self.0.as_ref())
-            .await
-            .map_err(|err| Arc::new(err))
+        execute_command(self.0.as_ref()).await.map_err(Arc::new)
     }
 
-    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+    fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
         false
     }
 }
@@ -96,18 +92,16 @@ async fn get_command_deps(
     ctx: &mut DiceComputations<'_>,
     var: &[String],
 ) -> Result<Vec<CommandRef>, OtlErr> {
-    let futs = ctx.compute_many(var.into_iter().map(|val| {
+    let futs = ctx.compute_many(var.iter().map(|val| {
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupCommand::from_str_ref(val);
-                ctx.compute(&val)
-                    .map_err(|err| OtlErr::DiceFail(err))
-                    .boxed()
+                ctx.compute(&val).map_err(OtlErr::DiceFail).boxed()
             },
         )
     }));
-    let rv = future::join_all(futs).await.into_iter().collect();
-    rv
+
+    future::join_all(futs).await.into_iter().collect()
 }
 
 #[derive(Clone)]
@@ -164,8 +158,8 @@ impl CommandExecutor for DiceComputations<'_> {
                 },
             )
         }));
-        let val = future::join_all(futs).await;
-        val
+
+        future::join_all(futs).await
     }
 }
 
@@ -193,7 +187,7 @@ pub struct CommandGraph {
     all_commands: Vec<CommandRef>,
 }
 impl CommandGraph {
-    async fn create_command_graph(commands: Vec<Command>) -> Result<Self, OtlErr> {
+    pub async fn create_command_graph(commands: Vec<Command>) -> Result<Self, OtlErr> {
         let dice = Dice::builder().build(DetectCycles::Enabled);
         let mut ctx = dice.updater();
         let commands: Vec<CommandRef> = commands
@@ -202,30 +196,30 @@ impl CommandGraph {
             .collect();
         ctx.add_commands(commands.iter().cloned())?;
 
-        let ctx = ctx.commit().await;
+        let _ctx = ctx.commit().await;
         let graph = CommandGraph {
             dice,
             all_commands: commands,
         };
         Ok(graph)
     }
-    async fn run_all_tests(&self) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
+    pub async fn run_all_tests(&self) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
         let refs = self
             .all_commands
             .iter()
+            .filter(|&val| val.0.target_type == TargetType::Test)
             .cloned()
-            .filter(|val| val.0.target_type == TargetType::Test)
             .collect();
 
-        let mut ctx = self.dice.updater();
+        let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
         tx.execute_commands(refs).await
     }
-    async fn run_one_test(
+    pub async fn run_one_test(
         &self,
         test_name: impl Into<String>,
     ) -> Result<CommandOutput, Arc<OtlErr>> {
-        let mut ctx = self.dice.updater();
+        let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
         let command = tx
             .compute(&LookupCommand(Arc::new(test_name.into())))
