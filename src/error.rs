@@ -10,7 +10,7 @@ pub enum OtlErr {
     #[error("unknown error")]
     Unknown,
     #[error("Dice failure {0}")]
-    DiceFail(DiceError),
+    DiceFail(#[from] DiceError),
     #[error("IoError {0}")]
     IoError(#[from] std::io::Error),
 }

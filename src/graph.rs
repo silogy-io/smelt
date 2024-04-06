@@ -1,6 +1,8 @@
 use allocative::Allocative;
 use derive_more::Display;
-use dice::{CancellationContext, DiceComputations, DiceTransactionUpdater, Key};
+use dice::{
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransactionUpdater, Key,
+};
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
@@ -9,11 +11,13 @@ use futures::{
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{error::Error, sync::Arc};
+use std::{collections::BTreeMap, error::Error, sync::Arc};
 
 use crate::{
     error::OtlErr,
-    parser::{execute_command, Command, CommandOutput},
+    parser::{
+        execute_command, Command, CommandOutput, CommandScript, CommandScriptInner, TargetType,
+    },
 };
 use async_trait::async_trait;
 
@@ -21,7 +25,22 @@ use async_trait::async_trait;
 pub struct CommandRef(Arc<Command>);
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
+pub struct QueryCommandRef(Arc<Command>);
+
+#[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct LookupCommand(Arc<String>);
+
+impl From<QueryCommandRef> for CommandRef {
+    fn from(value: QueryCommandRef) -> Self {
+        Self(value.0)
+    }
+}
+
+impl From<CommandRef> for QueryCommandRef {
+    fn from(value: CommandRef) -> Self {
+        Self(value.0)
+    }
+}
 
 impl LookupCommand {
     fn from_str_ref(strref: &String) -> Self {
@@ -30,7 +49,7 @@ impl LookupCommand {
 }
 
 impl InjectedKey for LookupCommand {
-    type Value = Arc<Command>;
+    type Value = CommandRef;
     fn equality(x: &Self::Value, y: &Self::Value) -> bool {
         x == y
     }
@@ -73,6 +92,48 @@ impl Key for CommandRef {
     }
 }
 
+//#[async_trait]
+//impl Key for QueryCommandRef {
+//    type Value = Result<CommandScript, Arc<OtlErr>>;
+//
+//    async fn compute(
+//        &self,
+//        ctx: &mut DiceComputations,
+//        cancellations: &CancellationContext,
+//    ) -> Self::Value {
+//        let deps = self.0.script.as_slice();
+//        let query_command_deps: Vec<QueryCommandRef> = get_command_deps(ctx, deps)
+//            .await?
+//            .into_iter()
+//            .map(|val| val.into())
+//            .collect();
+//
+//        let futs = ctx.compute_many(query_command_deps.into_iter().map(|val| {
+//            DiceComputations::declare_closure(
+//                move |ctx: &mut DiceComputations| -> BoxFuture<Self::Value> {
+//                    ctx.compute(&val)
+//                        .map(|computed_val| match computed_val {
+//                            Ok(val) => val,
+//                            Err(err) => Err(Arc::new(OtlErr::DiceFail(err))),
+//                        })
+//                        .boxed()
+//                },
+//            )
+//        }));
+//        let deps: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect()?;
+//        //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
+//        //specifically, if build targets fail -- this would be Bad and should cause an abort
+//        let script = CommandScript(Arc::new(CommandScriptInner {
+//            script
+//
+//        }));
+//    }
+//
+//    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+//        false
+//    }
+//}
+
 //async fn lookup_unit(ctx: &mut DiceComputations<'_>, var: &Var) -> anyhow::Result<Arc<Equation>> {
 //    Ok(ctx.compute(&LookupVar(var.clone())).await?)
 //}
@@ -81,23 +142,11 @@ async fn get_command_deps(
     ctx: &mut DiceComputations<'_>,
     var: &[String],
 ) -> Result<Vec<CommandRef>, OtlErr> {
-    //let futs = ctx.compute_many(units.iter().map(|unit| {
-    //    DiceComputations::declare_closure(
-    //        move |ctx: &mut DiceComputations| -> BoxFuture<Result<i64, Arc<anyhow::Error>>> {
-    //            match unit {
-    //                Unit::Var(var) => ctx.eval(var.clone()).boxed(),
-    //                Unit::Literal(lit) => futures::future::ready(Ok(*lit)).boxed(),
-    //            }
-    //        },
-    //    )
-    //}));
-
     let futs = ctx.compute_many(var.into_iter().map(|val| {
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupCommand::from_str_ref(val);
                 ctx.compute(&val)
-                    .map_ok(|val| CommandRef(val))
                     .map_err(|err| OtlErr::DiceFail(err))
                     .boxed()
             },
@@ -121,12 +170,113 @@ pub trait CommandSetter {
     ) -> Result<(), OtlErr>;
 }
 
-//impl CommandSetter for DiceTransactionUpdater {
-//    fn add_command(&mut self, command: CommandRef) -> Result<(), OtlErr> {
-//
-//    }
-//}
+#[async_trait]
+pub trait CommandExecutor {
+    async fn execute_command(
+        &mut self,
+        command_name: &CommandRef,
+    ) -> Result<CommandOutput, Arc<OtlErr>>;
 
-fn execute_commands(commands: Vec<Command>) -> Result<(), OtlErr> {
-    Ok(())
+    async fn execute_commands(
+        &mut self,
+        command_name: Vec<CommandRef>,
+    ) -> Vec<Result<CommandOutput, Arc<OtlErr>>>;
+}
+
+#[async_trait]
+impl CommandExecutor for DiceComputations<'_> {
+    async fn execute_command(
+        &mut self,
+        command: &CommandRef,
+    ) -> Result<CommandOutput, Arc<OtlErr>> {
+        match self.compute(command).await {
+            Ok(val) => val,
+            Err(dicey) => Err(Arc::new(OtlErr::DiceFail(dicey))),
+        }
+    }
+    async fn execute_commands(
+        &mut self,
+        commands: Vec<CommandRef>,
+    ) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
+        let futs = self.compute_many(commands.into_iter().map(|val| {
+            DiceComputations::declare_closure(
+                move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandOutput, Arc<OtlErr>>> {
+                    ctx.compute(&val)
+                        .map(|computed_val| match computed_val {
+                            Ok(val) => val,
+                            Err(err) => Err(Arc::new(OtlErr::DiceFail(err))),
+                        })
+                        .boxed()
+                },
+            )
+        }));
+        let val = future::join_all(futs).await;
+        val
+    }
+}
+
+impl CommandSetter for DiceTransactionUpdater {
+    fn add_command(&mut self, command: CommandRef) -> Result<(), OtlErr> {
+        let lookup = LookupCommand::from_str_ref(&command.0.name);
+
+        self.changed_to(vec![(lookup, command)])?;
+        Ok(())
+    }
+
+    fn add_commands(
+        &mut self,
+        commands: impl IntoIterator<Item = CommandRef>,
+    ) -> Result<(), OtlErr> {
+        for command in commands {
+            self.add_command(command)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct CommandGraph {
+    dice: Arc<Dice>,
+    all_commands: Vec<CommandRef>,
+}
+impl CommandGraph {
+    async fn create_command_graph(commands: Vec<Command>) -> Result<Self, OtlErr> {
+        let dice = Dice::builder().build(DetectCycles::Enabled);
+        let mut ctx = dice.updater();
+        let commands: Vec<CommandRef> = commands
+            .into_iter()
+            .map(|val| CommandRef(Arc::new(val)))
+            .collect();
+        ctx.add_commands(commands.iter().cloned())?;
+
+        let ctx = ctx.commit().await;
+        let graph = CommandGraph {
+            dice,
+            all_commands: commands,
+        };
+        Ok(graph)
+    }
+    async fn run_all_tests(&self) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
+        let refs = self
+            .all_commands
+            .iter()
+            .cloned()
+            .filter(|val| val.0.target_type == TargetType::Test)
+            .collect();
+
+        let mut ctx = self.dice.updater();
+        let mut tx = ctx.commit().await;
+        tx.execute_commands(refs).await
+    }
+    async fn run_one_test(
+        &self,
+        test_name: impl Into<String>,
+    ) -> Result<CommandOutput, Arc<OtlErr>> {
+        let mut ctx = self.dice.updater();
+        let mut tx = ctx.commit().await;
+        let command = tx
+            .compute(&LookupCommand(Arc::new(test_name.into())))
+            .await
+            .map_err(|val| Arc::new(OtlErr::DiceFail(val)))?;
+        tx.execute_command(&command).await
+    }
 }

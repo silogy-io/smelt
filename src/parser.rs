@@ -71,6 +71,15 @@ pub struct CommandOutput {
     status_code: i32,
 }
 
+#[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
+pub struct CommandScript(Arc<CommandScriptInner>);
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Allocative)]
+pub(crate) struct CommandScriptInner {
+    script: Vec<String>,
+    deps: Vec<CommandScript>,
+}
+
 pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr> {
     let env = &command.runtime.env;
     let working_dir = Path::new(&env["TARGET_ROOT"]);
