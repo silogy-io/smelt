@@ -14,10 +14,10 @@ use futures::FutureExt;
 use std::{collections::BTreeMap, error::Error, sync::Arc};
 
 use crate::{
-    error::OtlErr,
-    parser::{
+    command::{
         execute_command, Command, CommandOutput, CommandScript, CommandScriptInner, TargetType,
     },
+    error::OtlErr,
 };
 use async_trait::async_trait;
 
@@ -91,52 +91,6 @@ impl Key for CommandRef {
         false
     }
 }
-
-//#[async_trait]
-//impl Key for QueryCommandRef {
-//    type Value = Result<CommandScript, Arc<OtlErr>>;
-//
-//    async fn compute(
-//        &self,
-//        ctx: &mut DiceComputations,
-//        cancellations: &CancellationContext,
-//    ) -> Self::Value {
-//        let deps = self.0.script.as_slice();
-//        let query_command_deps: Vec<QueryCommandRef> = get_command_deps(ctx, deps)
-//            .await?
-//            .into_iter()
-//            .map(|val| val.into())
-//            .collect();
-//
-//        let futs = ctx.compute_many(query_command_deps.into_iter().map(|val| {
-//            DiceComputations::declare_closure(
-//                move |ctx: &mut DiceComputations| -> BoxFuture<Self::Value> {
-//                    ctx.compute(&val)
-//                        .map(|computed_val| match computed_val {
-//                            Ok(val) => val,
-//                            Err(err) => Err(Arc::new(OtlErr::DiceFail(err))),
-//                        })
-//                        .boxed()
-//                },
-//            )
-//        }));
-//        let deps: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect()?;
-//        //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
-//        //specifically, if build targets fail -- this would be Bad and should cause an abort
-//        let script = CommandScript(Arc::new(CommandScriptInner {
-//            script
-//
-//        }));
-//    }
-//
-//    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
-//        false
-//    }
-//}
-
-//async fn lookup_unit(ctx: &mut DiceComputations<'_>, var: &Var) -> anyhow::Result<Arc<Equation>> {
-//    Ok(ctx.compute(&LookupVar(var.clone())).await?)
-//}
 
 async fn get_command_deps(
     ctx: &mut DiceComputations<'_>,
