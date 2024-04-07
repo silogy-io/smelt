@@ -4,7 +4,11 @@ use allocative::Allocative;
 use derive_more::Display;
 use dupe::Dupe;
 
-use std::{fmt, path::Path, sync::Arc};
+use std::{
+    fmt,
+    path::{self, Path, PathBuf},
+    sync::Arc,
+};
 
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -17,6 +21,12 @@ pub struct Command {
     pub dependencies: Vec<String>,
     pub outputs: Vec<String>,
     pub runtime: Runtime,
+}
+
+impl Command {
+    fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
+        Ok(std::env::current_dir().map(|val| val.join("otl-out").join(&self.name))?)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
@@ -68,7 +78,7 @@ impl fmt::Display for Runtime {
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandOutput {
-    status_code: i32,
+    pub(crate) status_code: i32,
 }
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
@@ -82,7 +92,11 @@ pub(crate) struct CommandScriptInner {
 
 pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr> {
     let env = &command.runtime.env;
-    let working_dir = Path::new(&env["TARGET_ROOT"]);
+    let working_dir = env
+        .get("TARGET_ROOT")
+        .map(|path| PathBuf::from(path))
+        .unwrap_or_else(|| command.default_target_root().unwrap());
+
     let script_file = working_dir.join("command.sh");
     let stderr_file = working_dir.join("command.err");
     let stdout_file = working_dir.join("command.out");

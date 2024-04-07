@@ -1,8 +1,10 @@
-
+use std::sync::Arc;
 
 use allocative::Allocative;
 use dice::DiceError;
 
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::PyErr;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,6 +15,8 @@ pub enum OtlErr {
     DiceFail(#[from] DiceError),
     #[error("IoError {0}")]
     IoError(#[from] std::io::Error),
+    #[error("IoError {0}")]
+    SerdeError(#[from] serde_yaml::Error),
 }
 
 impl Allocative for OtlErr {
@@ -20,4 +24,16 @@ impl Allocative for OtlErr {
         let vis = visitor.enter_self(&self);
         vis.exit();
     }
+}
+
+impl From<OtlErr> for PyErr {
+    fn from(otl_err: OtlErr) -> Self {
+        let otl_string = otl_err.to_string();
+        PyRuntimeError::new_err(otl_string)
+    }
+}
+
+pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
+    let otl_string = otl_err.to_string();
+    PyRuntimeError::new_err(otl_string)
 }

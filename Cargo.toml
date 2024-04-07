@@ -9,7 +9,7 @@ name = "cweb"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.20.0"
+pyo3 = "0.21.1"
 dice = {git = "https://github.com/facebook/buck2", branch="main"}
 allocative = {git = "https://github.com/facebook/buck2", branch="main"}
 dupe = {git = "https://github.com/facebook/buck2", branch="main"}

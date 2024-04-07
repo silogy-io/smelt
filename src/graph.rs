@@ -62,7 +62,7 @@ impl Key for CommandRef {
         ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
-        let deps = self.0.script.as_slice();
+        let deps = self.0.dependencies.as_slice();
         let command_deps = get_command_deps(ctx, deps).await?;
 
         let futs = ctx.compute_many(command_deps.into_iter().map(|val| {
@@ -119,7 +119,7 @@ pub trait CommandSetter {
 }
 
 #[async_trait]
-pub trait CommandExecutor {
+pub trait LocalCommandExecutor {
     async fn execute_command(
         &mut self,
         command_name: &CommandRef,
@@ -132,7 +132,7 @@ pub trait CommandExecutor {
 }
 
 #[async_trait]
-impl CommandExecutor for DiceComputations<'_> {
+impl LocalCommandExecutor for DiceComputations<'_> {
     async fn execute_command(
         &mut self,
         command: &CommandRef,
@@ -187,7 +187,12 @@ pub struct CommandGraph {
     all_commands: Vec<CommandRef>,
 }
 impl CommandGraph {
-    pub async fn create_command_graph(commands: Vec<Command>) -> Result<Self, OtlErr> {
+    pub async fn from_commands_str(commands: impl AsRef<str>) -> Result<Self, OtlErr> {
+        let commands: Vec<Command> = serde_yaml::from_str(commands.as_ref())?;
+        Self::new(commands).await
+    }
+
+    pub async fn new(commands: Vec<Command>) -> Result<Self, OtlErr> {
         let dice = Dice::builder().build(DetectCycles::Enabled);
         let mut ctx = dice.updater();
         let commands: Vec<CommandRef> = commands
@@ -201,6 +206,7 @@ impl CommandGraph {
             dice,
             all_commands: commands,
         };
+
         Ok(graph)
     }
     pub async fn run_all_tests(&self) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
@@ -226,5 +232,47 @@ impl CommandGraph {
             .await
             .map_err(|val| Arc::new(OtlErr::DiceFail(val)))?;
         tx.execute_command(&command).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_yaml;
+
+    async fn execute_all_tests_in_file(yaml_data: &str) {
+        let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
+
+        let script = script.unwrap();
+        let graph = CommandGraph::new(script).await.unwrap();
+        let results = graph.run_all_tests().await;
+        for result in results {
+            match result {
+                Ok(out) => {
+                    assert_eq!(out.status_code, 0)
+                }
+                Err(err) => {
+                    panic!("Seeing error {:?}", err);
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn dependency_less_exec() {
+        let yaml_data = include_str!("../test_data/command_lists/cl1.yaml");
+        execute_all_tests_in_file(yaml_data).await
+    }
+
+    #[tokio::test]
+    async fn test_with_deps() {
+        let yaml_data = include_str!("../test_data/command_lists/cl2.yaml");
+        execute_all_tests_in_file(yaml_data).await
+    }
+
+    #[tokio::test]
+    async fn test_with_intraphase_deps() {
+        let yaml_data = include_str!("../test_data/command_lists/cl3.yaml");
+        execute_all_tests_in_file(yaml_data).await
     }
 }
