@@ -10,7 +10,7 @@ from otl.path_utils import get_git_root
 class OtlTargetType(Enum):
     Test = "test"
     Stimulus = "stimulus"
-    Build = "build"
+    Simulator = "simulator"
 
 
 TargetRef = str
@@ -24,7 +24,7 @@ class Target(ABC):
         return {}
 
     def gen_script(self) -> List[str]:
-        ...
+        raise NotImplemented
 
     @staticmethod
     def rule_type() -> OtlTargetType:

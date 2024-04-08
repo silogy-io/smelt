@@ -3,7 +3,6 @@ from typing_extensions import Annotated
 from pathlib import Path
 import typer
 import yaml
-import cweb
 
 from otl.rc import OtlRC
 from otl.importer import get_all_targets

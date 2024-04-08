@@ -1,21 +1,18 @@
-version: 0.2
-
-
-simulator_prebuilt_compile:
-  rule: passthrough_bash
+- name: simulator_prebuilt_compile
+  rule: raw_bash
   rule_args:
     script:
       - "cp ${GIT_ROOT}/build/simulator ${TEST_ROOT}"
     outputs:
       simulator: "simulator"
     
-pointer_chase_32kb_compile: 
+- name: pointer_chase_32kb_compile
   rule: compile_cpp_microbenchmark
   rule_args: 
     benchmark: "path_to_cpp.cpp"
     compile_args: "-DSIZE=1 -DDOG" 
 
-pointer_chase_32kb_run:
+- name: pointer_chase_32kb_run
   rule: run_binary
   rule_args:
     simulator: simulator_prebuilt_compile

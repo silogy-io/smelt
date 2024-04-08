@@ -43,7 +43,7 @@ def execute_command_list(commands: List[Command], rc: OtlRC) -> List[CResult]:
     and will bark if you try to pass it any
     """
     for command in commands:
-        if len(command.depdenencies) != 0:
+        if len(command.dependencies) != 0:
             raise RuntimeError(
                 "We don't support depdenencies for the naive executor! File an issue against james@silogy.io about this")
 

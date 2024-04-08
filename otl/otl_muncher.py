@@ -33,7 +33,7 @@ def populate_rule_args(
         # Prints out all rules that are visible
         # Point to the location where end users can create new rules
         raise RuntimeError(
-            f"Rule named {rule_payload.target} has not been created!")
+            f"Rule named {rule_payload.rule} has not been created!")
     target_type = all_rules[rule_payload.rule]['target']
     return PreTarget(target_typ=target_type, rule_args=rule_payload.rule_args)
 
