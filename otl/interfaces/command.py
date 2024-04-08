@@ -12,7 +12,7 @@ class Command:
     name: str
     target_type: OtlTargetType
     script: List[str]
-    depdenencies: CommandRef
+    dependencies: CommandRef
     outputs: List[str]
     runtime: RuntimeRequirements
 
@@ -34,7 +34,7 @@ class Command:
             target_type=target_type,
             script=script,
             runtime=runtime,
-            depdenencies=dependencies,
+            dependencies=dependencies,
             outputs=outputs,
         )
 

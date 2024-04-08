@@ -1,7 +1,7 @@
 
 
 from dataclasses import dataclass, field
-from otl.interfaces import Target, OtlPath
+from otl.interfaces import Target, OtlPath, OtlTargetType
 from typing import List, Dict
 
 
@@ -19,7 +19,7 @@ class raw_bash(Target):
     outputs: Dict[str, str] = field(default_factory=dict)
 
     def gen_script(self) -> List[str]:
-        return self.script
+        return self.cmds
 
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {out_name: OtlPath.abs_path(out_path) for out_name, out_path in self.outputs.items()}
@@ -53,3 +53,16 @@ class process_run_spi(Target):
 
     def dependencies(self) -> List[Target]:
         return [self.spi_ref_path]
+
+
+@dataclass
+class raw_bash_simulator(Target):
+    name: str
+    cmds: List[str] = field(default_factory=list)
+
+    @staticmethod
+    def rule_type() -> OtlTargetType:
+        return OtlTargetType.Simulator
+
+    def gen_script(self) -> List[str]:
+        return self.cmds
