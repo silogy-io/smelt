@@ -1,8 +1,8 @@
 from typing import Dict, List
 from otl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
-from cweb import SyncCommandGraph
-import json
+from otl.otl import SyncCommandGraph
+import yaml
 
 
 @dataclass
@@ -32,8 +32,7 @@ class PyGraph:
         self.run_one_test(name)
 
     def run_all_tests(self):
-        self.run_all_tests()
-
+        self.rsgraph.run_all_tests()
 
     @classmethod
     def from_command_list(cls, commands: List[Command]):
@@ -42,6 +41,8 @@ class PyGraph:
             rv[tar_typ] = []
         for command in commands:
             rv[command.target_type].append(command)
-        commands_as_str = json.dumps(commands)
+
+        commands_as_str = yaml.safe_dump(
+            [command.to_dict() for command in commands])
         graph = SyncCommandGraph(commands_as_str)
-        return cls(target=rv, rsgraph=graph)
+        return cls(targets=rv, rsgraph=graph)

@@ -19,7 +19,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn cweb(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
+fn otl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
     m.add_class::<PyCommandOutput>()?;
     m.add_class::<SyncCommandGraph>()?;

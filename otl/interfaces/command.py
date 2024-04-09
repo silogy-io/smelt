@@ -1,4 +1,4 @@
-from typing import List, Literal
+from typing import List, Literal, Dict, Any
 from enum import Enum
 from otl.interfaces.runtime import RuntimeRequirements
 from otl.interfaces.target import OtlTargetType, Target
@@ -12,7 +12,7 @@ class Command:
     name: str
     target_type: OtlTargetType
     script: List[str]
-    depdenencies: List[CommandRef]
+    dependencies: List[CommandRef]
     outputs: List[str]
     runtime: RuntimeRequirements
 
@@ -37,6 +37,29 @@ class Command:
             dependencies=dependencies,
             outputs=outputs,
         )
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        name = data['name']
+        target_type = OtlTargetType(data['target_type'])
+        script = data['script']
+        dependencies = data['dependencies']
+        outputs = data['outputs']
+        runtime = RuntimeRequirements.from_dict(data['runtime'])
+
+        return cls(
+            name=name,
+            target_type=target_type,
+            script=script,
+            dependencies=dependencies,
+            outputs=outputs,
+            runtime=runtime,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        rv = asdict(self)
+        rv['target_type'] = self.target_type.value
+        return rv
 
 
 class CStatus(Enum):

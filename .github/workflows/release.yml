@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist/cweb-*
+          gh release upload "$version" dist/otl-*
 
 
 
@@ -127,7 +127,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist/cweb-*
+          gh release upload "$version" dist/otl-*
 
   sdist:
     runs-on: ubuntu-latest
