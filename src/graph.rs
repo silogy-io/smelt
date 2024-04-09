@@ -20,7 +20,7 @@ use crate::{
 use async_trait::async_trait;
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
-pub struct CommandRef(Arc<Command>);
+pub struct CommandRef(pub(crate) Arc<Command>);
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct QueryCommandRef(Arc<Command>);
@@ -184,7 +184,7 @@ impl CommandSetter for DiceTransactionUpdater {
 
 pub struct CommandGraph {
     dice: Arc<Dice>,
-    all_commands: Vec<CommandRef>,
+    pub(crate) all_commands: Vec<CommandRef>,
 }
 impl CommandGraph {
     pub async fn from_commands_str(commands: impl AsRef<str>) -> Result<Self, OtlErr> {

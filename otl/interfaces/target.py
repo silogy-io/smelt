@@ -24,7 +24,7 @@ class Target(ABC):
         return {}
 
     def gen_script(self) -> List[str]:
-        raise NotImplemented
+        raise NotImplementedError
 
     @staticmethod
     def rule_type() -> OtlTargetType:
