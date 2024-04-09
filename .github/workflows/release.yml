@@ -7,10 +7,8 @@ name: wheelbuild
 
 on:
   push:
-    branches:
-      - graph2
-        #tags:
-        #  - "[0-9]+.[0-9]+.[0-9]+"
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
   workflow_dispatch:
 
@@ -24,7 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get the release version from the tag
-        if: env.VERSION == ''
+        if:
+          env.VERSION == ''
           #run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
         run: echo "VERSION=0.0.0" >> $GITHUB_ENV
       - name: Show the version
@@ -57,7 +56,8 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: "true"
-          manylinux: auto
+          manylinux:
+            auto
             # - name: Upload wheels
             #   uses: actions/upload-artifact@v4
             #   with:
@@ -115,7 +115,8 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
-          sccache: "true"
+          sccache:
+            "true"
             #- name: Upload wheels
             #  uses: actions/upload-artifact@v4
             #  with:
@@ -128,9 +129,6 @@ jobs:
         run: |
           version="${{ needs.create-release.outputs.version }}"
           gh release upload "$version" dist/wheels-macos-${{ matrix.target }}
-
-
-
 
   sdist:
     runs-on: ubuntu-latest
