@@ -122,12 +122,12 @@ jobs:
             #    name: wheels-macos-${{ matrix.target }}
             #    path: dist
       - name: Upload release archive
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          shell: bash
-          run: |
-            version="${{ needs.create-release.outputs.version }}"
-            gh release upload "$version" dist/wheels-macos-${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version="${{ needs.create-release.outputs.version }}"
+          gh release upload "$version" dist/wheels-macos-${{ matrix.target }}
 
 
 
