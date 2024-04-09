@@ -71,8 +71,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist/wheels-linux-${{ matrix.target }}
-
+          gh release upload "$version" dist
 
 
 
@@ -128,7 +127,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist/wheels-macos-${{ matrix.target }}
+          gh release upload "$version" dist/cweb-*
 
   sdist:
     runs-on: ubuntu-latest
