@@ -18,31 +18,33 @@ permissions:
   contents: read
 
 jobs:
-  #create-release:
-  #  name: create-release
-  #  runs-on: ubuntu-latest
-  #  steps:
-  #    - uses: actions/checkout@v4
-  #    - name: Get the release version from the tag
-  #      if: env.VERSION == ''
-  #      run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
-  #    - name: Show the version
-  #      run: |
-  #        echo "version is: $VERSION"
-  #    - name: Create GitHub release
-  #      env:
-  #        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #      run: gh release create $VERSION --draft --verify-tag --title $VERSION
-  #  outputs:
-  #    version: ${{ env.VERSION }}
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the release version from the tag
+        if: env.VERSION == ''
+          #run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+        run: echo "VERSION=0.0.0" >> $GITHUB_ENV
+      - name: Show the version
+        run: |
+          echo "version is: $VERSION"
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create $VERSION --draft --verify-tag --title $VERSION
+    outputs:
+      version: ${{ env.VERSION }}
 
   linux:
     runs-on: ubuntu-latest
+    needs: ["create-release"]
+
     strategy:
       matrix:
         #target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
-        #target: [x86_64, x86, aarch64]
-        target: [x86_64]
+        target: [x86_64, x86, aarch64]
 
     steps:
       - uses: actions/checkout@v4
@@ -56,12 +58,23 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: "true"
           manylinux: auto
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-${{ matrix.target }}
-          path:
-            dist
+            # - name: Upload wheels
+            #   uses: actions/upload-artifact@v4
+            #   with:
+            #     name: wheels-linux-${{ matrix.target }}
+            #     path:
+            #       dist
+
+      - name: Upload release archive
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          shell: bash
+          run: |
+            version="${{ needs.create-release.outputs.version }}"
+            gh release upload "$version" dist/wheels-linux-${{ matrix.target }}
+
+
+
 
             #windows:
             #  runs-on: windows-latest
@@ -86,27 +99,38 @@ jobs:
             #        name: wheels-windows-${{ matrix.target }}
             #        path: dist
 
-            #macos:
-            #  runs-on: macos-latest
-            #  strategy:
-            #    matrix:
-            #      target: [x86_64, aarch64]
-            #  steps:
-            #    - uses: actions/checkout@v4
-            #    - uses: actions/setup-python@v5
-            #      with:
-            #        python-version: "3.10"
-            #    - name: Build wheels
-            #      uses: PyO3/maturin-action@v1
-            #      with:
-            #        target: ${{ matrix.target }}
-            #        args: --release --out dist --find-interpreter
-            #        sccache: "true"
-            #    - name: Upload wheels
-            #      uses: actions/upload-artifact@v4
-            #      with:
-            #        name: wheels-macos-${{ matrix.target }}
-            #        path: dist
+  macos:
+    runs-on: macos-latest
+    needs: ["create-release"]
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+          sccache: "true"
+            #- name: Upload wheels
+            #  uses: actions/upload-artifact@v4
+            #  with:
+            #    name: wheels-macos-${{ matrix.target }}
+            #    path: dist
+      - name: Upload release archive
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          shell: bash
+          run: |
+            version="${{ needs.create-release.outputs.version }}"
+            gh release upload "$version" dist/wheels-macos-${{ matrix.target }}
+
+
+
 
   sdist:
     runs-on: ubuntu-latest
