@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist
+          gh release upload "$version" dist/cweb-*
 
 
 
