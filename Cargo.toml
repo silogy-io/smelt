@@ -10,9 +10,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.21.1"
-dice = {git = "https://github.com/facebook/buck2", branch="main"}
-allocative = {git = "https://github.com/facebook/buck2", branch="main"}
-dupe = {git = "https://github.com/facebook/buck2", branch="main"}
+dice = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
+
+
+
+allocative = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
+dupe = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
 
 thiserror = "1.0.58"
 serde = "1.0.197"
