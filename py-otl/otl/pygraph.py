@@ -19,7 +19,7 @@ class PyGraph:
 
     @property
     def build(self):
-        return self.get_test_type(OtlTargetType.Simulator)
+        return self.get_test_type(OtlTargetType.Build)
 
     @property
     def test(self):

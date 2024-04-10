@@ -10,7 +10,7 @@ from otl.path_utils import get_git_root
 class OtlTargetType(Enum):
     Test = "test"
     Stimulus = "stimulus"
-    Simulator = "simulator"
+    Build = "build"
 
 
 TargetRef = str

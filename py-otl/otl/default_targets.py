@@ -68,7 +68,7 @@ class raw_bash_simulator(Target):
 
     @staticmethod
     def rule_type() -> OtlTargetType:
-        return OtlTargetType.Simulator
+        return OtlTargetType.Build
 
     def gen_script(self) -> List[str]:
         return self.cmds
