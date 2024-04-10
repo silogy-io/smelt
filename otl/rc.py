@@ -38,11 +38,11 @@ class OtlRC:
             return cls(
                 otl_default_root=rc_content["otl_default_root"],
                 otl_rules_dir=rc_content["otl_rules_dir"],
-                jobs=rc_content["jobs"]
+                jobs=rc_content["jobs"],
             )
         except toml.TomlDecodeError as exc:
             print(exc)
-            return None
+            raise RuntimeError(exc)
 
     @staticmethod
     def init_rc():
@@ -51,8 +51,7 @@ class OtlRC:
         rc_path = Path(f"{git_root}/.otlrc")
         with open(rc_path, "w") as outfile:
             toml.dump(default.__dict__, outfile)
-        otl_rules_dir = Path(
-            f"{git_root}/{default.otl_rules_dir}").mkdir(exist_ok=True)
+        otl_rules_dir = Path(f"{git_root}/{default.otl_rules_dir}").mkdir(exist_ok=True)
         pprint(f"Initialized .otlrc at {rc_path}")
 
     @property

@@ -10,6 +10,7 @@ class PyGraph:
     """
     Graph that simply sorts commands by their target type
     """
+
     targets: Dict[OtlTargetType, List[Command]]
     rsgraph: SyncCommandGraph
 
@@ -38,11 +39,10 @@ class PyGraph:
     def from_command_list(cls, commands: List[Command]):
         rv = {}
         for tar_typ in OtlTargetType:
-            rv[tar_typ] = []
+            rv[tar_typ.value] = []
         for command in commands:
             rv[command.target_type].append(command)
 
-        commands_as_str = yaml.safe_dump(
-            [command.to_dict() for command in commands])
+        commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         graph = SyncCommandGraph(commands_as_str)
         return cls(targets=rv, rsgraph=graph)

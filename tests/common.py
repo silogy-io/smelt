@@ -10,8 +10,9 @@ def get_test_rc() -> OtlRC:
     otl_rules_dir = "tests/rules"
 
     default_rc = OtlRC.default()
-    test_rc = replace(default_rc, default_jobs=default_jobs,
-                      otl_rules_dir=otl_rules_dir)
+    test_rc = replace(
+        default_rc, default_jobs=default_jobs, otl_rules_dir=otl_rules_dir
+    )
 
     return test_rc
 

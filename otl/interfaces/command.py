@@ -10,7 +10,8 @@ CommandRef = str
 @dataclass
 class Command:
     name: str
-    target_type: OtlTargetType
+    # todo: this really needs to be an otl target type literal, but i am too annoyed at pyright now to figure it out
+    target_type: str
     script: List[str]
     dependencies: List[CommandRef]
     outputs: List[str]
@@ -26,8 +27,7 @@ class Command:
         default_env = target.required_runtime_env_vars(default_root)
         runtime.env.update(default_env)
 
-        outputs = list(map(lambda path: str(path),
-                           target.get_outputs().values()))
+        outputs = list(map(lambda path: str(path), target.get_outputs().values()))
 
         return cls(
             name=name,
@@ -40,12 +40,12 @@ class Command:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
-        name = data['name']
-        target_type = OtlTargetType(data['target_type'])
-        script = data['script']
-        dependencies = data['dependencies']
-        outputs = data['outputs']
-        runtime = RuntimeRequirements.from_dict(data['runtime'])
+        name = data["name"]
+        target_type = data["target_type"]
+        script = data["script"]
+        dependencies = data["dependencies"]
+        outputs = data["outputs"]
+        runtime = RuntimeRequirements.from_dict(data["runtime"])
 
         return cls(
             name=name,
@@ -58,7 +58,7 @@ class Command:
 
     def to_dict(self) -> Dict[str, Any]:
         rv = asdict(self)
-        rv['target_type'] = self.target_type.value
+
         return rv
 
 
@@ -68,8 +68,7 @@ class CStatus(Enum):
     SKIPPED = "skipped"
 
 
-CStatusStr = Literal[CStatus.PASS.value,
-                     CStatus.FAIL.value, CStatus.SKIPPED.value]
+CStatusStr = Literal[CStatus.PASS, CStatus.FAIL, CStatus.SKIPPED]  # ignore
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from abc import ABC
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Literal
 from otl.interfaces.runtime import RuntimeRequirements
 from otl.interfaces.paths import OtlPath
 from otl.path_utils import get_git_root
@@ -35,8 +35,7 @@ class Target(ABC):
         otl_root = f"{git_root}/{default_path}"
         target_root = f"{otl_root}/{self.name}"
 
-        return dict(GIT_ROOT=git_root, OTL_ROOT=otl_root,
-                    TARGET_ROOT=target_root)
+        return dict(GIT_ROOT=git_root, OTL_ROOT=otl_root, TARGET_ROOT=target_root)
 
     def runtime_env_vars(self) -> Dict[str, str]:
         return {}

@@ -1,7 +1,7 @@
 # for each target, the following environment variables will be present
 #  * $GIT_ROOT: root of the git repository
 #  * $OTL_ROOT: root of the otl-out workspace. will be otl-out by default
-#  * $TEST_ROOT: root of the current test directory. by default it will be ${OTL_ROOT}/${TEST_NAME}
+#  * $TEST_ROOT: root of the current test directory. by default, it will be ${OTL_ROOT}/${TEST_NAME}
 #
 
 # each script is executed with cwd=${TEST_ROOT}

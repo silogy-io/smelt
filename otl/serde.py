@@ -7,8 +7,3 @@ class SafeDataclassDumper(yaml.SafeDumper):
         if dataclasses.is_dataclass(data):
             return self.represent_dict(dataclasses.asdict(data))
         return super().represent_data(data)
-
-    
-    
-    
-    

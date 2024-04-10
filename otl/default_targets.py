@@ -1,5 +1,3 @@
-
-
 from dataclasses import dataclass, field
 from otl.interfaces import Target, OtlPath, OtlTargetType
 from typing import List, Dict
@@ -15,6 +13,7 @@ class raw_bash(Target):
         * ${OTL_ROOT}: the root of the otl-workspace -- by default, this will be ${GIT_ROOT}/otl
         * ${TARGET_ROOT}: the working space of the current target
     """
+
     cmds: List[str] = field(default_factory=list)
     outputs: Dict[str, str] = field(default_factory=dict)
 
@@ -22,7 +21,10 @@ class raw_bash(Target):
         return self.cmds
 
     def get_outputs(self) -> Dict[str, OtlPath]:
-        return {out_name: OtlPath.abs_path(out_path) for out_name, out_path in self.outputs.items()}
+        return {
+            out_name: OtlPath.abs_path(out_path)
+            for out_name, out_path in self.outputs.items()
+        }
 
 
 @dataclass
@@ -39,21 +41,19 @@ class run_spi(Target):
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {"log": OtlPath.abs_path(f"{self.name}.log")}
 
-    def gen_script_wavedump(self) -> List[str]:
-        ...
+    def gen_script_wavedump(self) -> List[str]: ...
 
-    def gen_script_verbose(self) -> List[str]:
-        ...
+    def gen_script_verbose(self) -> List[str]: ...
 
 
-@ dataclass
+@dataclass
 class process_run_spi(Target):
-    """
-    """
+    """ """
+
     spi_ref_path: Target
 
     def gen_script(self):
-        path_to_spilog = self.spi_ref.get_outputs()['log']
+        path_to_spilog = self.spi_ref.get_outputs()["log"]
 
         return [f"cat {path_to_spilog}"]
 

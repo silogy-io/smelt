@@ -17,9 +17,11 @@ class RuntimeRequirements:
 
     @classmethod
     def from_dict(cls, indict: dict[str, str]):
-        num_cpus = indict['num_cpus']
-        max_memory_mb = indict['max_memory_mb']
-        timeout = indict['timeout']
-        env = indict['env']
+        num_cpus = indict["num_cpus"]
+        max_memory_mb = indict["max_memory_mb"]
+        timeout = indict["timeout"]
+        env = indict["env"]
 
-        return cls(num_cpus=num_cpus, max_memory_mb=max_memory_mb, timeout=timeout, env=env)
+        return cls(
+            num_cpus=num_cpus, max_memory_mb=max_memory_mb, timeout=timeout, env=env
+        )

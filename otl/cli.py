@@ -1,4 +1,3 @@
-
 from typing_extensions import Annotated
 from pathlib import Path
 import typer
@@ -14,7 +13,7 @@ app = typer.Typer()
 
 
 TlPath = Annotated[
-    Path,
+    str,
     typer.Argument(
         ...,
         exists=True,
@@ -27,7 +26,7 @@ TlPath = Annotated[
 ]
 
 CommandPath = Annotated[
-    Path,
+    str,
     typer.Argument(
         exists=False,
         file_okay=True,
@@ -40,7 +39,7 @@ CommandPath = Annotated[
 
 
 RulePath = Annotated[
-    Path,
+    str,
     typer.Argument(
         ...,
         exists=False,
@@ -59,29 +58,37 @@ def init(rule_path: RulePath = "otl_rules"):
 
 
 @app.command()
-def targets(rule_path: RulePath = "otl_rules", help="Prints out all visibile targets"):
+def targets(
+    rule_path: RulePath = "otl_rules", help="Prints out all visibile targets"
+):
     otlrc = OtlRC.try_load()
     targets = get_all_targets(otlrc)
+
     print(targets)
 
 
-@ app.command()
-def munch(otl_file: TlPath, output: CommandPath = "command.yaml", help="Converts .otl files to a command file"):
+@app.command()
+def munch(
+    otl_file: TlPath,
+    output: CommandPath = "command.yaml",
+    help="Converts .otl files to a command file",
+):
     typer.echo(f"Validating: {otl_file}")
     otlrc = OtlRC.try_load()
+
     targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(
-        test_list=otl_file, all_rules=targets, rc=otlrc)
-    yaml.dump(commands, open(output, 'w'),
-              Dumper=SafeDataclassDumper, sort_keys=False)
+    commands = otl_to_command_list(test_list=otl_file, all_rules=targets, rc=otlrc)
+    yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
 
 
-@ app.command()
-def execute(otl_file: TlPath, help="Goes through the entireflow, from otl file to executing a command list"):
+@app.command()
+def execute(
+    otl_file: TlPath,
+    help="Goes through the entireflow, from otl file to executing a command list",
+):
     otlrc = OtlRC.try_load()
     targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(
-        test_list=otl_file, all_rules=targets, rc=otlrc)
+    commands = otl_to_command_list(test_list=str(otl_file), all_rules=targets, rc=otlrc)
     execute_command_list(commands, otlrc)
 
 
