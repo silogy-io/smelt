@@ -13,11 +13,9 @@ use dice::InjectedKey;
 use futures::FutureExt;
 use std::sync::Arc;
 
-use crate::{
-    command::{execute_command, Command, CommandOutput, TargetType},
-    error::OtlErr,
-};
+use crate::commands::{execute_command, Command, CommandOutput, TargetType};
 use async_trait::async_trait;
+use otl_core::OtlErr;
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandRef(Arc<Command>);
@@ -226,7 +224,7 @@ impl CommandGraph {
         let refs = self
             .all_commands
             .iter()
-            .filter(|&val| val.0.target_type == TargetType::)
+            .filter(|&val| val.0.target_type == TargetType::Build)
             .cloned()
             .collect();
 
@@ -274,19 +272,19 @@ mod tests {
 
     #[tokio::test]
     async fn dependency_less_exec() {
-        let yaml_data = include_str!("../test_data/command_lists/cl1.yaml");
+        let yaml_data = include_str!("../../../test_data/command_lists/cl1.yaml");
         execute_all_tests_in_file(yaml_data).await
     }
 
     #[tokio::test]
     async fn test_with_deps() {
-        let yaml_data = include_str!("../test_data/command_lists/cl2.yaml");
+        let yaml_data = include_str!("../../../test_data/command_lists/cl2.yaml");
         execute_all_tests_in_file(yaml_data).await
     }
 
     #[tokio::test]
     async fn test_with_intraphase_deps() {
-        let yaml_data = include_str!("../test_data/command_lists/cl3.yaml");
+        let yaml_data = include_str!("../../../test_data/command_lists/cl3.yaml");
         execute_all_tests_in_file(yaml_data).await
     }
 }
