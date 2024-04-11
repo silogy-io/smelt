@@ -20,3 +20,4 @@ async-trait = {workspace = true}
 fuzzy-matcher = {workspace = true}
 pythonize = {workspace = true}
 otl-core = {workspace = true}
+serde_json = {workspace = true}

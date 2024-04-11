@@ -24,8 +24,55 @@ pub struct Command {
 }
 
 impl Command {
+    const fn script_file() -> &'static str {
+        "command.sh"
+    }
+
+    const fn stderr_file() -> &'static str {
+        "command.err"
+    }
+
+    const fn stdout_file() -> &'static str {
+        "command.out"
+    }
+
     fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
         Ok(std::env::current_dir().map(|val| val.join("otl-out").join(&self.name))?)
+    }
+
+    fn script_contents(&self) -> impl Iterator<Item = String> + '_ {
+        self.runtime
+            .env
+            .iter()
+            .map(|(env_name, env_val)| format!("export {}={}", env_name, env_val))
+            .chain(self.script.iter().map(|val| val.clone()))
+    }
+
+    fn working_dir(&self) -> Result<PathBuf, OtlErr> {
+        let env = &self.runtime.env;
+        let working_dir = env
+            .get("TARGET_ROOT")
+            .map(|path| PathBuf::from(path))
+            .unwrap_or_else(|| self.default_target_root().unwrap());
+        Ok(working_dir)
+    }
+
+    async fn get_status_from_fs(&self) -> Result<CommandOutput, OtlErr> {
+        if let Ok(working_dir) = self.working_dir() {
+            let val = working_dir
+                .exists()
+                .then(|| working_dir.join("command.status"));
+            if let Some(ile) = val {
+                let val: CommandOutput = tokio::fs::read_to_string(ile)
+                    .await
+                    .map(|val| serde_json::from_str(val.as_str()))??;
+                return Ok(val);
+            } else {
+                Err(OtlErr::CommandCacheMiss)
+            }
+        } else {
+            Err(OtlErr::CommandCacheMiss)
+        }
     }
 }
 
@@ -76,9 +123,27 @@ impl fmt::Display for Runtime {
     }
 }
 
-#[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
+#[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative, Serialize, Deserialize)]
 pub struct CommandOutput {
     pub(crate) status_code: i32,
+}
+
+impl CommandOutput {
+    fn passed(&self) -> bool {
+        self.status_code == 0
+    }
+
+    const fn asfile() -> &'static str {
+        "command.status"
+    }
+    async fn to_file(&self, base_path: &PathBuf) -> Result<(), OtlErr> {
+        let mut command_out = File::create(CommandOutput::asfile()).await?;
+
+        command_out
+            .write(serde_json::to_vec(self)?.as_slice())
+            .await?;
+        Ok(())
+    }
 }
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
@@ -90,6 +155,18 @@ pub(crate) struct CommandScriptInner {
     deps: Vec<CommandScript>,
 }
 
+pub async fn maybe_cache(command: &Command) -> Result<CommandOutput, OtlErr> {
+    if let Ok(command_out) = command.get_status_from_fs().await {
+        if command_out.passed() {
+            return Ok(command_out);
+        }
+    } else {
+        //pass
+    };
+
+    execute_command(command).await
+}
+
 pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr> {
     let env = &command.runtime.env;
     let working_dir = env
@@ -97,9 +174,9 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
         .map(|path| PathBuf::from(path))
         .unwrap_or_else(|| command.default_target_root().unwrap());
 
-    let script_file = working_dir.join("command.sh");
-    let stderr_file = working_dir.join("command.err");
-    let stdout_file = working_dir.join("command.out");
+    let script_file = working_dir.join(Command::script_file());
+    let stderr_file = working_dir.join(Command::stderr_file());
+    let stdout_file = working_dir.join(Command::stdout_file());
     tokio::fs::create_dir_all(&working_dir).await?;
     let mut file = File::create(&script_file).await?;
     let stderr = File::create(&stderr_file).await?;
@@ -125,9 +202,11 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
         .arg(script_file)
         .stdout(stdout.into_std().await)
         .stderr(stderr.into_std().await);
-    Ok(command.status().await.map(|val| CommandOutput {
+    let cstsatus = command.status().await.map(|val| CommandOutput {
         status_code: val.code().unwrap_or(-555),
-    })?)
+    })?;
+    cstsatus.to_file(&working_dir).await?;
+    Ok(cstsatus)
 }
 
 #[cfg(test)]

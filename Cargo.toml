@@ -36,7 +36,7 @@ derive_more = "0.99.17"
 async-trait = "0.1.79"
 fuzzy-matcher = "0.3.7"
 pythonize = "0.21.1"
-
+serde_json = "1.0.115"
 otl-core = { path = "crates/otl-core", default-features = false}
 otl-graph = { path = "crates/otl-graph", default-features = false}
 py-otl = { path = "py-otl", default-features = false}

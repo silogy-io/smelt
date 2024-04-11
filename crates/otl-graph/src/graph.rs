@@ -13,12 +13,21 @@ use dice::InjectedKey;
 use futures::FutureExt;
 use std::sync::Arc;
 
-use crate::commands::{execute_command, Command, CommandOutput, TargetType};
+use crate::{
+    commands::{execute_command, Command, CommandOutput, TargetType},
+    maybe_cache,
+};
 use async_trait::async_trait;
 use otl_core::OtlErr;
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandRef(Arc<Command>);
+
+#[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
+pub struct CommandVal {
+    output: CommandOutput,
+    command: CommandRef,
+}
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct QueryCommandRef(Arc<Command>);
@@ -53,7 +62,7 @@ impl InjectedKey for LookupCommand {
 
 #[async_trait]
 impl Key for CommandRef {
-    type Value = Result<CommandOutput, Arc<OtlErr>>;
+    type Value = Result<CommandVal, Arc<OtlErr>>;
 
     async fn compute(
         &self,
@@ -78,7 +87,14 @@ impl Key for CommandRef {
         let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        execute_command(self.0.as_ref()).await.map_err(Arc::new)
+        let output = match self.0.target_type {
+            TargetType::Test => execute_command(self.0.as_ref()).await.map_err(Arc::new),
+            _ => maybe_cache(self.0.as_ref()).await.map_err(Arc::new),
+        }?;
+        Ok(CommandVal {
+            output,
+            command: self.clone(),
+        })
     }
 
     fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
@@ -136,7 +152,7 @@ impl LocalCommandExecutor for DiceComputations<'_> {
         command: &CommandRef,
     ) -> Result<CommandOutput, Arc<OtlErr>> {
         match self.compute(command).await {
-            Ok(val) => val,
+            Ok(val) => val.map(|val| val.output),
             Err(dicey) => Err(Arc::new(OtlErr::DiceFail(dicey))),
         }
     }
@@ -149,7 +165,7 @@ impl LocalCommandExecutor for DiceComputations<'_> {
                 move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandOutput, Arc<OtlErr>>> {
                     ctx.compute(&val)
                         .map(|computed_val| match computed_val {
-                            Ok(val) => val,
+                            Ok(val) => val.map(|val| val.output),
                             Err(err) => Err(Arc::new(OtlErr::DiceFail(err))),
                         })
                         .boxed()

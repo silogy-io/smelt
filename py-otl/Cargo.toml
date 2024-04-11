@@ -1,5 +1,5 @@
 [package]
-name = "py-otl"
+name = "otl"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

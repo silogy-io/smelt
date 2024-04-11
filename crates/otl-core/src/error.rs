@@ -13,8 +13,12 @@ pub enum OtlErr {
     DiceFail(#[from] DiceError),
     #[error("IoError {0}")]
     IoError(#[from] std::io::Error),
-    #[error("IoError {0}")]
-    SerdeError(#[from] serde_yaml::Error),
+    #[error("Serde yaml error {0}")]
+    SerdeYamlError(#[from] serde_yaml::Error),
+    #[error("Serde json error {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+    #[error("Command cache miss")]
+    CommandCacheMiss,
 }
 
 impl Allocative for OtlErr {
