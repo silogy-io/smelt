@@ -5,15 +5,11 @@
 #
 name: wheelbuild
 
-defaults:
-  run:
-    shell: bash
-    working-directory: ./py-otl
-
 on:
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+      - "*"
+      #      - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
   workflow_dispatch:
 
@@ -57,7 +53,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --manifest-path py-otl/Cargo.toml --out dist --find-interpreter
           sccache: "true"
           manylinux:
             auto
@@ -116,7 +112,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --manifest-path py-otl/Cargo.toml --out dist --find-interpreter
           sccache:
             "true"
             #- name: Upload wheels
