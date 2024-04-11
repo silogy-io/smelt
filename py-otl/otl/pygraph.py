@@ -32,8 +32,8 @@ class PyGraph:
     def run_one_test(self, name: str):
         self.run_one_test(name)
 
-    def run_all_tests(self):
-        self.rsgraph.run_all_tests()
+    def run_all_tests(self, tt: str):
+        self.rsgraph.run_all_tests(tt)
 
     @classmethod
     def from_command_list(cls, commands: List[Command]):

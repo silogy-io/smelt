@@ -81,11 +81,12 @@ impl SyncCommandGraph {
         })
     }
 
-    pub fn run_all_tests(&self) -> PyResult<Vec<PyCommandOutput>> {
-        let alltestfut = self.graph.run_all_tests();
+    //TODO: tt thould be a target type enum, havent looked to expose yet
+    pub fn run_all_tests(&self, tt: String) -> PyResult<Vec<PyCommandOutput>> {
+        let alltestfut = self.graph.run_all_typed(tt);
         let vec = self
             .async_runtime
-            .block_on(alltestfut)
+            .block_on(alltestfut)?
             .into_iter()
             .map(|val| {
                 val.map_err(|arc| arc_err_to_py(arc))

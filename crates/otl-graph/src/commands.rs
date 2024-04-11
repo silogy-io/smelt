@@ -7,6 +7,7 @@ use dupe::Dupe;
 use std::{
     fmt,
     path::{self, Path, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -82,6 +83,19 @@ pub enum TargetType {
     Test,
     Stimulus,
     Build,
+}
+
+impl FromStr for TargetType {
+    type Err = OtlErr;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "test" => Ok(TargetType::Test),
+            "stimulus" => Ok(TargetType::Stimulus),
+            "build" => Ok(TargetType::Build),
+            _ => Err(OtlErr::BadTargetType(s.to_string())),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]

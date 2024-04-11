@@ -19,6 +19,8 @@ pub enum OtlErr {
     SerdeJsonError(#[from] serde_json::Error),
     #[error("Command cache miss")]
     CommandCacheMiss,
+    #[error("Invalid target type {0}")]
+    BadTargetType(String),
 }
 
 impl Allocative for OtlErr {

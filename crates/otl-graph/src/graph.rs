@@ -11,7 +11,7 @@ use futures::{
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::{
     commands::{execute_command, Command, CommandOutput, TargetType},
@@ -223,30 +223,21 @@ impl CommandGraph {
 
         Ok(graph)
     }
-    pub async fn run_all_tests(&self) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
+    pub async fn run_all_typed(
+        &self,
+        maybe_type: String,
+    ) -> Result<Vec<Result<CommandOutput, Arc<OtlErr>>>, OtlErr> {
+        let tt = TargetType::from_str(maybe_type.as_str())?;
         let refs = self
             .all_commands
             .iter()
-            .filter(|&val| val.0.target_type == TargetType::Test)
+            .filter(|&val| val.0.target_type == tt)
             .cloned()
             .collect();
 
         let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
-        tx.execute_commands(refs).await
-    }
-
-    pub async fn run_all_build(&self) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
-        let refs = self
-            .all_commands
-            .iter()
-            .filter(|&val| val.0.target_type == TargetType::Build)
-            .cloned()
-            .collect();
-
-        let ctx = self.dice.updater();
-        let mut tx = ctx.commit().await;
-        tx.execute_commands(refs).await
+        Ok(tx.execute_commands(refs).await)
     }
 
     pub async fn run_one_test(
@@ -273,7 +264,7 @@ mod tests {
 
         let script = script.unwrap();
         let graph = CommandGraph::new(script).await.unwrap();
-        let results = graph.run_all_tests().await;
+        let results = graph.run_all_typed("test".to_string()).await.unwrap();
         for result in results {
             match result {
                 Ok(out) => {

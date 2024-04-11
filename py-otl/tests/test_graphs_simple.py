@@ -9,4 +9,5 @@ def test_sanity_pygraph():
     lod = yaml.safe_load(open(test_list))
     commands = [Command.from_dict(obj) for obj in lod]
     graph = PyGraph.from_command_list(commands)
-    graph.run_all_tests()
+    graph.run_all_tests("build")
+    graph.run_all_tests("test")
