@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from otl.interfaces import Target, OtlPath, OtlTargetType
+from otl.interfaces import Target, OtlPath, OtlTargetType, TargetRef
 from typing import List, Dict
 
 
@@ -15,10 +15,14 @@ class raw_bash(Target):
     """
 
     cmds: List[str] = field(default_factory=list)
+    deps: List[TargetRef] = field(default_factory=list)
     outputs: Dict[str, str] = field(default_factory=dict)
 
     def gen_script(self) -> List[str]:
         return self.cmds
+
+    def dependencies(self) -> List[TargetRef]:
+        return self.deps
 
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {
@@ -47,23 +51,7 @@ class run_spi(Target):
 
 
 @dataclass
-class process_run_spi(Target):
-    """ """
-
-    spi_ref_path: Target
-
-    def gen_script(self):
-        path_to_spilog = self.spi_ref.get_outputs()["log"]
-
-        return [f"cat {path_to_spilog}"]
-
-    def dependencies(self) -> List[Target]:
-        return [self.spi_ref_path]
-
-
-@dataclass
-class raw_bash_simulator(Target):
-    name: str
+class raw_bash_build(Target):
     cmds: List[str] = field(default_factory=list)
 
     @staticmethod

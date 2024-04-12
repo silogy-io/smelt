@@ -33,7 +33,6 @@ def _get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
     base_class_name = "Target"
 
     all_paths = get_all_files(targets_dir=targets_dir)
-    print(all_paths)
     for path in default_target_modules + all_paths:
         try:
             module = importlib.import_module(str(path))
