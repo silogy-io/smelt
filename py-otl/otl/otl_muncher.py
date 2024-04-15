@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import yaml
 from typing import Dict, Any, Type, List
 from pydantic import BaseModel
-from otl.importer import DocumentedTarget
+from otl.importer import DocumentedTarget, get_all_targets, get_default_targets
 from otl.interfaces import Target, Command
 from otl.rc import OtlRC
 from otl.path_utils import get_git_root
@@ -43,12 +43,16 @@ def to_target(pre_target: PreTarget) -> Target:
 
 
 def otl_to_command_list(
-    test_list: str, all_rules: Dict[str, DocumentedTarget], rc: OtlRC
+    test_list: str, rc: OtlRC, default_rules_only: bool = False
 ) -> List[Command]:
     yaml_content = open(test_list).read()
     rule_inst = yaml.safe_load(yaml_content)
     # NOTE: semantically we split up validation of the otl file -> converting to target objects -> generating a command list
     # while dependency based
+    if default_rules_only:
+        all_rules = get_default_targets(rc)
+    else:
+        all_rules = get_all_targets(rc)
     yaml_targets = [SerYamlTarget(**target) for target in rule_inst]
     pre_targets = {
         target.name: populate_rule_args(target.name, target, all_rules)
@@ -65,8 +69,6 @@ def otl_to_command_list(
     return command_list
 
 
-def otl_parse(
-    test_list: str, all_rules: Dict[str, DocumentedTarget], rc: OtlRC
-) -> PyGraph:
-    command_list = otl_to_command_list(test_list, all_rules, rc)
+def otl_parse(test_list: str, rc: OtlRC) -> PyGraph:
+    command_list = otl_to_command_list(test_list, rc)
     return PyGraph.from_command_list(command_list)

@@ -1,6 +1,6 @@
 import importlib
 import inspect
-from typing import List, TypedDict, Dict, Type
+from typing import List, TypedDict, Dict, Type, Optional
 from otl.interfaces import Target
 from pathlib import Path
 from otl.rc import OtlRC
@@ -27,13 +27,22 @@ def get_all_targets(cfg: OtlRC) -> Dict[str, DocumentedTarget]:
     return _get_all_targets(rules_dir)
 
 
-def _get_all_targets(targets_dir: Path) -> Dict[str, DocumentedTarget]:
+def get_default_targets(cfg: OtlRC) -> Dict[str, DocumentedTarget]:
+    return _get_all_targets(None)
+
+
+def _get_all_targets(targets_dir: Optional[Path]) -> Dict[str, DocumentedTarget]:
     default_target_modules = ["otl.default_targets"]
     classes = {}
     base_class_name = "Target"
 
-    all_paths = get_all_files(targets_dir=targets_dir)
-    for path in default_target_modules + all_paths:
+    if targets_dir:
+        all_paths = get_all_files(targets_dir=targets_dir)
+        paths = default_target_modules + all_paths
+    else:
+        paths = default_target_modules
+
+    for path in paths:
         try:
             module = importlib.import_module(str(path))
             for name, cls in inspect.getmembers(module, inspect.isclass):
