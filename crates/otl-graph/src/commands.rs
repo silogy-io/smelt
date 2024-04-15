@@ -4,12 +4,7 @@ use allocative::Allocative;
 use derive_more::Display;
 use dupe::Dupe;
 
-use std::{
-    fmt,
-    path::{self, Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
+use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
 
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -60,19 +55,19 @@ impl Command {
         Ok(std::env::current_dir().map(|val| val.join("otl-out").join(&self.name))?)
     }
 
-    fn script_contents(&self) -> impl Iterator<Item = String> + '_ {
+    pub fn script_contents(&self) -> impl Iterator<Item = String> + '_ {
         self.runtime
             .env
             .iter()
             .map(|(env_name, env_val)| format!("export {}={}", env_name, env_val))
-            .chain(self.script.iter().map(|val| val.clone()))
+            .chain(self.script.iter().cloned())
     }
 
     fn working_dir(&self) -> Result<PathBuf, OtlErr> {
         let env = &self.runtime.env;
         let working_dir = env
             .get("TARGET_ROOT")
-            .map(|path| PathBuf::from(path))
+            .map(PathBuf::from)
             .unwrap_or_else(|| self.default_target_root().unwrap());
         Ok(working_dir)
     }
@@ -86,7 +81,7 @@ impl Command {
                 let val: CommandOutput = tokio::fs::read_to_string(ile)
                     .await
                     .map(|val| serde_json::from_str(val.as_str()))??;
-                return Ok(val);
+                Ok(val)
             } else {
                 Err(OtlErr::CommandCacheMiss)
             }
@@ -169,7 +164,7 @@ impl CommandOutput {
     const fn asfile() -> &'static str {
         "command.status"
     }
-    async fn to_file(&self, base_path: &PathBuf) -> Result<(), OtlErr> {
+    async fn to_file(&self, _base_path: &PathBuf) -> Result<(), OtlErr> {
         let mut command_out = File::create(CommandOutput::asfile()).await?;
 
         command_out
@@ -204,7 +199,7 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
     let env = &command.runtime.env;
     let working_dir = env
         .get("TARGET_ROOT")
-        .map(|path| PathBuf::from(path))
+        .map(PathBuf::from)
         .unwrap_or_else(|| command.default_target_root().unwrap());
 
     let script_file = working_dir.join(Command::script_file());
@@ -245,7 +240,6 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_yaml;
 
     #[test]
     fn deser_simple_yaml() {

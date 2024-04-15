@@ -1,19 +1,11 @@
-use dice::DiceTransaction;
 use otl_core::OtlErr;
+use otl_graph::CommandGraph;
 use otl_graph::{Command, CommandOutput};
-use otl_graph::{CommandGraph, CommandRef};
-use pyo3::{
-    exceptions::PyRuntimeError,
-    prelude::*,
-    types::{IntoPyDict, PyDict, PyList, PyType},
-};
-use pythonize::{depythonize_bound, pythonize_custom};
-use std::pin::Pin;
+use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyType};
+use pythonize::depythonize_bound;
+
 use std::sync::Arc;
-use tokio::{
-    runtime::{Builder, Runtime},
-    task::JoinHandle,
-};
+use tokio::runtime::{Builder, Runtime};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
     let otl_string = otl_err.to_string();
@@ -43,17 +35,8 @@ pub struct SyncCommandGraph {
 
 #[pyclass]
 pub struct PyCommandOutput {
+    #[allow(unused)]
     output: CommandOutput,
-}
-
-#[pyclass]
-pub struct PyCommandFuture {
-    fut: JoinHandle<Result<CommandOutput, Arc<OtlErr>>>,
-}
-#[pyclass]
-pub struct FutureArena {
-    thing: &'static DiceTransaction,
-    futs: Vec<PyCommandFuture>,
 }
 
 #[pymethods]
@@ -99,26 +82,24 @@ impl SyncCommandGraph {
     //TODO: tt thould be a target type enum, havent looked to expose yet
     pub fn run_all_tests(&self, tt: String) -> PyResult<Vec<PyCommandOutput>> {
         let alltestfut = self.graph.run_all_typed(tt);
-        let vec = self
-            .async_runtime
+
+        self.async_runtime
             .block_on(alltestfut)?
             .into_iter()
             .map(|val| {
-                val.map_err(|arc| arc_err_to_py(arc))
+                val.map_err(arc_err_to_py)
                     .map(|val| PyCommandOutput { output: val })
             })
-            .collect::<PyResult<Vec<PyCommandOutput>>>();
-        vec
+            .collect::<PyResult<Vec<PyCommandOutput>>>()
     }
 
     pub fn run_one_test(&self, test: String) -> PyResult<PyCommandOutput> {
         let alltestfut = self.graph.run_one_test(test);
-        let output = self
-            .async_runtime
+
+        self.async_runtime
             .block_on(alltestfut)
             .map(|val| PyCommandOutput { output: val })
-            .map_err(|arc| arc_err_to_py(arc));
-        output
+            .map_err(arc_err_to_py)
     }
 
     //#[getter]
@@ -140,12 +121,11 @@ impl SyncCommandGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_yaml;
 
-    fn file_to_vec(yaml_data: &str) -> Vec<Command> {
-        let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
-        script.unwrap()
-    }
+    //fn file_to_vec(yaml_data: &str) -> Vec<Command> {
+    //    let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
+    //    script.unwrap()
+    //}
 
     //#[test]
     //fn obj_to_py() {

@@ -12,7 +12,7 @@ use futures::{
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{pin::Pin, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 use crate::{
     commands::{execute_command, Command, CommandOutput, TargetType},
@@ -265,7 +265,7 @@ impl CommandGraph {
 
     pub async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
         let ctx = self.dice.updater();
-        let mut tx = ctx.commit().await;
+        let tx = ctx.commit().await;
         Ok(tx)
     }
 
@@ -286,7 +286,7 @@ impl CommandGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_yaml;
+    
 
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
