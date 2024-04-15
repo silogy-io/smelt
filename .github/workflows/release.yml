@@ -128,33 +128,33 @@ jobs:
           version="${{ needs.create-release.outputs.version }}"
           gh release upload "$version" dist/otl-*
 
-  sdist:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-sdist
-          path:
-            dist
-
-            #  release:
-            #    name: Release
-            #    runs-on: ubuntu-latest
-            #    if: "startsWith(github.ref, 'refs/tags/')"
-            #    needs: [linux, macos, sdist]
-            #    steps:
-            #      - uses: actions/download-artifact@v4
-            #      - name: Publish to PyPI
-            #        uses: PyO3/maturin-action@v1
-            #        env:
-            #          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-            #        with:
-            #          command: upload
-            #          args: --non-interactive --skip-existing wheels-*/*
+          #  sdist:
+          #    runs-on: ubuntu-latest
+          #    steps:
+          #      - uses: actions/checkout@v4
+          #      - name: Build sdist
+          #        uses: PyO3/maturin-action@v1
+          #        with:
+          #          command: sdist
+          #          args: --out dist
+          #      - name: Upload sdist
+          #        uses: actions/upload-artifact@v4
+          #        with:
+          #          name: wheels-sdist
+          #          path:
+          #            dist
+          #
+          #            #  release:
+          #            #    name: Release
+          #            #    runs-on: ubuntu-latest
+          #            #    if: "startsWith(github.ref, 'refs/tags/')"
+          #            #    needs: [linux, macos, sdist]
+          #            #    steps:
+          #            #      - uses: actions/download-artifact@v4
+          #            #      - name: Publish to PyPI
+          #            #        uses: PyO3/maturin-action@v1
+          #            #        env:
+          #            #          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          #            #        with:
+          #            #          command: upload
+          #            #          args: --non-interactive --skip-existing wheels-*/*
