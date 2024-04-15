@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from otl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
 from otl.otl import SyncCommandGraph
@@ -34,6 +34,15 @@ class PyGraph:
 
     def run_all_tests(self, tt: str):
         self.rsgraph.run_all_tests(tt)
+
+    def get_all_tests_as_scripts(self) -> List[Tuple[str, List[str]]]:
+        """
+        returns test name and script
+        """
+        return [
+            (command.name, command.script)
+            for command in self.targets[OtlTargetType.Test]
+        ]
 
     @classmethod
     def from_command_list(cls, commands: List[Command]):

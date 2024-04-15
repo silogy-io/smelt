@@ -26,7 +26,6 @@ def populate_rule_args(
     rule_payload: SerYamlTarget,
     all_rules: Dict[str, DocumentedTarget],
 ):
-
     rule_payload.rule_args["name"] = target_name
     if rule_payload.rule not in all_rules:
         # TODO: make a pretty error that
