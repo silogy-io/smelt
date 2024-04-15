@@ -1,4 +1,5 @@
 mod commands;
+mod dispatcher;
 mod graph;
 
 pub use commands::*;

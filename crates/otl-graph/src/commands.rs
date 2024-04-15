@@ -24,6 +24,25 @@ pub struct Command {
     pub runtime: Runtime,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Allocative)]
+pub enum CommandRtStatus {
+    /// This command, nor its dependencies, have started running
+    Unscheduled,
+    //
+    Scheduled {
+        scheduled_time: std::time::Instant,
+    },
+    Running {
+        scheduled_time: std::time::Instant,
+        started_time: std::time::Instant,
+    },
+    Finished {
+        scheduled_time: std::time::Instant,
+        started_time: std::time::Instant,
+        finished_time: std::time::Instant,
+    },
+}
+
 impl Command {
     const fn script_file() -> &'static str {
         "command.sh"

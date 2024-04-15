@@ -1,3 +1,4 @@
+use dice::DiceTransaction;
 use otl_core::OtlErr;
 use otl_graph::{Command, CommandOutput};
 use otl_graph::{CommandGraph, CommandRef};
@@ -7,8 +8,12 @@ use pyo3::{
     types::{IntoPyDict, PyDict, PyList, PyType},
 };
 use pythonize::{depythonize_bound, pythonize_custom};
+use std::pin::Pin;
 use std::sync::Arc;
-use tokio::runtime::{Builder, Runtime};
+use tokio::{
+    runtime::{Builder, Runtime},
+    task::JoinHandle,
+};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
     let otl_string = otl_err.to_string();
@@ -39,6 +44,16 @@ pub struct SyncCommandGraph {
 #[pyclass]
 pub struct PyCommandOutput {
     output: CommandOutput,
+}
+
+#[pyclass]
+pub struct PyCommandFuture {
+    fut: JoinHandle<Result<CommandOutput, Arc<OtlErr>>>,
+}
+#[pyclass]
+pub struct FutureArena {
+    thing: &'static DiceTransaction,
+    futs: Vec<PyCommandFuture>,
 }
 
 #[pymethods]
@@ -95,6 +110,7 @@ impl SyncCommandGraph {
             .collect::<PyResult<Vec<PyCommandOutput>>>();
         vec
     }
+
     pub fn run_one_test(&self, test: String) -> PyResult<PyCommandOutput> {
         let alltestfut = self.graph.run_one_test(test);
         let output = self

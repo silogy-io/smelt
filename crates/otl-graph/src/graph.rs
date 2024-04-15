@@ -1,17 +1,18 @@
 use allocative::Allocative;
 use derive_more::Display;
 use dice::{
-    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransactionUpdater, Key,
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
+    DiceTransactionUpdater, Key,
 };
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
-    TryFutureExt,
+    Future, TryFutureExt,
 };
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{str::FromStr, sync::Arc};
+use std::{pin::Pin, str::FromStr, sync::Arc};
 
 use crate::{
     commands::{execute_command, Command, CommandOutput, TargetType},
@@ -131,7 +132,8 @@ pub trait CommandSetter {
         equations: impl IntoIterator<Item = CommandRef>,
     ) -> Result<(), OtlErr>;
 }
-
+pub type CommandOutputFuture<'a> =
+    dyn Future<Output = Result<CommandOutput, Arc<OtlErr>>> + Send + 'a;
 #[async_trait]
 pub trait LocalCommandExecutor {
     async fn execute_command(
@@ -223,6 +225,7 @@ impl CommandGraph {
 
         Ok(graph)
     }
+
     pub async fn run_all_typed(
         &self,
         maybe_type: String,
@@ -237,7 +240,33 @@ impl CommandGraph {
 
         let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
+
         Ok(tx.execute_commands(refs).await)
+    }
+
+    pub async fn run_all_typed_actor(
+        &self,
+        maybe_type: String,
+    ) -> Result<Vec<Result<CommandOutput, Arc<OtlErr>>>, OtlErr> {
+        let tt = TargetType::from_str(maybe_type.as_str())?;
+        let refs = self
+            .all_commands
+            .iter()
+            .filter(|&val| val.0.target_type == tt)
+            .cloned()
+            .collect();
+
+        let ctx = self.dice.updater();
+        //let (rx, tx) = tokio::sync::mpsc::channel(100);
+        let mut tx = ctx.commit().await;
+
+        Ok(tx.execute_commands(refs).await)
+    }
+
+    pub async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
+        let ctx = self.dice.updater();
+        let mut tx = ctx.commit().await;
+        Ok(tx)
     }
 
     pub async fn run_one_test(
