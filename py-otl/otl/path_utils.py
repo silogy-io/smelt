@@ -22,4 +22,4 @@ def get_git_root() -> str:
         )
         return git_root
     except subprocess.CalledProcessError:
-        raise RuntimeError("This directory is not a git repository.")
+        return "$(git rev-parse --show-toplevel)"
