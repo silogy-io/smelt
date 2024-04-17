@@ -46,7 +46,13 @@ def otl_to_command_list(
     test_list: str, rc: OtlRC, default_rules_only: bool = False
 ) -> List[Command]:
     yaml_content = open(test_list).read()
-    rule_inst = yaml.safe_load(yaml_content)
+    return otl_contents_to_command_list(yaml_content, rc, default_rules_only)
+
+
+def otl_contents_to_command_list(
+    otl_content: str, rc: OtlRC, default_rules_only: bool = False
+) -> List[Command]:
+    rule_inst = yaml.safe_load(otl_content)
     # NOTE: semantically we split up validation of the otl file -> converting to target objects -> generating a command list
     # while dependency based
     if default_rules_only:

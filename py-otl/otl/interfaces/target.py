@@ -31,7 +31,10 @@ class Target(ABC):
         return OtlTargetType.Test
 
     def required_runtime_env_vars(self, default_path: str) -> Dict[str, str]:
-        git_root = get_git_root()
+        try:
+            git_root = get_git_root()
+        except Exception:
+            git_root = "$(git rev-parse --show-toplevel)"
         otl_root = f"{git_root}/{default_path}"
         target_root = f"{otl_root}/{self.name}"
 

@@ -91,7 +91,7 @@ def munch(
     otlrc = OtlRC.try_load()
 
     targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(test_list=str(otl_file), all_rules=targets, rc=otlrc)
+    commands = otl_to_command_list(test_list=str(otl_file), rc=otlrc)
     yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
 
 
@@ -103,8 +103,8 @@ def execute(
     help="Goes through the entire flow, from otl file to executing a command list",
 ):
     otlrc = OtlRC.try_load()
-    targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(test_list=str(otl_file), all_rules=targets, rc=otlrc)
+
+    commands = otl_to_command_list(test_list=str(otl_file), rc=otlrc)
     graph = PyGraph.from_command_list(commands)
     graph.run_all_tests(tt)
 
