@@ -24,9 +24,9 @@ edition = "2021"
 
 [workspace.dependencies]
 pyo3 = "0.21.1"
-dice = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
-allocative = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
-dupe = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
+dice = { git = "https://github.com/facebook/buck2", rev = "9e17b241" }
+allocative = { git = "https://github.com/facebook/buck2", rev = "9e17b241" }
+dupe = { git = "https://github.com/facebook/buck2", rev = "9e17b241" }
 thiserror = "1.0.58"
 serde = "1.0.197"
 serde_yaml = "0.9.34"
@@ -37,11 +37,10 @@ async-trait = "0.1.79"
 fuzzy-matcher = "0.3.7"
 pythonize = "0.21.1"
 serde_json = "1.0.115"
-otl-core = { path = "crates/otl-core", default-features = false}
-otl-graph = { path = "crates/otl-graph", default-features = false}
-py-otl = { path = "py-otl", default-features = false}
-
-
+otl-events = { path = "crates/otl-events", default-features = false }
+otl-core = { path = "crates/otl-core", default-features = false }
+otl-graph = { path = "crates/otl-graph", default-features = false }
+py-otl = { path = "py-otl", default-features = false }
 
 
 [profile.opt-dev]

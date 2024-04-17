@@ -1,18 +1,25 @@
 use allocative::Allocative;
+
 use derive_more::Display;
 use dice::{
     CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
-    DiceTransactionUpdater, Key,
+    DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
     Future, TryFutureExt,
 };
+use otl_events::{
+    self,
+    runtime_support::{GetTxChannel, SetTxChannel},
+    CommandVariant, Event,
+};
 
 use dice::InjectedKey;
 use futures::FutureExt;
 use std::{str::FromStr, sync::Arc};
+use tokio::sync::mpsc::Receiver;
 
 use crate::{
     commands::{execute_command, Command, CommandOutput, TargetType},
@@ -85,13 +92,29 @@ impl Key for CommandRef {
                 },
             )
         }));
+
         let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
+        let tx = ctx.per_transaction_data().get_tx_channel();
+        let name = self.0.name.clone();
+        let _ = tx
+            .send(Event::new_command_event(
+                name.clone(),
+                CommandVariant::CommandStarted,
+            ))
+            .await;
         let output = match self.0.target_type {
             TargetType::Test => execute_command(self.0.as_ref()).await.map_err(Arc::new),
             _ => maybe_cache(self.0.as_ref()).await.map_err(Arc::new),
         }?;
+
+        let _ = tx
+            .send(Event::new_command_event(
+                name,
+                CommandVariant::CommandFinished(output.clone()),
+            ))
+            .await;
         Ok(CommandVal {
             output,
             command: self.clone(),
@@ -117,12 +140,6 @@ async fn get_command_deps(
     }));
 
     future::join_all(futs).await.into_iter().collect()
-}
-
-#[derive(Clone)]
-pub enum GraphKey {
-    Target(String),
-    File(std::path::PathBuf),
 }
 
 pub trait CommandSetter {
@@ -202,6 +219,7 @@ pub struct CommandGraph {
     dice: Arc<Dice>,
     pub(crate) all_commands: Vec<CommandRef>,
 }
+
 impl CommandGraph {
     pub async fn from_commands_str(commands: impl AsRef<str>) -> Result<Self, OtlErr> {
         let commands: Vec<Command> = serde_yaml::from_str(commands.as_ref())?;
@@ -226,10 +244,7 @@ impl CommandGraph {
         Ok(graph)
     }
 
-    pub async fn run_all_typed(
-        &self,
-        maybe_type: String,
-    ) -> Result<Vec<Result<CommandOutput, Arc<OtlErr>>>, OtlErr> {
+    pub async fn run_all_typed(&self, maybe_type: String) -> Result<GraphExecHandle, OtlErr> {
         let tt = TargetType::from_str(maybe_type.as_str())?;
         let refs = self
             .all_commands
@@ -238,35 +253,25 @@ impl CommandGraph {
             .cloned()
             .collect();
 
-        let ctx = self.dice.updater();
-        let mut tx = ctx.commit().await;
+        let (rx, mut tx) = self.start_tx().await?;
 
-        Ok(tx.execute_commands(refs).await)
+        tokio::task::spawn(async move {
+            tx.execute_commands(refs).await;
+            let val = tx.per_transaction_data().get_tx_channel();
+            val.send(Event::new(otl_events::OtlEvent::AllCommandsDone))
+                .await
+        });
+        Ok(GraphExecHandle { rx_chan: rx })
     }
 
-    pub async fn run_all_typed_actor(
-        &self,
-        maybe_type: String,
-    ) -> Result<Vec<Result<CommandOutput, Arc<OtlErr>>>, OtlErr> {
-        let tt = TargetType::from_str(maybe_type.as_str())?;
-        let refs = self
-            .all_commands
-            .iter()
-            .filter(|&val| val.0.target_type == tt)
-            .cloned()
-            .collect();
-
+    async fn start_tx(&self) -> Result<(Receiver<Event>, DiceTransaction), OtlErr> {
         let ctx = self.dice.updater();
-        //let (rx, tx) = tokio::sync::mpsc::channel(100);
-        let mut tx = ctx.commit().await;
+        let mut data = UserComputationData::new();
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        data.set_tx_channel(tx);
 
-        Ok(tx.execute_commands(refs).await)
-    }
-
-    pub async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
-        let ctx = self.dice.updater();
-        let tx = ctx.commit().await;
-        Ok(tx)
+        let tx = ctx.commit_with_data(data).await;
+        Ok((rx, tx))
     }
 
     pub async fn run_one_test(
@@ -283,25 +288,58 @@ impl CommandGraph {
     }
 }
 
+pub struct GraphExecHandle {
+    rx_chan: Receiver<Event>,
+}
+
+impl GraphExecHandle {
+    pub fn sync_blocking_events(&mut self) -> Vec<Event> {
+        let mut rv = vec![];
+        loop {
+            if let Some(val) = self.rx_chan.blocking_recv() {
+                if val.finished_event() {
+                    break;
+                }
+                rv.push(val);
+            }
+        }
+        rv
+    }
+
+    pub async fn async_blocking_events(&mut self) -> Vec<Event> {
+        let mut rv = vec![];
+        loop {
+            if let Some(val) = self.rx_chan.recv().await {
+                if val.finished_event() {
+                    break;
+                }
+                rv.push(val);
+            }
+        }
+        rv
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
 
         let script = script.unwrap();
         let graph = CommandGraph::new(script).await.unwrap();
-        let results = graph.run_all_typed("test".to_string()).await.unwrap();
-        for result in results {
-            match result {
-                Ok(out) => {
-                    assert_eq!(out.status_code, 0)
+        let mut results = graph.run_all_typed("test".to_string()).await.unwrap();
+        let events = results.async_blocking_events().await;
+        for event in events {
+            match event.et {
+                otl_events::OtlEvent::Command(val) => {
+                    if let Some(passed) = val.passed() {
+                        dbg!(val);
+                        assert!(passed)
+                    }
                 }
-                Err(err) => {
-                    panic!("Seeing error {:?}", err);
-                }
+                _ => {}
             }
         }
     }

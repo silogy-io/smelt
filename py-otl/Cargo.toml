@@ -13,20 +13,20 @@ crate-type = ["cdylib"]
 
 [dependencies]
 
-otl-core = {workspace = true}
-otl-graph = {workspace = true}
+otl-core = { workspace = true }
+otl-graph = { workspace = true }
 
-dice = {workspace = true }
-allocative = {workspace = true}
-dupe = {workspace = true}
-thiserror = {workspace = true}
-serde = {workspace = true}
-serde_yaml = {workspace = true}
-tokio = {workspace = true}
-futures = {workspace = true}
-derive_more = {workspace = true}
-async-trait = {workspace = true}
-fuzzy-matcher = {workspace = true}
-pythonize = {workspace = true}
-pyo3 = { workspace = true}
+dice = { workspace = true }
+allocative = { workspace = true }
+dupe = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+derive_more = { workspace = true }
+async-trait = { workspace = true }
+fuzzy-matcher = { workspace = true }
+pythonize = { workspace = true }
+pyo3 = { workspace = true }
 chrono = "0.4.37"

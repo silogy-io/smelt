@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use allocative::Allocative;
-use derive_more::Display;
 use dupe::Dupe;
 
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
@@ -9,6 +8,7 @@ use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use otl_core::OtlErr;
+pub use otl_events::CommandOutput;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
@@ -151,29 +151,6 @@ impl fmt::Display for Runtime {
     }
 }
 
-#[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative, Serialize, Deserialize)]
-pub struct CommandOutput {
-    pub(crate) status_code: i32,
-}
-
-impl CommandOutput {
-    fn passed(&self) -> bool {
-        self.status_code == 0
-    }
-
-    const fn asfile() -> &'static str {
-        "command.status"
-    }
-    async fn to_file(&self, _base_path: &PathBuf) -> Result<(), OtlErr> {
-        let mut command_out = File::create(CommandOutput::asfile()).await?;
-
-        command_out
-            .write(serde_json::to_vec(self)?.as_slice())
-            .await?;
-        Ok(())
-    }
-}
-
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct CommandScript(Arc<CommandScriptInner>);
 
@@ -226,7 +203,6 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
 
     let mut command = tokio::process::Command::new("bash");
     command
-        .arg("-C")
         .arg(script_file)
         .stdout(stdout.into_std().await)
         .stderr(stderr.into_std().await);
