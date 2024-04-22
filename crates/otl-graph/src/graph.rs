@@ -10,10 +10,11 @@ use futures::{
     future::{self, BoxFuture},
     Future, TryFutureExt,
 };
+use otl_data::{CommandFinished, CommandStarted};
 use otl_events::{
-    self,
+    self, new_command_event,
     runtime_support::{GetTxChannel, SetTxChannel},
-    CommandVariant, Event,
+    Event,
 };
 
 use dice::InjectedKey;
@@ -22,11 +23,12 @@ use std::{str::FromStr, sync::Arc};
 use tokio::sync::mpsc::Receiver;
 
 use crate::{
-    commands::{execute_command, Command, CommandOutput, TargetType},
+    commands::{execute_command, Command, TargetType},
     maybe_cache,
 };
 use async_trait::async_trait;
 use otl_core::OtlErr;
+use otl_data::CommandOutput;
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandRef(Arc<Command>);
@@ -99,9 +101,9 @@ impl Key for CommandRef {
         let tx = ctx.per_transaction_data().get_tx_channel();
         let name = self.0.name.clone();
         let _ = tx
-            .send(Event::new_command_event(
+            .send(new_command_event(
                 name.clone(),
-                CommandVariant::CommandStarted,
+                otl_data::command_event::CommandVariant::Started(CommandStarted {}),
             ))
             .await;
         let output = match self.0.target_type {
@@ -110,9 +112,11 @@ impl Key for CommandRef {
         }?;
 
         let _ = tx
-            .send(Event::new_command_event(
+            .send(new_command_event(
                 name,
-                CommandVariant::CommandFinished(output.clone()),
+                otl_data::command_event::CommandVariant::Finished(CommandFinished {
+                    out: Some(output),
+                }),
             ))
             .await;
         Ok(CommandVal {
@@ -244,6 +248,16 @@ impl CommandGraph {
         Ok(graph)
     }
 
+    async fn start_tx(&self) -> Result<(Receiver<Event>, DiceTransaction), OtlErr> {
+        let ctx = self.dice.updater();
+        let mut data = UserComputationData::new();
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        data.set_tx_channel(tx);
+
+        let tx = ctx.commit_with_data(data).await;
+        Ok((rx, tx))
+    }
+
     pub async fn run_all_typed(&self, maybe_type: String) -> Result<GraphExecHandle, OtlErr> {
         let tt = TargetType::from_str(maybe_type.as_str())?;
         let refs = self
@@ -258,33 +272,31 @@ impl CommandGraph {
         tokio::task::spawn(async move {
             tx.execute_commands(refs).await;
             let val = tx.per_transaction_data().get_tx_channel();
-            val.send(Event::new(otl_events::OtlEvent::AllCommandsDone))
-                .await
+            val.send(Event::done()).await
         });
         Ok(GraphExecHandle { rx_chan: rx })
-    }
-
-    async fn start_tx(&self) -> Result<(Receiver<Event>, DiceTransaction), OtlErr> {
-        let ctx = self.dice.updater();
-        let mut data = UserComputationData::new();
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
-        data.set_tx_channel(tx);
-
-        let tx = ctx.commit_with_data(data).await;
-        Ok((rx, tx))
     }
 
     pub async fn run_one_test(
         &self,
         test_name: impl Into<String>,
-    ) -> Result<CommandOutput, Arc<OtlErr>> {
+    ) -> Result<GraphExecHandle, Arc<OtlErr>> {
         let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
         let command = tx
             .compute(&LookupCommand(Arc::new(test_name.into())))
             .await
             .map_err(|val| Arc::new(OtlErr::DiceFail(val)))?;
-        tx.execute_command(&command).await
+        //tx.execute_command(&command).await
+
+        let (rx, mut tx) = self.start_tx().await?;
+
+        tokio::task::spawn(async move {
+            let _ = tx.execute_command(&command).await;
+            let val = tx.per_transaction_data().get_tx_channel();
+            val.send(Event::new(otl_data::event::Et::done())).await
+        });
+        Ok(GraphExecHandle { rx_chan: rx })
     }
 }
 
@@ -293,6 +305,10 @@ pub struct GraphExecHandle {
 }
 
 impl GraphExecHandle {
+    pub fn maybe_next_event(&mut self) -> Option<Event> {
+        self.rx_chan.try_recv().ok()
+    }
+
     pub fn sync_blocking_events(&mut self) -> Vec<Event> {
         let mut rv = vec![];
         loop {
@@ -332,8 +348,8 @@ mod tests {
         let mut results = graph.run_all_typed("test".to_string()).await.unwrap();
         let events = results.async_blocking_events().await;
         for event in events {
-            match event.et {
-                otl_events::OtlEvent::Command(val) => {
+            match event.et.unwrap() {
+                otl_data::event::Et::Command(val) => {
                     if let Some(passed) = val.passed() {
                         dbg!(val);
                         assert!(passed)

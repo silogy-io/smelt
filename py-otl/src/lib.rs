@@ -1,7 +1,12 @@
 use otl_core::OtlErr;
-use otl_graph::CommandGraph;
+use otl_events::Event;
 use otl_graph::{Command, CommandOutput};
-use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyType};
+use otl_graph::{CommandGraph, GraphExecHandle};
+use pyo3::{
+    exceptions::PyRuntimeError,
+    prelude::*,
+    types::{PyDict, PyType},
+};
 use pythonize::depythonize_bound;
 
 use std::sync::Arc;
@@ -24,6 +29,7 @@ fn otl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
     m.add_class::<PyCommandOutput>()?;
     m.add_class::<SyncCommandGraph>()?;
+    m.add_class::<PyExecHandle>()?;
     Ok(())
 }
 
@@ -31,6 +37,37 @@ fn otl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
 pub struct SyncCommandGraph {
     pub(crate) graph: CommandGraph,
     pub(crate) async_runtime: Runtime,
+}
+
+#[pyclass]
+pub struct PyExecHandle {
+    #[allow(unused)]
+    output: GraphExecHandle,
+    is_done: bool,
+}
+
+impl PyExecHandle {
+    fn process_event(&mut self, event: &Event) {
+        if event.finished_event() {
+            self.is_done = true;
+        }
+    }
+}
+
+#[pymethods]
+impl PyExecHandle {
+    pub fn try_next(&mut self) -> PyResult<Option<String>> {
+        self.output
+            .maybe_next_event()
+            .inspect(|event| self.process_event(event))
+            .map(|event| serde_json::to_string(&event))
+            .transpose()
+            .map_err(|err| PyRuntimeError::new_err(err.to_string()))
+    }
+
+    pub fn done(&self) -> bool {
+        self.is_done
+    }
 }
 
 #[pyclass]
@@ -80,42 +117,29 @@ impl SyncCommandGraph {
     }
 
     //TODO: tt thould be a target type enum, havent looked to expose yet
-    pub fn run_all_tests(&self, tt: String) -> PyResult<Vec<PyCommandOutput>> {
+    pub fn run_all_tests(&self, tt: String) -> PyResult<PyExecHandle> {
         let alltestfut = self.graph.run_all_typed(tt);
 
-        self.async_runtime
-            .block_on(alltestfut)?
-            .into_iter()
-            .map(|val| {
-                val.map_err(arc_err_to_py)
-                    .map(|val| PyCommandOutput { output: val })
-            })
-            .collect::<PyResult<Vec<PyCommandOutput>>>()
+        Ok(self
+            .async_runtime
+            .block_on(alltestfut)
+            .map(|val| PyExecHandle {
+                is_done: false,
+                output: val,
+            })?)
     }
 
-    pub fn run_one_test(&self, test: String) -> PyResult<PyCommandOutput> {
+    pub fn run_one_test(&self, test: String) -> PyResult<PyExecHandle> {
         let alltestfut = self.graph.run_one_test(test);
 
         self.async_runtime
             .block_on(alltestfut)
-            .map(|val| PyCommandOutput { output: val })
+            .map(|val| PyExecHandle {
+                is_done: false,
+                output: val,
+            })
             .map_err(arc_err_to_py)
     }
-
-    //#[getter]
-    //pub fn build(&self) -> PyResult<Vec<Command>> {
-    //    let gil: PyResult<PyList> = Python::with_gil(|py| {
-    //        let otl_interfaces = py.import("otl.interfaces")?;
-    //        let command_type = otl_interfaces.getattr("Command")?;
-    //        let vec: Vec<PyDict> = self
-    //            .graph
-    //            .all_commands
-    //            .iter()
-    //            .map(|val| pythonize::pythonize_custom<PyDict>(val.0.as_ref().clone()))
-    //            .collect()?;
-    //    });
-
-    //    }
 }
 
 #[cfg(test)]

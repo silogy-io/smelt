@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package otl_telemetry.data;
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message Event {
+    google.protobuf.Timestamp time = 1; 
+    oneof et {
+      CommandEvent command = 15;
+      AllCommandsDone done = 16;
+    }
+}
+
+message CommandEvent {
+    string command_ref = 1;
+    oneof CommandVariant {
+      CommandStarted started = 5; 
+      CommandCancelled cancelled = 6; 
+      CommandFinished finished = 7;
+    }
+}
+
+message AllCommandsDone {}
+
+
+
+message CommandStarted {} 
+message CommandCancelled {} 
+message CommandFinished {
+  CommandOutput out = 1;
+}
+
+message CommandOutput {
+    int32 status_code = 1;
+}
+
+

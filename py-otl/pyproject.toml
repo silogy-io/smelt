@@ -11,6 +11,7 @@ typer = "0.9.0"
 pyyaml = "6.0.1"
 pydantic = "2.6.4"
 toml = "0.10.2"
+betterproto = "*"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -28,6 +29,7 @@ dependencies = [
   "pyyaml>=6.0.1",
   "pydantic>=2.6.0",
   "toml>=0.10.2",
+  "betterproto=*",
 ]
 
 

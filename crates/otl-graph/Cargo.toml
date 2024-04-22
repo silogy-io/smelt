@@ -9,6 +9,7 @@ edition.workspace = true
 [dependencies]
 otl-core = { workspace = true }
 otl-events = { workspace = true }
+otl-data = { workspace = true }
 
 dice = { workspace = true }
 allocative = { workspace = true }

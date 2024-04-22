@@ -2,13 +2,14 @@ use serde::{Deserialize, Serialize};
 
 use allocative::Allocative;
 use dupe::Dupe;
+use otl_events::to_file;
 
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
 
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use otl_core::OtlErr;
-pub use otl_events::CommandOutput;
+pub use otl_data::CommandOutput;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
@@ -209,7 +210,7 @@ pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr>
     let cstsatus = command.status().await.map(|val| CommandOutput {
         status_code: val.code().unwrap_or(-555),
     })?;
-    cstsatus.to_file(&working_dir).await?;
+    to_file(&cstsatus, &working_dir).await?;
     Ok(cstsatus)
 }
 

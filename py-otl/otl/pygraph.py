@@ -30,7 +30,7 @@ class PyGraph:
         return self.get_test_type(OtlTargetType.Stimulus)
 
     def run_one_test(self, name: str):
-        self.run_one_test(name)
+        handle = self.rsgraph.run_one_test(name)
 
     def run_all_tests(self, tt: str):
         self.rsgraph.run_all_tests(tt)
