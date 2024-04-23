@@ -1,4 +1,4 @@
-use std::{io, path::Path};
+use std::{io};
 fn main() -> io::Result<()> {
     let tonic = tonic_build::configure();
     // We want to use optional everywhere

@@ -6,7 +6,7 @@ use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
-    types::{PyBytes, PyDict, PyType},
+    types::{PyBytes, PyType},
 };
 use pythonize::depythonize_bound;
 
@@ -150,7 +150,7 @@ impl SyncCommandGraph {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     //fn file_to_vec(yaml_data: &str) -> Vec<Command> {
     //    let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
