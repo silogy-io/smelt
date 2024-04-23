@@ -2,10 +2,11 @@ use otl_core::OtlErr;
 use otl_events::Event;
 use otl_graph::{Command, CommandOutput};
 use otl_graph::{CommandGraph, GraphExecHandle};
+use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
-    types::{PyDict, PyType},
+    types::{PyBytes, PyDict, PyType},
 };
 use pythonize::depythonize_bound;
 
@@ -47,22 +48,27 @@ pub struct PyExecHandle {
 }
 
 impl PyExecHandle {
-    fn process_event(&mut self, event: &Event) {
+    fn process_event<'py>(&mut self, py: Python<'py>, event: Event) -> Bound<'py, PyBytes> {
         if event.finished_event() {
             self.is_done = true;
         }
+        let tmp = event.encode_to_vec();
+        PyBytes::new_bound(py, tmp.as_slice())
     }
 }
 
 #[pymethods]
 impl PyExecHandle {
-    pub fn try_next(&mut self) -> PyResult<Option<String>> {
+    pub fn get_next<'py>(&mut self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        self.output
+            .blocking_next()
+            .map(move |event| self.process_event(py, event))
+    }
+
+    pub fn try_next<'py>(&mut self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
         self.output
             .maybe_next_event()
-            .inspect(|event| self.process_event(event))
-            .map(|event| serde_json::to_string(&event))
-            .transpose()
-            .map_err(|err| PyRuntimeError::new_err(err.to_string()))
+            .map(move |event| self.process_event(py, event))
     }
 
     pub fn done(&self) -> bool {

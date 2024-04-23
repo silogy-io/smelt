@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from otl.otl import SyncCommandGraph
 import yaml
 
+from otl.otl_telemetry.data import Event
+import betterproto
+
 
 @dataclass
 class PyGraph:
@@ -33,7 +36,36 @@ class PyGraph:
         handle = self.rsgraph.run_one_test(name)
 
     def run_all_tests(self, tt: str):
-        self.rsgraph.run_all_tests(tt)
+        from rich.console import Console
+        from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
+
+        val = self.rsgraph.run_all_tests(tt)
+
+        progress = Progress(
+            SpinnerColumn(),
+            TimeElapsedColumn(),
+            console=Console(),
+        )
+        with progress as p:
+            import time
+
+            dogd = p.add_task("Executing tasks...")
+
+            pmap = {}
+            while True:
+                time.sleep(0.2)
+                p.update(dogd, advance=0)
+                message_bytes = val.try_next()
+                if message_bytes:
+                    message = Event().parse(message_bytes)
+                    name, ce_obj = betterproto.which_one_of(message, "et")
+                    ce_variant, ce_payload = betterproto.which_one_of(
+                        message.command, "CommandVariant"
+                    )
+
+                if not message_bytes and val.done():
+                    # print(message_bytes)
+                    break
 
     def get_all_tests_as_scripts(self) -> List[Tuple[str, List[str]]]:
         """

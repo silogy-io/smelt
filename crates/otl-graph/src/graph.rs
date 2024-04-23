@@ -272,7 +272,7 @@ impl CommandGraph {
         tokio::task::spawn(async move {
             tx.execute_commands(refs).await;
             let val = tx.per_transaction_data().get_tx_channel();
-            val.send(Event::done()).await
+            let _ = val.send(Event::done()).await;
         });
         Ok(GraphExecHandle { rx_chan: rx })
     }
@@ -309,6 +309,10 @@ impl GraphExecHandle {
         self.rx_chan.try_recv().ok()
     }
 
+    pub fn blocking_next(&mut self) -> Option<Event> {
+        self.rx_chan.blocking_recv()
+    }
+
     pub fn sync_blocking_events(&mut self) -> Vec<Event> {
         let mut rv = vec![];
         loop {
@@ -320,6 +324,10 @@ impl GraphExecHandle {
             }
         }
         rv
+    }
+
+    pub async fn next_async(&mut self) -> Option<Event> {
+        self.rx_chan.recv().await
     }
 
     pub async fn async_blocking_events(&mut self) -> Vec<Event> {
