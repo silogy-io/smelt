@@ -1,6 +1,5 @@
 use event::Et;
 
-
 mod serialize_timestamp {
     use serde::Deserialize;
     use serde::Deserializer;
@@ -87,7 +86,18 @@ impl CommandEvent {
     }
 }
 
+impl ToProtoMessage for CommandEvent {
+    type Message = Event;
+
+    fn as_proto(&self) -> Self::Message {
+        let time = Some(std::time::SystemTime::now().into());
+        let et = Some(Et::Command(self.clone()));
+        Event { time, et }
+    }
+}
+
 use command_event::CommandVariant;
+use prost_types::Timestamp;
 impl CommandVariant {
     pub fn passed(&self) -> Option<bool> {
         match self {

@@ -156,7 +156,7 @@ pub trait CommandSetter {
 pub type CommandOutputFuture<'a> =
     dyn Future<Output = Result<CommandOutput, Arc<OtlErr>>> + Send + 'a;
 #[async_trait]
-pub trait LocalCommandExecutor {
+pub trait CommandExecutor {
     async fn execute_command(
         &mut self,
         command_name: &CommandRef,
@@ -169,7 +169,7 @@ pub trait LocalCommandExecutor {
 }
 
 #[async_trait]
-impl LocalCommandExecutor for DiceComputations<'_> {
+impl CommandExecutor for DiceComputations<'_> {
     async fn execute_command(
         &mut self,
         command: &CommandRef,
@@ -240,6 +240,7 @@ impl CommandGraph {
         ctx.add_commands(commands.iter().cloned())?;
 
         let _ctx = ctx.commit().await;
+
         let graph = CommandGraph {
             dice,
             all_commands: commands,

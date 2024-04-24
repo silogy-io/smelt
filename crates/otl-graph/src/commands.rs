@@ -40,19 +40,19 @@ pub enum CommandRtStatus {
 }
 
 impl Command {
-    const fn script_file() -> &'static str {
+    pub const fn script_file() -> &'static str {
         "command.sh"
     }
 
-    const fn stderr_file() -> &'static str {
+    pub const fn stderr_file() -> &'static str {
         "command.err"
     }
 
-    const fn stdout_file() -> &'static str {
+    pub const fn stdout_file() -> &'static str {
         "command.out"
     }
 
-    fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
+    pub fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
         Ok(std::env::current_dir().map(|val| val.join("otl-out").join(&self.name))?)
     }
 
@@ -64,7 +64,7 @@ impl Command {
             .chain(self.script.iter().cloned())
     }
 
-    fn working_dir(&self) -> Result<PathBuf, OtlErr> {
+    pub fn working_dir(&self) -> Result<PathBuf, OtlErr> {
         let env = &self.runtime.env;
         let working_dir = env
             .get("TARGET_ROOT")
@@ -73,7 +73,7 @@ impl Command {
         Ok(working_dir)
     }
 
-    async fn get_status_from_fs(&self) -> Result<CommandOutput, OtlErr> {
+    pub async fn get_status_from_fs(&self) -> Result<CommandOutput, OtlErr> {
         if let Ok(working_dir) = self.working_dir() {
             let val = working_dir
                 .exists()
