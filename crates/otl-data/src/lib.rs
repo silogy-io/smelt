@@ -78,6 +78,20 @@ impl Event {
     pub fn done() -> Self {
         Self::new(Et::done())
     }
+
+    pub fn command_output(&self) -> Option<CommandOutput> {
+        self.et
+            .as_ref()
+            .and_then(|val| match val {
+                Et::Command(comm) => comm.command_variant.clone().and_then(|inner| match inner {
+                    CommandVariant::Finished(CommandFinished { out }) => Some(out),
+                    _ => None,
+                }),
+
+                _ => None,
+            })
+            .flatten()
+    }
 }
 
 impl CommandEvent {

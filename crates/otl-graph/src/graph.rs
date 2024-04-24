@@ -8,7 +8,7 @@ use dice::{
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
-    Future, TryFutureExt,
+    Future, StreamExt, TryFutureExt,
 };
 use otl_data::{CommandFinished, CommandStarted};
 use otl_events::{
@@ -23,8 +23,8 @@ use std::{str::FromStr, sync::Arc};
 use tokio::sync::mpsc::Receiver;
 
 use crate::{
-    commands::{execute_command, Command, TargetType},
-    maybe_cache,
+    commands::{Command, TargetType},
+    executor::{Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
 };
 use async_trait::async_trait;
 use otl_core::OtlErr;
@@ -106,19 +106,27 @@ impl Key for CommandRef {
                 otl_data::command_event::CommandVariant::Started(CommandStarted {}),
             ))
             .await;
-        let output = match self.0.target_type {
-            TargetType::Test => execute_command(self.0.as_ref()).await.map_err(Arc::new),
-            _ => maybe_cache(self.0.as_ref()).await.map_err(Arc::new),
-        }?;
-
-        let _ = tx
-            .send(new_command_event(
-                name,
-                otl_data::command_event::CommandVariant::Finished(CommandFinished {
-                    out: Some(output),
-                }),
-            ))
+        let executor = ctx.global_data().get_executor();
+        let local_tx = tx.clone();
+        let recv: Vec<CommandOutput> = executor
+            .command_as_stream(self.0.clone())
+            .await
+            .unwrap()
+            .filter_map(|val| {
+                let local_tx_clone = local_tx.clone();
+                async move {
+                    let _ = local_tx_clone.send(val.clone()).await;
+                    val.command_output()
+                }
+            })
+            .collect()
             .await;
+
+        if recv.len() != 1 {
+            panic!("Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
+        }
+        let output = recv.first().cloned().unwrap();
+
         Ok(CommandVal {
             output,
             command: self.clone(),
@@ -231,7 +239,12 @@ impl CommandGraph {
     }
 
     pub async fn new(commands: Vec<Command>) -> Result<Self, OtlErr> {
-        let dice = Dice::builder().build(DetectCycles::Enabled);
+        let executor = LocalExecutorBuilder::new().threads(8).build();
+
+        let mut dice_builder = Dice::builder();
+        dice_builder.set_executor(executor);
+
+        let dice = dice_builder.build(DetectCycles::Enabled);
         let mut ctx = dice.updater();
         let commands: Vec<CommandRef> = commands
             .into_iter()
