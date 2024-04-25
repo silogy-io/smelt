@@ -1,5 +1,5 @@
 use crate::executor::Executor;
-use std::{io::Write, thread};
+use std::{io::Write};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;

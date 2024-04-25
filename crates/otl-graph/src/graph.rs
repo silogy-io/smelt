@@ -112,7 +112,7 @@ impl Key for CommandRef {
         let executor = ctx.global_data().get_executor();
         let local_tx = tx.clone();
 
-        let recv: Vec<CommandOutput> = executor
+        let _recv: Vec<CommandOutput> = executor
             .command_as_stream(self.0.clone())
             .await
             .unwrap()

@@ -1,7 +1,5 @@
 use std::{
-    pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
 };
 
 use crate::Command;

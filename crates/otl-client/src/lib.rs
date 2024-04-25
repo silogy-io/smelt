@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use std::{future::Future, sync::Arc};
+use std::{sync::Arc};
 
 use otl_data::Event;
 mod tracker;
@@ -9,6 +9,6 @@ pub(crate) trait Subscriber {
     async fn recv_event(event: Arc<Event>) -> ();
 
     async fn exit(&mut self) {
-        ()
+        
     }
 }
