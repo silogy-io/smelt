@@ -16,3 +16,4 @@ serde_json = { workspace = true }
 allocative = { workspace = true }
 dupe = { workspace = true }
 derive_more = { workspace = true }
+uuid = { version = "1.8.0", features = ["v4", "fast-rng"] }

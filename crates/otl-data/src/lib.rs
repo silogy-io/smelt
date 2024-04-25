@@ -62,21 +62,24 @@ pub trait ToProtoMessage {
 }
 
 impl Event {
-    pub fn new(et: Et) -> Self {
+    pub fn new(et: Et, trace_id: String) -> Self {
         Event {
+            trace_id,
             time: Some(std::time::SystemTime::now().into()),
             et: et.into(),
         }
     }
     pub fn finished_event(&self) -> bool {
         match self.et.as_ref().unwrap() {
-            crate::event::Et::Done(_) => true,
+            crate::event::Et::Invoke(InvokeEvent {
+                invoke_variant: Some(invoke_event::InvokeVariant::Done(_)),
+            }) => true,
             _ => false,
         }
     }
 
-    pub fn done() -> Self {
-        Self::new(Et::done())
+    pub fn done(trace_id: String) -> Self {
+        Self::new(Et::done(), trace_id)
     }
 
     pub fn command_output(&self) -> Option<CommandOutput> {
@@ -106,7 +109,11 @@ impl ToProtoMessage for CommandEvent {
     fn as_proto(&self) -> Self::Message {
         let time = Some(std::time::SystemTime::now().into());
         let et = Some(Et::Command(self.clone()));
-        Event { time, et }
+        Event {
+            time,
+            et,
+            trace_id: String::new(),
+        }
     }
 }
 
@@ -117,6 +124,7 @@ impl CommandVariant {
         match self {
             CommandVariant::Started(_) => None,
             CommandVariant::Cancelled(_) => None,
+            CommandVariant::Done(_) => None,
             CommandVariant::Finished(ref output) => Some(output.passed()),
         }
     }
@@ -136,6 +144,8 @@ impl CommandOutput {
 
 impl Et {
     pub fn done() -> Self {
-        Self::Done(AllCommandsDone {})
+        crate::event::Et::Invoke(InvokeEvent {
+            invoke_variant: Some(invoke_event::InvokeVariant::Done(AllCommandsDone {})),
+        })
     }
 }

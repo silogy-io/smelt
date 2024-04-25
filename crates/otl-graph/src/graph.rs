@@ -13,7 +13,7 @@ use futures::{
 use otl_data::CommandStarted;
 use otl_events::{
     self, new_command_event,
-    runtime_support::{GetTxChannel, SetTxChannel},
+    runtime_support::{GetTraceId, GetTxChannel, SetTraceId, SetTxChannel},
     Event,
 };
 
@@ -100,10 +100,13 @@ impl Key for CommandRef {
         //specifically, if build targets fail -- this would be Bad and should cause an abort
         let tx = ctx.per_transaction_data().get_tx_channel();
         let name = self.0.name.clone();
+        let trace = ctx.per_transaction_data().get_trace_id();
+
         let _ = tx
             .send(new_command_event(
                 name.clone(),
                 otl_data::command_event::CommandVariant::Started(CommandStarted {}),
+                trace,
             ))
             .await;
         let executor = ctx.global_data().get_executor();
@@ -269,6 +272,7 @@ impl CommandGraph {
         let mut data = UserComputationData::new();
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         data.set_tx_channel(tx);
+        data.init_trace_id();
 
         let tx = ctx.commit_with_data(data).await;
         Ok((rx, tx))
@@ -288,7 +292,8 @@ impl CommandGraph {
         tokio::task::spawn(async move {
             tx.execute_commands(refs).await;
             let val = tx.per_transaction_data().get_tx_channel();
-            let _ = val.send(Event::done()).await;
+            let trace = tx.per_transaction_data().get_trace_id();
+            let _ = val.send(Event::done(trace)).await;
         });
         Ok(GraphExecHandle { rx_chan: rx })
     }
@@ -310,7 +315,8 @@ impl CommandGraph {
         tokio::task::spawn(async move {
             let _ = tx.execute_command(&command).await;
             let val = tx.per_transaction_data().get_tx_channel();
-            val.send(Event::new(otl_data::event::Et::done())).await
+            let trace = tx.per_transaction_data().get_trace_id();
+            val.send(Event::done(trace)).await
         });
         Ok(GraphExecHandle { rx_chan: rx })
     }

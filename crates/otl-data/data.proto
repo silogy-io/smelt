@@ -6,9 +6,11 @@ import "google/protobuf/timestamp.proto";
 
 message Event {
     google.protobuf.Timestamp time = 1; 
+    // A globally-unique ID (UUIDv4) of this trace. Required.
+    string trace_id = 2;
     oneof et {
       CommandEvent command = 15;
-      AllCommandsDone done = 16;
+      InvokeEvent invoke = 16;
     }
 }
 
@@ -18,12 +20,9 @@ message CommandEvent {
       CommandStarted started = 5; 
       CommandCancelled cancelled = 6; 
       CommandFinished finished = 7;
+      AllCommandsDone done = 16;
     }
 }
-
-message AllCommandsDone {}
-
-
 
 message CommandStarted {} 
 message CommandCancelled {} 
@@ -36,3 +35,18 @@ message CommandOutput {
 }
 
 
+message InvokeEvent {
+    oneof InvokeVariant {
+      ExecutionStart start = 5;
+      AllCommandsDone done = 6;
+      CancelInvocation cancel = 7;
+    }
+}
+
+message ExecutionStart { 
+  string path = 1; 
+  string username = 2; 
+  string hostname = 3;
+}
+message AllCommandsDone {}
+message CancelInvocation {}
