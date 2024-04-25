@@ -1,0 +1,18 @@
+[package]
+name = "otl-server"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+otl-core = { workspace = true }
+otl-events = { workspace = true }
+otl-data = { workspace = true }
+otl-graph = { workspace = true }
+
+thiserror = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+dice = { workspace = true }
