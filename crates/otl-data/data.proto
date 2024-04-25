@@ -17,6 +17,7 @@ message Event {
 message CommandEvent {
     string command_ref = 1;
     oneof CommandVariant {
+      CommandScheduled scheduled = 4;
       CommandStarted started = 5; 
       CommandCancelled cancelled = 6; 
       CommandFinished finished = 7;
@@ -25,6 +26,7 @@ message CommandEvent {
 }
 
 message CommandStarted {} 
+message CommandScheduled {} 
 message CommandCancelled {} 
 message CommandFinished {
   CommandOutput out = 1;

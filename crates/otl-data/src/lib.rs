@@ -122,10 +122,8 @@ use command_event::CommandVariant;
 impl CommandVariant {
     pub fn passed(&self) -> Option<bool> {
         match self {
-            CommandVariant::Started(_) => None,
-            CommandVariant::Cancelled(_) => None,
-            CommandVariant::Done(_) => None,
             CommandVariant::Finished(ref output) => Some(output.passed()),
+            _ => None,
         }
     }
 }
