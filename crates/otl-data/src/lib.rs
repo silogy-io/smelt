@@ -111,7 +111,7 @@ impl ToProtoMessage for CommandEvent {
 }
 
 use command_event::CommandVariant;
-use prost_types::Timestamp;
+
 impl CommandVariant {
     pub fn passed(&self) -> Option<bool> {
         match self {

@@ -10,7 +10,7 @@ use futures::{
     future::{self, BoxFuture},
     Future, StreamExt, TryFutureExt,
 };
-use otl_data::{CommandFinished, CommandStarted};
+use otl_data::CommandStarted;
 use otl_events::{
     self, new_command_event,
     runtime_support::{GetTxChannel, SetTxChannel},
@@ -108,11 +108,13 @@ impl Key for CommandRef {
             .await;
         let executor = ctx.global_data().get_executor();
         let local_tx = tx.clone();
+
         let recv: Vec<CommandOutput> = executor
             .command_as_stream(self.0.clone())
             .await
             .unwrap()
             .filter_map(|val| {
+                println!("heyy");
                 let local_tx_clone = local_tx.clone();
                 async move {
                     let _ = local_tx_clone.send(val.clone()).await;
@@ -122,13 +124,13 @@ impl Key for CommandRef {
             .collect()
             .await;
 
-        if recv.len() != 1 {
-            panic!("Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
-        }
-        let output = recv.first().cloned().unwrap();
+        //if recv.len() != 1 {
+        //    panic!("Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
+        //}
+        //let output = recv.first().cloned().unwrap();
 
         Ok(CommandVal {
-            output,
+            output: CommandOutput { status_code: 0 },
             command: self.clone(),
         })
     }
@@ -239,7 +241,7 @@ impl CommandGraph {
     }
 
     pub async fn new(commands: Vec<Command>) -> Result<Self, OtlErr> {
-        let executor = LocalExecutorBuilder::new().threads(8).build();
+        let executor = LocalExecutorBuilder::new().threads(8).build()?;
 
         let mut dice_builder = Dice::builder();
         dice_builder.set_executor(executor);
@@ -385,6 +387,7 @@ mod tests {
     #[tokio::test]
     async fn dependency_less_exec() {
         let yaml_data = include_str!("../../../test_data/command_lists/cl1.yaml");
+
         execute_all_tests_in_file(yaml_data).await
     }
 
