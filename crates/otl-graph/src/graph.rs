@@ -1,4 +1,5 @@
 use allocative::Allocative;
+use otl_data::client_commands::{client_command::ClientCommands, *};
 
 use derive_more::Display;
 use dice::{
@@ -20,7 +21,10 @@ use otl_events::{
 use dice::InjectedKey;
 use futures::FutureExt;
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
+use tokio::{
+    runtime::Runtime,
+    sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
+};
 
 use crate::{
     commands::{Command, TargetType},
@@ -98,7 +102,7 @@ impl Key for CommandRef {
         let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        let tx = ctx.per_transaction_data().get_tx_channel();
+        let tx = ctx.global_data().get_tx_channel();
         let name = self.0.name.clone();
         let trace = ctx.per_transaction_data().get_trace_id();
 
@@ -235,15 +239,19 @@ impl CommandSetter for DiceTransactionUpdater {
 pub struct CommandGraph {
     dice: Arc<Dice>,
     pub(crate) all_commands: Vec<CommandRef>,
-    rx_chan: UnboundedReceiver<()>,
+    rx_chan: UnboundedReceiver<ClientCommand>,
 }
 
 impl CommandGraph {
-    pub async fn new(rx_chan: UnboundedReceiver<()>) -> Result<Self, OtlErr> {
+    pub async fn new(
+        rx_chan: UnboundedReceiver<ClientCommand>,
+        tx_chan: Sender<Event>,
+    ) -> Result<Self, OtlErr> {
         let executor = LocalExecutorBuilder::new().threads(8).build()?;
 
         let mut dice_builder = Dice::builder();
         dice_builder.set_executor(executor);
+        dice_builder.set_tx_channel(tx_chan);
 
         let dice = dice_builder.build(DetectCycles::Enabled);
 
@@ -254,6 +262,37 @@ impl CommandGraph {
         };
 
         Ok(graph)
+    }
+
+    // This should hopefully never return
+    pub async fn eat_commands(&mut self) {
+        loop {
+            if let Some(ClientCommand {
+                client_commands: Some(command),
+            }) = self.rx_chan.recv().await
+            {
+                let rv = self.eat_command(command).await;
+                if let Err(err) = rv {
+                    dbg!("Todo -- send out a warning via a channel or something, at least log with tracing at this point when i add it in");
+                }
+            }
+        }
+    }
+
+    async fn eat_command(&mut self, command: ClientCommands) -> Result<(), OtlErr> {
+        match command {
+            ClientCommands::Setter(SetCommands { command_content }) => {
+                let script = serde_yaml::from_str(&command_content)?;
+                self.set_commands(script).await?;
+            }
+            ClientCommands::Runone(RunOne { command_name }) => {
+                self.run_one_test(command_name).await?;
+            }
+            ClientCommands::Runtype(RunType { typeinfo }) => {
+                self.run_all_typed(typeinfo).await?;
+            }
+        }
+        Ok(())
     }
 
     pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), OtlErr> {
@@ -268,18 +307,16 @@ impl CommandGraph {
         Ok(())
     }
 
-    async fn start_tx(&self) -> Result<(Receiver<Event>, DiceTransaction), OtlErr> {
+    async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
         let ctx = self.dice.updater();
         let mut data = UserComputationData::new();
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
-        data.set_tx_channel(tx);
-        data.init_trace_id();
 
+        data.init_trace_id();
         let tx = ctx.commit_with_data(data).await;
-        Ok((rx, tx))
+        Ok(tx)
     }
 
-    pub async fn run_all_typed(&self, maybe_type: String) -> Result<GraphExecHandle, OtlErr> {
+    pub async fn run_all_typed(&self, maybe_type: String) -> Result<(), OtlErr> {
         let tt = TargetType::from_str(maybe_type.as_str())?;
         let refs = self
             .all_commands
@@ -288,96 +325,98 @@ impl CommandGraph {
             .cloned()
             .collect();
 
-        let (rx, mut tx) = self.start_tx().await?;
+        let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
             tx.execute_commands(refs).await;
-            let val = tx.per_transaction_data().get_tx_channel();
+            let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
             let _ = val.send(Event::done(trace)).await;
         });
-        Ok(GraphExecHandle { rx_chan: rx })
+        Ok(())
     }
 
-    pub async fn run_one_test(
-        &self,
-        test_name: impl Into<String>,
-    ) -> Result<GraphExecHandle, Arc<OtlErr>> {
+    pub async fn run_one_test(&self, test_name: impl Into<String>) -> Result<(), OtlErr> {
         let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
         let command = tx
             .compute(&LookupCommand(Arc::new(test_name.into())))
-            .await
-            .map_err(|val| Arc::new(OtlErr::DiceFail(val)))?;
+            .await?;
+
         //tx.execute_command(&command).await
 
-        let (rx, mut tx) = self.start_tx().await?;
+        let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
             let _ = tx.execute_command(&command).await;
-            let val = tx.per_transaction_data().get_tx_channel();
+            let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
             val.send(Event::done(trace)).await
         });
-        Ok(GraphExecHandle { rx_chan: rx })
+        Ok(())
     }
 }
 
-pub struct GraphExecHandle {
-    rx_chan: Receiver<Event>,
+pub fn spawn_otl_server() -> OtlServerHandle {
+    let (tx_client, rx_client) = tokio::sync::mpsc::unbounded_channel();
+    let (tx_tele, rx_tele) = tokio::sync::mpsc::channel(100);
+
+    use tokio::runtime::Builder;
+
+    std::thread::spawn(|| {
+        let rt = Builder::new_multi_thread()
+            .worker_threads(4) // specify the number of threads here
+            .enable_all()
+            .build()
+            .unwrap();
+
+        //todo -- add failure handling here
+        let mut graph = rt.block_on(CommandGraph::new(rx_client, tx_tele)).unwrap();
+        rt.block_on(graph.eat_commands());
+    });
+    OtlServerHandle { rx_tele, tx_client }
 }
 
-impl GraphExecHandle {
-    pub fn maybe_next_event(&mut self) -> Option<Event> {
-        self.rx_chan.try_recv().ok()
-    }
-
-    pub fn blocking_next(&mut self) -> Option<Event> {
-        self.rx_chan.blocking_recv()
-    }
-
-    pub fn sync_blocking_events(&mut self) -> Vec<Event> {
-        let mut rv = vec![];
-        loop {
-            if let Some(val) = self.rx_chan.blocking_recv() {
-                if val.finished_event() {
-                    break;
-                }
-                rv.push(val);
-            }
-        }
-        rv
-    }
-
-    pub async fn next_async(&mut self) -> Option<Event> {
-        self.rx_chan.recv().await
-    }
-
-    pub async fn async_blocking_events(&mut self) -> Vec<Event> {
-        let mut rv = vec![];
-        loop {
-            if let Some(val) = self.rx_chan.recv().await {
-                if val.finished_event() {
-                    break;
-                }
-                rv.push(val);
-            }
-        }
-        rv
-    }
+pub struct OtlServerHandle {
+    tx_client: UnboundedSender<ClientCommand>,
+    rx_tele: Receiver<Event>,
 }
 
 #[cfg(test)]
 mod tests {
+    use tokio::sync::mpsc::{channel, unbounded_channel};
+
     use super::*;
+
+    struct TestGraphHandle {
+        rx_chan: Receiver<Event>,
+    }
+
+    impl TestGraphHandle {
+        pub async fn async_blocking_events(&mut self) -> Vec<Event> {
+            let mut rv = vec![];
+            loop {
+                if let Some(val) = self.rx_chan.recv().await {
+                    if val.finished_event() {
+                        break;
+                    }
+                    rv.push(val);
+                }
+            }
+            rv
+        }
+    }
 
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
 
         let script = script.unwrap();
-        let graph = CommandGraph::new(script).await.unwrap();
-        let mut results = graph.run_all_typed("test".to_string()).await.unwrap();
-        let events = results.async_blocking_events().await;
+        let (tx, rx) = unbounded_channel();
+        let (tx, rx_handle) = channel(100);
+        let graph = CommandGraph::new(rx, tx).await.unwrap();
+        let mut gh = TestGraphHandle { rx_chan: rx_handle };
+        graph.run_all_typed("test".to_string()).await.unwrap();
+        let events = gh.async_blocking_events().await;
         for event in events {
             match event.et.unwrap() {
                 otl_data::event::Et::Command(val) => {

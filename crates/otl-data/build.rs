@@ -12,7 +12,7 @@ fn main() -> io::Result<()> {
         )
         .field_attribute("time", "#[serde(with = \"crate::serialize_timestamp\")]");
 
-    let proto_files = ["data.proto"];
+    let proto_files = ["data.proto", "client.data.proto"];
     for proto_file in proto_files {
         println!("cargo:rerun-if-changed={}", proto_file);
     }

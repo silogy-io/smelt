@@ -69,6 +69,8 @@ otl-graph = { path = "crates/otl-graph", default-features = false }
 otl-data = { path = "crates/otl-data", default-features = false }
 otl-server = { path = "crates/otl-server", default-features = false }
 otl-client = { path = "crates/otl-client", default-features = false }
+otl-controller = { path = "crates/otl-controller", default-features = false }
+
 py-otl = { path = "py-otl", default-features = false }
 chrono = "0.4.37"
 hex = "0.4.3"

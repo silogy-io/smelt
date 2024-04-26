@@ -53,6 +53,8 @@ mod serialize_bytes {
     }
 }
 
+pub mod client_commands;
+
 tonic::include_proto!("otl_telemetry.data");
 
 pub trait ToProtoMessage {

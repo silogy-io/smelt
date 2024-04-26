@@ -5,49 +5,42 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 message Event {
-    google.protobuf.Timestamp time = 1; 
-    // A globally-unique ID (UUIDv4) of this trace. Required.
-    string trace_id = 2;
-    oneof et {
-      CommandEvent command = 15;
-      InvokeEvent invoke = 16;
-    }
+  google.protobuf.Timestamp time = 1;
+  // A globally-unique ID (UUIDv4) of this trace. Required.
+  string trace_id = 2;
+  oneof et {
+    CommandEvent command = 15;
+    InvokeEvent invoke = 16;
+  }
 }
 
 message CommandEvent {
-    string command_ref = 1;
-    oneof CommandVariant {
-      CommandScheduled scheduled = 4;
-      CommandStarted started = 5; 
-      CommandCancelled cancelled = 6; 
-      CommandFinished finished = 7;
-      
-    }
+  string command_ref = 1;
+  oneof CommandVariant {
+    CommandScheduled scheduled = 4;
+    CommandStarted started = 5;
+    CommandCancelled cancelled = 6;
+    CommandFinished finished = 7;
+  }
 }
 
-message CommandStarted {} 
-message CommandScheduled {} 
-message CommandCancelled {} 
-message CommandFinished {
-  CommandOutput out = 1;
-}
+message CommandStarted {}
+message CommandScheduled {}
+message CommandCancelled {}
+message CommandFinished { CommandOutput out = 1; }
 
-message CommandOutput {
-    int32 status_code = 1;
-}
-
+message CommandOutput { int32 status_code = 1; }
 
 message InvokeEvent {
-    oneof InvokeVariant {
-      ExecutionStart start = 5;
-      AllCommandsDone done = 6;
-    }
+  oneof InvokeVariant {
+    ExecutionStart start = 5;
+    AllCommandsDone done = 6;
+  }
 }
 
-message ExecutionStart { 
-  string path = 1; 
-  string username = 2; 
+message ExecutionStart {
+  string path = 1;
+  string username = 2;
   string hostname = 3;
 }
 message AllCommandsDone {}
-

@@ -1,7 +1,7 @@
 use otl_core::OtlErr;
 use otl_events::Event;
 use otl_graph::{Command, CommandOutput};
-use otl_graph::{CommandGraph, GraphExecHandle};
+use otl_graph::{CommandGraph, OtlServerHandle};
 use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
@@ -29,16 +29,13 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 fn otl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
     m.add_class::<PyCommandOutput>()?;
-    m.add_class::<SyncCommandGraph>()?;
+    m.add_class::<GraphServerHandle>()?;
     m.add_class::<PyExecHandle>()?;
     Ok(())
 }
 
 #[pyclass]
-pub struct SyncCommandGraph {
-    pub(crate) graph: CommandGraph,
-    pub(crate) async_runtime: Runtime,
-}
+pub struct GraphServerHandle {}
 
 #[pyclass]
 pub struct PyExecHandle {
@@ -83,7 +80,7 @@ pub struct PyCommandOutput {
 }
 
 #[pymethods]
-impl SyncCommandGraph {
+impl GraphServerHandle {
     #[new]
     #[classmethod]
     pub fn new(_cls: Bound<'_, PyType>, yaml_contents: String) -> PyResult<Self> {
@@ -95,61 +92,61 @@ impl SyncCommandGraph {
                 .build()
                 .unwrap();
 
-            let graph = rt.block_on(CommandGraph::from_commands_str(yaml_contents));
+            let graph = rt.block_on(CommandGraph::new());
             rt.block_on(graph.eat_commands());
         });
 
-        Ok(SyncCommandGraph {
+        Ok(GraphServerHandle {
             graph,
             async_runtime: rt,
         })
     }
 
-    #[classmethod]
-    pub fn from_py_commands(
-        _cls: Bound<'_, PyType>,
-        list_of_commands: Bound<'_, PyAny>,
-    ) -> PyResult<Self> {
-        let rt = Builder::new_multi_thread()
-            .worker_threads(4) // specify the number of threads here
-            .enable_all()
-            .build()
-            .unwrap();
+    //#[classmethod]
+    //pub fn from_py_commands(
+    //    _cls: Bound<'_, PyType>,
+    //    list_of_commands: Bound<'_, PyAny>,
+    //) -> PyResult<Self> {
+    //    let rt = Builder::new_multi_thread()
+    //        .worker_threads(4) // specify the number of threads here
+    //        .enable_all()
+    //        .build()
+    //        .unwrap();
 
-        let commands: Vec<Command> = depythonize_bound(list_of_commands)?;
+    //    let commands: Vec<Command> = depythonize_bound(list_of_commands)?;
 
-        let graph = rt.block_on(CommandGraph::new(commands))?;
+    //    let graph = rt.block_on(CommandGraph::new(commands))?;
 
-        Ok(SyncCommandGraph {
-            graph,
-            async_runtime: rt,
-        })
-    }
+    //    Ok(SyncCommandGraph {
+    //        graph,
+    //        async_runtime: rt,
+    //    })
+    //}
 
-    //TODO: tt thould be a target type enum, havent looked to expose yet
-    pub fn run_all_tests(&self, tt: String) -> PyResult<PyExecHandle> {
-        let alltestfut = self.graph.run_all_typed(tt);
+    ////TODO: tt thould be a target type enum, havent looked to expose yet
+    //pub fn run_all_tests(&self, tt: String) -> PyResult<PyExecHandle> {
+    //    let alltestfut = self.graph.run_all_typed(tt);
 
-        Ok(self
-            .async_runtime
-            .block_on(alltestfut)
-            .map(|val| PyExecHandle {
-                is_done: false,
-                output: val,
-            })?)
-    }
+    //    Ok(self
+    //        .async_runtime
+    //        .block_on(alltestfut)
+    //        .map(|val| PyExecHandle {
+    //            is_done: false,
+    //            output: val,
+    //        })?)
+    //}
 
-    pub fn run_one_test(&self, test: String) -> PyResult<PyExecHandle> {
-        let alltestfut = self.graph.run_one_test(test);
+    //pub fn run_one_test(&self, test: String) -> PyResult<PyExecHandle> {
+    //    let alltestfut = self.graph.run_one_test(test);
 
-        self.async_runtime
-            .block_on(alltestfut)
-            .map(|val| PyExecHandle {
-                is_done: false,
-                output: val,
-            })
-            .map_err(arc_err_to_py)
-    }
+    //    self.async_runtime
+    //        .block_on(alltestfut)
+    //        .map(|val| PyExecHandle {
+    //            is_done: false,
+    //            output: val,
+    //        })
+    //        .map_err(arc_err_to_py)
+    //}
 }
 
 #[cfg(test)]

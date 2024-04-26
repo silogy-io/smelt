@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::Event;
-use dice::UserComputationData;
+use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use uuid::Uuid;
 
 use tokio::sync::mpsc::Sender;
@@ -21,16 +21,15 @@ pub trait GetTraceId {
     fn get_trace_id(&self) -> String;
 }
 
-impl SetTxChannel for UserComputationData {
+impl SetTxChannel for DiceDataBuilder {
     fn set_tx_channel(&mut self, tx_channel: Sender<Event>) {
-        self.data.set(tx_channel);
+        self.set(tx_channel);
     }
 }
 
-impl GetTxChannel for UserComputationData {
+impl GetTxChannel for DiceData {
     fn get_tx_channel(&self) -> Sender<Event> {
-        self.data
-            .get::<Sender<Event>>()
+        self.get::<Sender<Event>>()
             .expect("Channel should be set")
             .clone()
     }
