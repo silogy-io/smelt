@@ -12,3 +12,4 @@ otl-events = { workspace = true }
 otl-data = { workspace = true }
 otl-graph = { workspace = true }
 async-trait.workspace = true
+ratatui = "0.26.2"

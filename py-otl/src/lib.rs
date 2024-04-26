@@ -87,13 +87,17 @@ impl SyncCommandGraph {
     #[new]
     #[classmethod]
     pub fn new(_cls: Bound<'_, PyType>, yaml_contents: String) -> PyResult<Self> {
-        let rt = Builder::new_multi_thread()
-            .worker_threads(4) // specify the number of threads here
-            .enable_all()
-            .build()
-            .unwrap();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        std::thread::spawn(|| {
+            let rt = Builder::new_multi_thread()
+                .worker_threads(4) // specify the number of threads here
+                .enable_all()
+                .build()
+                .unwrap();
 
-        let graph = rt.block_on(CommandGraph::from_commands_str(yaml_contents))?;
+            let graph = rt.block_on(CommandGraph::from_commands_str(yaml_contents));
+            rt.block_on(graph.eat_commands());
+        });
 
         Ok(SyncCommandGraph {
             graph,
@@ -150,7 +154,6 @@ impl SyncCommandGraph {
 
 #[cfg(test)]
 mod tests {
-    
 
     //fn file_to_vec(yaml_data: &str) -> Vec<Command> {
     //    let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);

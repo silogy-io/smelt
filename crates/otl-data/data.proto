@@ -21,7 +21,7 @@ message CommandEvent {
       CommandStarted started = 5; 
       CommandCancelled cancelled = 6; 
       CommandFinished finished = 7;
-      AllCommandsDone done = 16;
+      
     }
 }
 
@@ -41,7 +41,6 @@ message InvokeEvent {
     oneof InvokeVariant {
       ExecutionStart start = 5;
       AllCommandsDone done = 6;
-      CancelInvocation cancel = 7;
     }
 }
 
@@ -51,4 +50,4 @@ message ExecutionStart {
   string hostname = 3;
 }
 message AllCommandsDone {}
-message CancelInvocation {}
+

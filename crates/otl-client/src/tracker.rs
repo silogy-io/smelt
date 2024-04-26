@@ -1,46 +1,78 @@
 use super::Subscriber;
 use async_trait::async_trait;
 use otl_data::{
-    command_event::CommandVariant, event::Et, CommandFinished, CommandOutput, CommandStarted, Event,
+    command_event::CommandVariant, event::Et, invoke_event::InvokeVariant, CommandFinished,
+    CommandOutput, CommandStarted, Event, ExecutionStart,
 };
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, default, path::PathBuf, sync::Arc, time::SystemTime};
 
 pub enum InvocationTrackerError {
     InvalidStateTransition,
+    InvalidInvokeST,
+    UncoveredCommand(CommandVariant),
+    EventMissing,
+}
+
+#[async_trait]
+impl Subscriber for RunningInvocationTracker {
+    type Error = InvocationTrackerError;
+    async fn recv_event(&mut self, event: Arc<Event>) -> Result<(), Self::Error> {
+        let trace_id = &event.trace_id;
+        self.all_invocations
+            .entry(trace_id.clone())
+            .or_insert(SingleInvocationTracker::default())
+            .recv_event(event)
+            .await
+    }
 }
 
 type CommandHandle = String;
 #[async_trait]
-impl Subscriber for InvocationTracker {
+impl Subscriber for SingleInvocationTracker {
     type Error = InvocationTrackerError;
     async fn recv_event(&mut self, event: Arc<Event>) -> Result<(), Self::Error> {
         let ts: SystemTime = event.time.clone().unwrap().try_into().unwrap();
         if let Some(ref et) = event.et {
             match et {
-                Et::Invoke(invoke) => Ok(()),
+                Et::Invoke(invoke) => {
+                    if let Some(ref var) = invoke.invoke_variant {
+                        self.invoker.process(var)
+                    } else {
+                        Err(InvocationTrackerError::EventMissing)
+                    }
+                }
                 Et::Command(command) => {
                     let name = command.command_ref.clone();
 
                     let slot = self.command_map.entry(name);
 
                     let mut rv = Ok(());
-                    let state = match command.command_variant.as_ref().unwrap() {
+                    match command.command_variant.as_ref().unwrap() {
+                        CommandVariant::Scheduled(_) => {
+                            slot.or_insert(ExecCommand::scheduled(ts));
+                        }
                         CommandVariant::Started(_) => {
-                            slot.and_modify(|val| rv = val.to_started(ts))
+                            slot.and_modify(|val| rv = val.to_started(ts));
                         }
                         CommandVariant::Finished(CommandFinished {
                             out: Some(CommandOutput { status_code }),
-                        }) => slot.and_modify(|val| rv = val.to_completed(ts, *status_code)),
-                        CommandVariant::Cancelled(_) => {
-                            slot.and_modify(|val| rv = val.to_cancelled(ts))
+                        }) => {
+                            slot.and_modify(|val| rv = val.to_completed(ts, *status_code));
                         }
-                        _ => slot,
+                        CommandVariant::Cancelled(_) => {
+                            slot.and_modify(|val| rv = val.to_cancelled(ts));
+                        }
+                        _ => {
+                            return Err(InvocationTrackerError::UncoveredCommand(
+                                command.command_variant.as_ref().unwrap().clone(),
+                            ))
+                        }
                     };
                     Ok(())
                 }
             }
         } else {
-            Ok(())
+            Err(InvocationTrackerError::EventMissing)
         }
     }
 }
@@ -79,6 +111,15 @@ struct ExecCommand {
 }
 
 impl ExecCommand {
+    fn scheduled(started_time: impl Into<SystemTime>) -> Self {
+        let sched_time = started_time.into();
+        Self {
+            status: ExecCommandState::Scheduled { sched_time },
+            stderr: OutputLookinThang::InMemory(String::new()),
+            stdout: OutputLookinThang::InMemory(String::new()),
+        }
+    }
+
     fn to_started(
         &mut self,
         started_time: impl Into<SystemTime>,
@@ -139,9 +180,59 @@ impl ExecCommand {
     }
 }
 
-struct InvokerMetaData {}
+#[derive(Default)]
+enum InvocationState {
+    #[default]
+    Uninit,
+    Running(InvokerMetaData),
+    Completed(InvokerMetaData),
+}
 
-pub struct InvocationTracker {
-    invoker: InvokerMetaData,
+#[derive(Default, Clone)]
+struct InvokerMetaData {
+    path: String,
+    username: String,
+    hostname: String,
+}
+
+impl InvocationState {
+    fn process(&mut self, invoke: &InvokeVariant) -> Result<(), InvocationTrackerError> {
+        match invoke {
+            InvokeVariant::Start(started) => self.to_start(started.clone()),
+            InvokeVariant::Done(_) => self.to_completed(),
+        }
+    }
+
+    fn to_start(&mut self, var: ExecutionStart) -> Result<(), InvocationTrackerError> {
+        match self {
+            Self::Uninit => {
+                *self = Self::Running(InvokerMetaData {
+                    path: var.path,
+                    username: var.username,
+                    hostname: var.hostname,
+                });
+                Ok(())
+            }
+            _ => Err(InvocationTrackerError::InvalidInvokeST),
+        }
+    }
+    fn to_completed(&mut self) -> Result<(), InvocationTrackerError> {
+        match self {
+            Self::Running(ref mut inner) => {
+                *self = Self::Completed(inner.clone());
+                Ok(())
+            }
+            _ => Err(InvocationTrackerError::InvalidInvokeST),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct SingleInvocationTracker {
+    invoker: InvocationState,
     command_map: HashMap<CommandHandle, ExecCommand>,
+}
+
+pub struct RunningInvocationTracker {
+    all_invocations: HashMap<String, SingleInvocationTracker>,
 }

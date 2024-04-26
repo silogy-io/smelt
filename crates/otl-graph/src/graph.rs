@@ -20,7 +20,7 @@ use otl_events::{
 use dice::InjectedKey;
 use futures::FutureExt;
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 
 use crate::{
     commands::{Command, TargetType},
@@ -235,22 +235,29 @@ impl CommandSetter for DiceTransactionUpdater {
 pub struct CommandGraph {
     dice: Arc<Dice>,
     pub(crate) all_commands: Vec<CommandRef>,
+    rx_chan: UnboundedReceiver<()>,
 }
 
 impl CommandGraph {
-    pub async fn from_commands_str(commands: impl AsRef<str>) -> Result<Self, OtlErr> {
-        let commands: Vec<Command> = serde_yaml::from_str(commands.as_ref())?;
-        Self::new(commands).await
-    }
-
-    pub async fn new(commands: Vec<Command>) -> Result<Self, OtlErr> {
+    pub async fn new(rx_chan: UnboundedReceiver<()>) -> Result<Self, OtlErr> {
         let executor = LocalExecutorBuilder::new().threads(8).build()?;
 
         let mut dice_builder = Dice::builder();
         dice_builder.set_executor(executor);
 
         let dice = dice_builder.build(DetectCycles::Enabled);
-        let mut ctx = dice.updater();
+
+        let graph = CommandGraph {
+            dice,
+            rx_chan,
+            all_commands: vec![],
+        };
+
+        Ok(graph)
+    }
+
+    pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), OtlErr> {
+        let mut ctx = self.dice.updater();
         let commands: Vec<CommandRef> = commands
             .into_iter()
             .map(|val| CommandRef(Arc::new(val)))
@@ -258,13 +265,7 @@ impl CommandGraph {
         ctx.add_commands(commands.iter().cloned())?;
 
         let _ctx = ctx.commit().await;
-
-        let graph = CommandGraph {
-            dice,
-            all_commands: commands,
-        };
-
-        Ok(graph)
+        Ok(())
     }
 
     async fn start_tx(&self) -> Result<(Receiver<Event>, DiceTransaction), OtlErr> {
