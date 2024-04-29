@@ -11,3 +11,6 @@ def test_sanity_pygraph():
     graph = PyGraph.from_command_list(commands)
     graph.run_all_tests("build")
     graph.run_all_tests("test")
+
+
+test_sanity_pygraph()

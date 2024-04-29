@@ -15,10 +15,11 @@ class IsDoneSubscriber:
         (variant, event_payload) = betterproto.which_one_of(message, "et")
         if variant == "invoke":
             (invoke_name, invoke_payload) = betterproto.which_one_of(
-                message, "InvokeVariant"
+                event_payload, "InvokeVariant"
             )
+
             if invoke_name == "done":
-                self._is_done = True
+                self.is_done = True
             else:
                 pass
         else:

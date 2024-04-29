@@ -21,9 +21,7 @@ use otl_events::{
 use dice::InjectedKey;
 use futures::FutureExt;
 use std::{str::FromStr, sync::Arc};
-use tokio::{
-    sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
-};
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
@@ -116,28 +114,15 @@ impl Key for CommandRef {
         let executor = ctx.global_data().get_executor();
         let local_tx = tx.clone();
 
-        let _recv: Vec<CommandOutput> = executor
-            .command_as_stream(self.0.clone())
+        let output: CommandOutput = executor
+            .execute_commands(self.0.clone(), local_tx)
             .await
-            .unwrap()
-            .filter_map(|val| {
-                println!("heyy");
-                let local_tx_clone = local_tx.clone();
-                async move {
-                    let _ = local_tx_clone.send(val.clone()).await;
-                    val.command_output()
-                }
-            })
-            .collect()
-            .await;
-
-        //if recv.len() != 1 {
-        //    panic!("Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
-        //}
-        //let output = recv.first().cloned().unwrap();
+            .map(|val| {
+                val.command_output().unwrap()
+            }).expect( "Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
 
         Ok(CommandVal {
-            output: CommandOutput { status_code: 0 },
+            output,
             command: self.clone(),
         })
     }
@@ -302,7 +287,7 @@ impl CommandGraph {
             .map(|val| CommandRef(Arc::new(val)))
             .collect();
         ctx.add_commands(commands.iter().cloned())?;
-
+        self.all_commands = commands;
         let _ctx = ctx.commit().await;
         Ok(())
     }
@@ -337,7 +322,8 @@ impl CommandGraph {
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
-            tx.execute_commands(refs).await;
+            let out = tx.execute_commands(refs).await;
+
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
             let _ = val.send(Event::done(trace)).await;
@@ -430,7 +416,6 @@ mod tests {
             match event.et.unwrap() {
                 otl_data::event::Et::Command(val) => {
                     if let Some(passed) = val.passed() {
-                        dbg!(val);
                         assert!(passed)
                     }
                 }

@@ -101,7 +101,7 @@ impl OtlController {
                     match val {
                         Some(val) => {
                         let event = Arc::new(val);
-                        let _val = self
+                        let val = self
                             .for_each_subscriber(|subscriber| subscriber.recv_event(event.clone()))
                             .await;
                         }
@@ -110,6 +110,19 @@ impl OtlController {
                         }
                     }
                 }
+                sub = self.ctx.recv_chan.recv() => {
+                    match sub {
+                        Some(sub) => {
+                            self.ctx.subscribers.push(sub)
+                        }
+                        None => {
+                            return;
+                        }
+                    }
+
+
+                }
+
 
             }
         }

@@ -61,6 +61,12 @@ class PyGraph:
 
     def run_all_tests(self, maybe_type: str):
         handle = self.controller.run_all_tests(maybe_type)
+        while not self.done_tracker.is_done:
+            message = maybe_get_message(self.listener, blocking=True)
+            print(message)
+            if message:
+                print(betterproto.which_one_of(message, "et"))
+                self.done_tracker.process_message(message)
 
     def get_all_tests_as_scripts(self) -> List[Tuple[str, List[str]]]:
         """

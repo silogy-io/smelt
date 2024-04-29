@@ -1,5 +1,5 @@
 use crate::executor::Executor;
-use std::{io::Write};
+use std::io::Write;
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
@@ -52,29 +52,28 @@ impl Executor for LocalExecutor {
     async fn execute_commands(
         &self,
         command: Arc<Command>,
-    ) -> Result<tokio::sync::mpsc::Receiver<Event>, ExecutorErr> {
-        let (send, recv) = channel::<Event>(100);
-        tokio::spawn(async move {
-            let local_command = command;
-            let rv = execute_local_command(local_command.as_ref(), send.clone())
-                .await
-                .map(|output| {
-                    CommandEvent {
-                        command_ref: local_command.name.clone(),
-                        command_variant: Some(CommandVariant::Finished(CommandFinished {
-                            out: Some(output),
-                        })),
-                    }
-                    .as_proto()
-                });
-            println!("wedone");
-            match rv {
-                Ok(comm) => send.send(comm).await.unwrap(),
-                Err(_) => todo!("Haven't handled the error case yet"),
-            }
-        });
+        tx: Sender<Event>,
+    ) -> Result<Event, ExecutorErr> {
+        let local_command = command;
+        let rv = execute_local_command(local_command.as_ref(), tx.clone())
+            .await
+            .map(|output| {
+                CommandEvent {
+                    command_ref: local_command.name.clone(),
+                    command_variant: Some(CommandVariant::Finished(CommandFinished {
+                        out: Some(output),
+                    })),
+                }
+                .as_proto()
+            });
 
-        Ok(recv)
+        match rv {
+            Ok(ref comm) => {
+                tx.send(comm.clone()).await.unwrap();
+            }
+            Err(_) => todo!("Haven't handled the error case yet"),
+        }
+        Ok(rv?)
     }
 }
 

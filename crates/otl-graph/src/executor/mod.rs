@@ -6,7 +6,7 @@ use futures::Stream;
 use otl_data::Event;
 
 use thiserror::Error;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 mod local;
 pub use local::LocalExecutorBuilder;
 use tokio_stream::wrappers::ReceiverStream;
@@ -18,15 +18,11 @@ pub enum ExecutorErr {
 }
 
 pub trait Executor {
-    async fn execute_commands(&self, command: Arc<Command>)
-        -> Result<Receiver<Event>, ExecutorErr>;
-    async fn command_as_stream(
+    async fn execute_commands(
         &self,
         command: Arc<Command>,
-    ) -> Result<impl Stream<Item = Event>, ExecutorErr> {
-        let chan = self.execute_commands(command).await?;
-        Ok(ReceiverStream::new(chan))
-    }
+        tx: Sender<Event>,
+    ) -> Result<Event, ExecutorErr>;
 }
 
 // We use this instead of Box<dyn Executor> because trait objects with async methods aren't
@@ -43,9 +39,10 @@ impl Executor for ExecutorShim {
     async fn execute_commands(
         &self,
         command: Arc<Command>,
-    ) -> Result<Receiver<Event>, ExecutorErr> {
+        tx: Sender<Event>,
+    ) -> Result<Event, ExecutorErr> {
         match self {
-            Self::Local(local_exec) => local_exec.execute_commands(command).await,
+            Self::Local(local_exec) => local_exec.execute_commands(command, tx).await,
         }
     }
 }
