@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::Event;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use uuid::Uuid;

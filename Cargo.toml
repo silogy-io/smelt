@@ -74,6 +74,8 @@ otl-controller = { path = "crates/otl-controller", default-features = false }
 py-otl = { path = "py-otl", default-features = false }
 chrono = "0.4.37"
 hex = "0.4.3"
+anyhow = "1.0.82"
+
 
 [profile.opt-dev]
 inherits = "dev"

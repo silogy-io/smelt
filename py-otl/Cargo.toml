@@ -17,6 +17,7 @@ otl-core = { workspace = true }
 otl-graph = { workspace = true }
 otl-events = { workspace = true }
 otl-data = { workspace = true }
+otl-controller = { workspace = true }
 
 
 dice = { workspace = true }
@@ -29,8 +30,10 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 derive_more = { workspace = true }
-async-trait = { workspace = true }
+async-trait.workspace = true
 fuzzy-matcher = { workspace = true }
 pythonize = { workspace = true }
 pyo3 = { workspace = true }
 prost = { workspace = true }
+otl-client.workspace = true
+anyhow.workspace = true

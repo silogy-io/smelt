@@ -1,17 +1,19 @@
+use anyhow::anyhow;
+use otl_client::Subscriber;
+use otl_controller::{spawn_otl_with_server, OtlControllerHandle};
 use otl_core::OtlErr;
+use otl_data::client_commands::ClientCommand;
 use otl_events::Event;
-use otl_graph::{Command, CommandOutput};
-use otl_graph::{CommandGraph, OtlServerHandle};
+
 use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
     types::{PyBytes, PyType},
 };
-use pythonize::depythonize_bound;
 
 use std::sync::Arc;
-use tokio::runtime::{Builder, Runtime};
+use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
     let otl_string = otl_err.to_string();
@@ -28,143 +30,128 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 #[pymodule]
 fn otl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
-    m.add_class::<PyCommandOutput>()?;
-    m.add_class::<GraphServerHandle>()?;
-    m.add_class::<PyExecHandle>()?;
+    m.add_class::<PyController>()?;
+    m.add_class::<PySubscriber>()?;
     Ok(())
 }
 
 #[pyclass]
-pub struct GraphServerHandle {}
-
-#[pyclass]
-pub struct PyExecHandle {
-    #[allow(unused)]
-    output: GraphExecHandle,
-    is_done: bool,
-}
-
-impl PyExecHandle {
-    fn process_event<'py>(&mut self, py: Python<'py>, event: Event) -> Bound<'py, PyBytes> {
-        if event.finished_event() {
-            self.is_done = true;
-        }
-        let tmp = event.encode_to_vec();
-        PyBytes::new_bound(py, tmp.as_slice())
-    }
-}
-
-#[pymethods]
-impl PyExecHandle {
-    pub fn get_next<'py>(&mut self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
-        self.output
-            .blocking_next()
-            .map(move |event| self.process_event(py, event))
-    }
-
-    pub fn try_next<'py>(&mut self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
-        self.output
-            .maybe_next_event()
-            .map(move |event| self.process_event(py, event))
-    }
-
-    pub fn done(&self) -> bool {
-        self.is_done
-    }
+pub struct PyController {
+    handle: OtlControllerHandle,
 }
 
 #[pyclass]
-pub struct PyCommandOutput {
-    #[allow(unused)]
-    output: CommandOutput,
+pub struct PySubscriber {
+    recv_chan: UnboundedReceiver<Arc<Event>>,
+    client_handle: UnboundedSender<ClientCommand>,
+}
+
+struct PySubscriberFwd {
+    send_chan: UnboundedSender<Arc<Event>>,
+}
+
+impl PySubscriber {
+    pub(crate) fn create_subscriber(
+        client_handle: UnboundedSender<ClientCommand>,
+    ) -> (PySubscriber, Box<PySubscriberFwd>) {
+        let (send_chan, recv_chan) = tokio::sync::mpsc::unbounded_channel();
+        (
+            PySubscriber {
+                recv_chan,
+                client_handle,
+            },
+            Box::new(PySubscriberFwd { send_chan }),
+        )
+    }
+}
+
+#[async_trait::async_trait]
+impl Subscriber for PySubscriberFwd {
+    async fn recv_event(&mut self, event: Arc<Event>) -> anyhow::Result<()> {
+        self.send_chan.send(event).map_err(|e| anyhow!(e))
+    }
+}
+
+fn client_channel_err(_in_err: impl std::error::Error) -> PyErr {
+    PyRuntimeError::new_err("Channel error trying to send a command to the client")
 }
 
 #[pymethods]
-impl GraphServerHandle {
+impl PyController {
     #[new]
     #[classmethod]
-    pub fn new(_cls: Bound<'_, PyType>, yaml_contents: String) -> PyResult<Self> {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        std::thread::spawn(|| {
-            let rt = Builder::new_multi_thread()
-                .worker_threads(4) // specify the number of threads here
-                .enable_all()
-                .build()
-                .unwrap();
-
-            let graph = rt.block_on(CommandGraph::new());
-            rt.block_on(graph.eat_commands());
-        });
-
-        Ok(GraphServerHandle {
-            graph,
-            async_runtime: rt,
-        })
+    pub fn new(_cls: Bound<'_, PyType>) -> PyResult<Self> {
+        let handle = spawn_otl_with_server();
+        Ok(PyController { handle })
     }
 
-    //#[classmethod]
-    //pub fn from_py_commands(
-    //    _cls: Bound<'_, PyType>,
-    //    list_of_commands: Bound<'_, PyAny>,
-    //) -> PyResult<Self> {
-    //    let rt = Builder::new_multi_thread()
-    //        .worker_threads(4) // specify the number of threads here
-    //        .enable_all()
-    //        .build()
-    //        .unwrap();
+    pub fn set_graph(&self, graph: String) -> PyResult<()> {
+        self.handle
+            .tx_client
+            .send(ClientCommand::send_graph(graph))
+            .map_err(client_channel_err)?;
+        Ok(())
+    }
 
-    //    let commands: Vec<Command> = depythonize_bound(list_of_commands)?;
+    pub fn run_all_tests(&self, tt: String) -> PyResult<()> {
+        self.handle
+            .tx_client
+            .send(ClientCommand::execute_type(tt))
+            .map_err(client_channel_err)?;
+        Ok(())
+    }
 
-    //    let graph = rt.block_on(CommandGraph::new(commands))?;
+    pub fn run_one_test(&self, test: String) -> PyResult<()> {
+        self.handle
+            .tx_client
+            .send(ClientCommand::execute_comamnd(test))
+            .map_err(client_channel_err)?;
+        Ok(())
+    }
 
-    //    Ok(SyncCommandGraph {
-    //        graph,
-    //        async_runtime: rt,
-    //    })
-    //}
-
-    ////TODO: tt thould be a target type enum, havent looked to expose yet
-    //pub fn run_all_tests(&self, tt: String) -> PyResult<PyExecHandle> {
-    //    let alltestfut = self.graph.run_all_typed(tt);
-
-    //    Ok(self
-    //        .async_runtime
-    //        .block_on(alltestfut)
-    //        .map(|val| PyExecHandle {
-    //            is_done: false,
-    //            output: val,
-    //        })?)
-    //}
-
-    //pub fn run_one_test(&self, test: String) -> PyResult<PyExecHandle> {
-    //    let alltestfut = self.graph.run_one_test(test);
-
-    //    self.async_runtime
-    //        .block_on(alltestfut)
-    //        .map(|val| PyExecHandle {
-    //            is_done: false,
-    //            output: val,
-    //        })
-    //        .map_err(arc_err_to_py)
-    //}
+    pub fn add_py_listener(&self) -> PyResult<PySubscriber> {
+        let (sub, fwder) = PySubscriber::create_subscriber(self.handle.tx_client.clone());
+        self.handle
+            .send_chan
+            .blocking_send(fwder)
+            .map_err(|_| PyRuntimeError::new_err("Could not add subscriber"))?;
+        Ok(sub)
+    }
 }
 
-#[cfg(test)]
-mod tests {
+#[pymethods]
+impl PySubscriber {
+    pub fn pop_message_blocking<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let val = self
+            .recv_chan
+            .blocking_recv()
+            .ok_or_else(|| PyRuntimeError::new_err("Event channel closed unexpectedly"))?;
 
-    //fn file_to_vec(yaml_data: &str) -> Vec<Command> {
-    //    let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
-    //    script.unwrap()
-    //}
+        let val = val.encode_to_vec();
 
-    //#[test]
-    //fn obj_to_py() {
-    //    let vals = file_to_vec(include_str!("../test_data/command_lists/cl1.yaml"));
-    //    pyo3::prepare_freethreaded_python();
+        Ok(PyBytes::new_bound(py, &val))
+    }
+    pub fn nonblocking_pop<'py>(
+        &mut self,
+        py: Python<'py>,
+    ) -> PyResult<Option<Bound<'py, PyBytes>>> {
+        let val = self.recv_chan.try_recv();
 
-    //    Python::with_gil(|py| {
-    //        let val: Vec<Bound<PyAny>> =
-    //            vals.iter().map(|val| val.to_pycommand(py).unwrap()).collect();
-    //    });
-    //}
+        match val {
+            Ok(val) => {
+                let val = val.encode_to_vec();
+
+                Ok(Some(PyBytes::new_bound(py, &val)))
+            }
+            Err(TryRecvError::Empty) => Ok(None),
+            Err(_) => Err(PyRuntimeError::new_err("Event channel closed unexpectedly")),
+        }
+    }
+
+    pub fn send_client_message(&mut self, client_message: Bound<'_, PyBytes>) -> Result<(), PyErr> {
+        let val = ClientCommand::decode(client_message.as_bytes())
+            .map_err(|_| PyRuntimeError::new_err("Could not deserialize client message"))?;
+        self.client_handle.send(val).map_err(client_channel_err)?;
+        Ok(())
+    }
 }

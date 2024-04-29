@@ -1,22 +1,28 @@
 use super::Subscriber;
+use anyhow::anyhow;
 use async_trait::async_trait;
 use otl_data::{
     command_event::CommandVariant, event::Et, invoke_event::InvokeVariant, CommandFinished,
     CommandOutput, CommandStarted, Event, ExecutionStart,
 };
 use std::{collections::HashMap, default, path::PathBuf, sync::Arc, time::SystemTime};
+use thiserror::Error;
 
+#[derive(Error, Debug)]
 pub enum InvocationTrackerError {
+    #[error("Invalid state transition for a command")]
     InvalidStateTransition,
+    #[error("Invalid state transition for an invocation")]
     InvalidInvokeST,
+    #[error("We don't handle a command variant")]
     UncoveredCommand(CommandVariant),
+    #[error("We found a message with no payload")]
     EventMissing,
 }
 
 #[async_trait]
 impl Subscriber for RunningInvocationTracker {
-    type Error = InvocationTrackerError;
-    async fn recv_event(&mut self, event: Arc<Event>) -> Result<(), Self::Error> {
+    async fn recv_event(&mut self, event: Arc<Event>) -> Result<(), anyhow::Error> {
         let trace_id = &event.trace_id;
         self.all_invocations
             .entry(trace_id.clone())
@@ -29,16 +35,16 @@ impl Subscriber for RunningInvocationTracker {
 type CommandHandle = String;
 #[async_trait]
 impl Subscriber for SingleInvocationTracker {
-    type Error = InvocationTrackerError;
-    async fn recv_event(&mut self, event: Arc<Event>) -> Result<(), Self::Error> {
+    async fn recv_event(&mut self, event: Arc<Event>) -> Result<(), anyhow::Error> {
         let ts: SystemTime = event.time.clone().unwrap().try_into().unwrap();
         if let Some(ref et) = event.et {
             match et {
                 Et::Invoke(invoke) => {
                     if let Some(ref var) = invoke.invoke_variant {
-                        self.invoker.process(var)
+                        self.invoker.process(var)?;
+                        Ok(())
                     } else {
-                        Err(InvocationTrackerError::EventMissing)
+                        Err(anyhow!(InvocationTrackerError::EventMissing))
                     }
                 }
                 Et::Command(command) => {
@@ -65,14 +71,15 @@ impl Subscriber for SingleInvocationTracker {
                         _ => {
                             return Err(InvocationTrackerError::UncoveredCommand(
                                 command.command_variant.as_ref().unwrap().clone(),
-                            ))
+                            )
+                            .into())
                         }
                     };
                     Ok(())
                 }
             }
         } else {
-            Err(InvocationTrackerError::EventMissing)
+            Err(InvocationTrackerError::EventMissing.into())
         }
     }
 }

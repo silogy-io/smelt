@@ -24,11 +24,10 @@ message CommandEvent {
   }
 }
 
-message CommandStarted {}
 message CommandScheduled {}
+message CommandStarted {}
 message CommandCancelled {}
 message CommandFinished { CommandOutput out = 1; }
-
 message CommandOutput { int32 status_code = 1; }
 
 message InvokeEvent {

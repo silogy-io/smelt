@@ -8,7 +8,11 @@ use tokio::{fs::File, io::AsyncWriteExt};
 pub use helpers::*;
 mod helpers {
     use super::*;
-    use otl_data::command_event::CommandVariant;
+    use otl_data::{
+        command_event::CommandVariant,
+        invoke_event::{self, InvokeVariant},
+        InvokeEvent,
+    };
     use otl_data::{event::Et, CommandOutput};
     use otl_data::{CommandEvent, Event};
 
@@ -21,6 +25,18 @@ mod helpers {
         let et = Et::Command(CommandEvent {
             command_ref,
             command_variant: Some(inner),
+        });
+        Event {
+            trace_id,
+            time: Some(time.into()),
+            et: Some(et),
+        }
+    }
+
+    pub fn new_invoke_event(trace_id: String, invoke_event: InvokeVariant) -> Event {
+        let time = std::time::SystemTime::now();
+        let et = Et::Invoke(InvokeEvent {
+            invoke_variant: Some(invoke_event),
         });
         Event {
             trace_id,

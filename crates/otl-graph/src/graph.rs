@@ -29,6 +29,7 @@ use tokio::{
 use crate::{
     commands::{Command, TargetType},
     executor::{Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
+    utils::invoke_start_message,
 };
 use async_trait::async_trait;
 use otl_core::OtlErr;
@@ -312,7 +313,16 @@ impl CommandGraph {
         let mut data = UserComputationData::new();
 
         data.init_trace_id();
+
         let tx = ctx.commit_with_data(data).await;
+        let val = tx.global_data().get_tx_channel();
+        // todo -- handle err
+        let _ = val
+            .send(invoke_start_message(
+                tx.per_transaction_data().get_trace_id(),
+            ))
+            .await;
+
         Ok(tx)
     }
 
@@ -378,8 +388,8 @@ pub fn spawn_otl_server() -> OtlServerHandle {
 }
 
 pub struct OtlServerHandle {
-    tx_client: UnboundedSender<ClientCommand>,
-    rx_tele: Receiver<Event>,
+    pub tx_client: UnboundedSender<ClientCommand>,
+    pub rx_tele: Receiver<Event>,
 }
 
 #[cfg(test)]

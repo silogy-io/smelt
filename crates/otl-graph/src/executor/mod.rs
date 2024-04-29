@@ -1,6 +1,4 @@
-use std::{
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use crate::Command;
 use dice::{DiceData, DiceDataBuilder};

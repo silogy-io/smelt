@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package otl_client.commands;
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message ClientCommand {
+  oneof ClientCommands {
+    SetCommands setter = 1;
+    RunOne runone = 2;
+    RunType runtype = 3;
+  }
+}
+
+message SetCommands { string command_content = 1; }
+
+message RunOne { string command_name = 1; }
+
+message RunType {
+  // Eventually, perhaps we should encode this as info in protobuf
+  // not today babey
+  string typeinfo = 1;
+}
