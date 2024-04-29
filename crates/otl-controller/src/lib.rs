@@ -64,6 +64,12 @@ pub fn spawn_otl_with_server() -> OtlControllerHandle {
     handle
 }
 
+impl Default for OtlController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OtlController {
     pub fn handle(&self) -> OtlControllerHandle {
         OtlControllerHandle {
@@ -95,7 +101,7 @@ impl OtlController {
                     match val {
                         Some(val) => {
                         let event = Arc::new(val);
-                        let val = self
+                        let _val = self
                             .for_each_subscriber(|subscriber| subscriber.recv_event(event.clone()))
                             .await;
                         }

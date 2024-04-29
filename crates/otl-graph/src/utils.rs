@@ -1,7 +1,7 @@
-use dice::{DiceData, DiceDataBuilder, UserComputationData};
+
 use otl_data::{invoke_event::InvokeVariant, Event, ExecutionStart};
 use otl_events::new_invoke_event;
-use whoami;
+
 fn exec_info() -> ExecutionStart {
     let hostname = whoami::hostname();
     let username = whoami::username();

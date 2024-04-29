@@ -10,7 +10,7 @@ mod helpers {
     use super::*;
     use otl_data::{
         command_event::CommandVariant,
-        invoke_event::{self, InvokeVariant},
+        invoke_event::{InvokeVariant},
         InvokeEvent,
     };
     use otl_data::{event::Et, CommandOutput};

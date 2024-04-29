@@ -22,7 +22,6 @@ use dice::InjectedKey;
 use futures::FutureExt;
 use std::{str::FromStr, sync::Arc};
 use tokio::{
-    runtime::Runtime,
     sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
 };
 
@@ -273,7 +272,7 @@ impl CommandGraph {
             }) = self.rx_chan.recv().await
             {
                 let rv = self.eat_command(command).await;
-                if let Err(err) = rv {
+                if let Err(_err) = rv {
                     dbg!("Todo -- send out a warning via a channel or something, at least log with tracing at this point when i add it in");
                 }
             }
@@ -420,8 +419,8 @@ mod tests {
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
 
-        let script = script.unwrap();
-        let (tx, rx) = unbounded_channel();
+        let _script = script.unwrap();
+        let (_tx, rx) = unbounded_channel();
         let (tx, rx_handle) = channel(100);
         let graph = CommandGraph::new(rx, tx).await.unwrap();
         let mut gh = TestGraphHandle { rx_chan: rx_handle };

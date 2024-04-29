@@ -3,9 +3,9 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use otl_data::{
     command_event::CommandVariant, event::Et, invoke_event::InvokeVariant, CommandFinished,
-    CommandOutput, CommandStarted, Event, ExecutionStart,
+    CommandOutput, Event, ExecutionStart,
 };
-use std::{collections::HashMap, default, path::PathBuf, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::SystemTime};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -26,7 +26,7 @@ impl Subscriber for RunningInvocationTracker {
         let trace_id = &event.trace_id;
         self.all_invocations
             .entry(trace_id.clone())
-            .or_insert(SingleInvocationTracker::default())
+            .or_default()
             .recv_event(event)
             .await
     }
