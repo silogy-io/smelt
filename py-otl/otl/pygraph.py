@@ -1,11 +1,28 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from otl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
-from otl.otl import PyController
+from otl.otl import PyController, PySubscriber
 import yaml
+
 
 from otl.otl_telemetry.data import Event
 import betterproto
+
+from otl.subscribers.is_done import IsDoneSubscriber
+
+
+def maybe_get_message(
+    listener: PySubscriber, blocking: bool = False
+) -> Optional[Event]:
+    if blocking:
+        message = listener.pop_message_blocking()
+        event = Event.FromString(message)
+    else:
+        message = listener.nonblocking_pop()
+        if message is None:
+            return None
+        event = Event.FromString(message)
+    return event
 
 
 @dataclass
@@ -16,6 +33,8 @@ class PyGraph:
 
     targets: Dict[OtlTargetType, List[Command]]
     controller: PyController
+    listener: PySubscriber
+    done_tracker = IsDoneSubscriber()
 
     def get_test_type(self, tt: OtlTargetType) -> List[Command]:
         return self.targets[tt]
@@ -33,7 +52,15 @@ class PyGraph:
         return self.get_test_type(OtlTargetType.Stimulus)
 
     def run_one_test(self, name: str):
-        handle = self.controller.run_one_test(name)
+        self.controller.run_one_test(name)
+        self.done_tracker.reset()
+        while not self.done_tracker.is_done:
+            message = maybe_get_message(self.listener, blocking=True)
+            if message:
+                self.done_tracker.process_message(message)
+
+    def run_all_tests(self, maybe_type: str):
+        handle = self.controller.run_all_tests(maybe_type)
 
     def get_all_tests_as_scripts(self) -> List[Tuple[str, List[str]]]:
         """
@@ -55,4 +82,5 @@ class PyGraph:
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         graph = PyController()
         graph.set_graph(commands_as_str)
-        return cls(targets=rv, controller=graph)
+        listener = graph.add_py_listener()
+        return cls(targets=rv, controller=graph, listener=listener)
