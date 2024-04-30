@@ -3,12 +3,12 @@ use std::io::Write;
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
+use dice::{DiceData, UserComputationData};
 use otl_core::OtlErr;
 use otl_data::{
     command_event::CommandVariant, CommandEvent, CommandFinished, CommandOutput, Event,
-    ToProtoMessage,
 };
-use otl_events::to_file;
+use otl_events::{runtime_support::GetTraceId, to_file};
 
 use tokio::{
     fs::File,
@@ -53,18 +53,15 @@ impl Executor for LocalExecutor {
         &self,
         command: Arc<Command>,
         tx: Sender<Event>,
+        dd: &UserComputationData,
     ) -> Result<Event, ExecutorErr> {
+        let val = dd.get_trace_id();
         let local_command = command;
-        let rv = execute_local_command(local_command.as_ref(), tx.clone())
+        let trace_id = dd.get_trace_id();
+        let rv = execute_local_command(local_command.as_ref(), trace_id.clone(), tx.clone())
             .await
             .map(|output| {
-                CommandEvent {
-                    command_ref: local_command.name.clone(),
-                    command_variant: Some(CommandVariant::Finished(CommandFinished {
-                        out: Some(output),
-                    })),
-                }
-                .as_proto()
+                Event::command_finished(local_command.name.clone(), dd.get_trace_id(), output)
             });
 
         match rv {
@@ -85,6 +82,7 @@ impl From<LocalExecutor> for ExecutorShim {
 
 async fn execute_local_command(
     command: &Command,
+    trace_id: String,
     _tx_chan: Sender<Event>,
 ) -> Result<CommandOutput, std::io::Error> {
     let env = &command.runtime.env;
@@ -114,8 +112,10 @@ async fn execute_local_command(
     file.write_all(&mut buf).await?;
     file.flush().await?;
 
+    _tx_chan
+        .send(Event::command_started(command.name.clone(), trace_id))
+        .await;
     let mut command = tokio::process::Command::new("bash");
-
     command
         .arg(script_file)
         .stdout(stdout.into_std().await)
@@ -123,7 +123,7 @@ async fn execute_local_command(
     let cstsatus = command.status().await.map(|val| CommandOutput {
         status_code: val.code().unwrap_or(-555),
     })?;
-    println!("hey");
+
     to_file(&cstsatus, &working_dir).await?;
     Ok(cstsatus)
 }

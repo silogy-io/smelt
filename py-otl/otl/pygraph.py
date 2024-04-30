@@ -3,6 +3,7 @@ from otl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
 from otl.otl import PyController, PySubscriber
 import yaml
+import time
 
 
 from otl.otl_telemetry.data import Event
@@ -52,20 +53,19 @@ class PyGraph:
         return self.get_test_type(OtlTargetType.Stimulus)
 
     def run_one_test(self, name: str):
-        self.controller.run_one_test(name)
         self.done_tracker.reset()
+        self.controller.run_one_test(name)
         while not self.done_tracker.is_done:
             message = maybe_get_message(self.listener, blocking=True)
             if message:
                 self.done_tracker.process_message(message)
 
     def run_all_tests(self, maybe_type: str):
+        self.done_tracker.reset()
         handle = self.controller.run_all_tests(maybe_type)
         while not self.done_tracker.is_done:
             message = maybe_get_message(self.listener, blocking=True)
-            print(message)
             if message:
-                print(betterproto.which_one_of(message, "et"))
                 self.done_tracker.process_message(message)
 
     def get_all_tests_as_scripts(self) -> List[Tuple[str, List[str]]]:

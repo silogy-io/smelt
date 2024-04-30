@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::Command;
-use dice::{DiceData, DiceDataBuilder};
+use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use futures::Stream;
 use otl_data::Event;
 
@@ -22,6 +22,7 @@ pub trait Executor {
         &self,
         command: Arc<Command>,
         tx: Sender<Event>,
+        dice_data: &UserComputationData,
     ) -> Result<Event, ExecutorErr>;
 }
 
@@ -40,9 +41,10 @@ impl Executor for ExecutorShim {
         &self,
         command: Arc<Command>,
         tx: Sender<Event>,
+        dice_data: &UserComputationData,
     ) -> Result<Event, ExecutorErr> {
         match self {
-            Self::Local(local_exec) => local_exec.execute_commands(command, tx).await,
+            Self::Local(local_exec) => local_exec.execute_commands(command, tx, dice_data).await,
         }
     }
 }

@@ -115,7 +115,7 @@ impl Key for CommandRef {
         let local_tx = tx.clone();
 
         let output: CommandOutput = executor
-            .execute_commands(self.0.clone(), local_tx)
+            .execute_commands(self.0.clone(), local_tx,  ctx.per_transaction_data())
             .await
             .map(|val| {
                 val.command_output().unwrap()

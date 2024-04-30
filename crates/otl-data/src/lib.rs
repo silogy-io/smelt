@@ -57,12 +57,6 @@ pub mod client_commands;
 
 tonic::include_proto!("otl_telemetry.data");
 
-pub trait ToProtoMessage {
-    type Message: prost::Message;
-
-    fn as_proto(&self) -> Self::Message;
-}
-
 impl Event {
     pub fn new(et: Et, trace_id: String) -> Self {
         Event {
@@ -71,6 +65,29 @@ impl Event {
             et: et.into(),
         }
     }
+
+    pub fn command_started(command_ref: String, trace_id: String) -> Self {
+        let et = event::Et::Command(CommandEvent {
+            command_ref,
+            command_variant: Some(CommandVariant::Started(CommandStarted {})),
+        });
+        Self::new(et, trace_id)
+    }
+
+    pub fn command_finished(
+        command_ref: String,
+        trace_id: String,
+        comm_out: CommandOutput,
+    ) -> Self {
+        let et = event::Et::Command(CommandEvent {
+            command_ref,
+            command_variant: Some(CommandVariant::Finished(CommandFinished {
+                out: Some(comm_out),
+            })),
+        });
+        Self::new(et, trace_id)
+    }
+
     pub fn finished_event(&self) -> bool {
         match self.et.as_ref().unwrap() {
             crate::event::Et::Invoke(InvokeEvent {
@@ -102,20 +119,6 @@ impl Event {
 impl CommandEvent {
     pub fn passed(&self) -> Option<bool> {
         self.command_variant.as_ref().unwrap().passed()
-    }
-}
-
-impl ToProtoMessage for CommandEvent {
-    type Message = Event;
-
-    fn as_proto(&self) -> Self::Message {
-        let time = Some(std::time::SystemTime::now().into());
-        let et = Some(Et::Command(self.clone()));
-        Event {
-            time,
-            et,
-            trace_id: String::new(),
-        }
     }
 }
 
