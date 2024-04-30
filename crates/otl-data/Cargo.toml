@@ -11,6 +11,8 @@ edition.workspace = true
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
 
+protoc-bin-vendored = "3.0.0"
+
 [dependencies]
 prost = { workspace = true }
 dupe = { workspace = true }
