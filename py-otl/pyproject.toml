@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "otl"
+name = "pyotl"
 version = "0.1.0"
 description = "otl is a system to describe tests for eda"
 authors = ["James <james@silogy.io>"]
@@ -24,7 +24,7 @@ setuptools = "^69.2.0"
 
 #we need this for maturin 
 [project]
-name = "otl"
+name = "pyotl"
 dependencies = [
   "typer>=0.9.0",
   "pyyaml>=6.0.1",

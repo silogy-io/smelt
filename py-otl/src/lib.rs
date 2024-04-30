@@ -28,7 +28,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn otl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
+fn pyotl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
     m.add_class::<PyController>()?;
     m.add_class::<PySubscriber>()?;

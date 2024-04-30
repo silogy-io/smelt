@@ -1,8 +1,8 @@
 from dataclasses import replace
-from otl.rc import OtlRC
+from pyotl.rc import OtlRC
 from typing import Dict
 
-from otl.importer import get_all_targets, DocumentedTarget
+from pyotl.importer import get_all_targets, DocumentedTarget
 
 
 def get_test_rc() -> OtlRC:

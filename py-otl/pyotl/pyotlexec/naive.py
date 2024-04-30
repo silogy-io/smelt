@@ -5,9 +5,9 @@ import subprocess
 import time
 from functools import partial
 
-from otl.rc import OtlRC
-from otl.path_utils import get_git_root
-from otl.interfaces.command import CResult, Command
+from pyotl.rc import OtlRC
+from pyotl.path_utils import get_git_root
+from pyotl.interfaces.command import CResult, Command
 
 
 def create_scaffolding(command: Command):

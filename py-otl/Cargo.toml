@@ -1,5 +1,5 @@
 [package]
-name = "otl"
+name = "pyotl"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -7,7 +7,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "otl"
+name = "pyotl"
 crate-type = ["cdylib"]
 
 

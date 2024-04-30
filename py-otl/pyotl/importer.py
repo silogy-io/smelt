@@ -1,9 +1,9 @@
 import importlib
 import inspect
 from typing import List, TypedDict, Dict, Type, Optional
-from otl.interfaces import Target
+from pyotl.interfaces import Target
 from pathlib import Path
-from otl.rc import OtlRC
+from pyotl.rc import OtlRC
 
 
 class DocumentedTarget(TypedDict):
@@ -32,7 +32,7 @@ def get_default_targets(cfg: OtlRC) -> Dict[str, DocumentedTarget]:
 
 
 def _get_all_targets(targets_dir: Optional[Path]) -> Dict[str, DocumentedTarget]:
-    default_target_modules = ["otl.default_targets"]
+    default_target_modules = ["pyotl.default_targets"]
     classes = {}
     base_class_name = "Target"
 

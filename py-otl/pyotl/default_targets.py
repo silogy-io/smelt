@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from otl.interfaces import Target, OtlPath, OtlTargetType, TargetRef
+from pyotl.interfaces import Target, OtlPath, OtlTargetType, TargetRef
 from typing import List, Dict
 
 
@@ -45,11 +45,9 @@ class run_spi(Target):
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {"log": OtlPath.abs_path(f"{self.name}.log")}
 
-    def gen_script_wavedump(self) -> List[str]:
-        ...
+    def gen_script_wavedump(self) -> List[str]: ...
 
-    def gen_script_verbose(self) -> List[str]:
-        ...
+    def gen_script_verbose(self) -> List[str]: ...
 
 
 @dataclass

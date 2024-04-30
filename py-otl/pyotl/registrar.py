@@ -1,6 +1,6 @@
 import hashlib
 from typing import Dict, ClassVar, List
-from otl.interfaces import Target
+from pyotl.interfaces import Target
 
 
 class OtlRegistrar:

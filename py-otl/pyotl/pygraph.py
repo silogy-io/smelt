@@ -1,15 +1,15 @@
 from typing import Dict, List, Optional, Tuple
-from otl.interfaces import Command, OtlTargetType
+from pyotl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
-from otl.otl import PyController, PySubscriber
+from pyotl.otl import PyController, PySubscriber
 import yaml
 import time
 
 
-from otl.otl_telemetry.data import Event
+from pyotl.otl_telemetry.data import Event
 import betterproto
 
-from otl.subscribers.is_done import IsDoneSubscriber
+from pyotl.subscribers.is_done import IsDoneSubscriber
 
 
 def maybe_get_message(

@@ -2,13 +2,13 @@ from typing_extensions import Annotated
 from pathlib import Path
 import typer
 import yaml
-from otl.pygraph import PyGraph
-from otl.rc import OtlRC
-from otl.importer import get_all_targets
-from otl.interfaces import OtlTargetType
-from otl.otl_muncher import otl_to_command_list
-from otl.serde import SafeDataclassDumper
-from otl.pyotlexec.naive import execute_command_list
+from pyotl.pygraph import PyGraph
+from pyotl.rc import OtlRC
+from pyotl.importer import get_all_targets
+from pyotl.interfaces import OtlTargetType
+from pyotl.otl_muncher import otl_to_command_list
+from pyotl.serde import SafeDataclassDumper
+from pyotl.pyotlexec.naive import execute_command_list
 from typing import Optional
 
 app = typer.Typer()

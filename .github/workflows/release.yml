@@ -66,9 +66,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist/otl-*
-
-
+          gh release upload "$version" dist/pyotl-*
 
             #windows:
             #  runs-on: windows-latest
@@ -127,7 +125,7 @@ jobs:
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" dist/otl-*
+          gh release upload "$version" dist/pyotl-*
 
           #  sdist:
           #    runs-on: ubuntu-latest

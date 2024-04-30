@@ -1,7 +1,7 @@
 from pydantic.dataclasses import dataclass
 from typing import Dict
 from pathlib import Path
-from otl.path_utils import get_git_root
+from pyotl.path_utils import get_git_root
 import toml
 
 from pprint import pprint

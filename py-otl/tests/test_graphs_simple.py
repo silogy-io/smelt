@@ -1,6 +1,6 @@
-from otl.pygraph import PyGraph
-from otl.path_utils import get_git_root
-from otl.interfaces import Command
+from pyotl.pygraph import PyGraph
+from pyotl.path_utils import get_git_root
+from pyotl.interfaces import Command
 import yaml
 
 
@@ -11,3 +11,6 @@ def test_sanity_pygraph():
     graph = PyGraph.from_command_list(commands)
     graph.run_all_tests("build")
     graph.run_all_tests("test")
+
+
+test_sanity_pygraph()

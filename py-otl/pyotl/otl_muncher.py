@@ -2,11 +2,11 @@ from dataclasses import dataclass
 import yaml
 from typing import Dict, Any, Type, List
 from pydantic import BaseModel
-from otl.importer import DocumentedTarget, get_all_targets, get_default_targets
-from otl.interfaces import Target, Command
-from otl.rc import OtlRC
-from otl.path_utils import get_git_root
-from otl.pygraph import PyGraph
+from pyotl.importer import DocumentedTarget, get_all_targets, get_default_targets
+from pyotl.interfaces import Target, Command
+from pyotl.rc import OtlRC
+from pyotl.path_utils import get_git_root
+from pyotl.pygraph import PyGraph
 
 
 class SerYamlTarget(BaseModel):

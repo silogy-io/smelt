@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import betterproto
-from otl.otl_telemetry.data import Event
+from pyotl.otl_telemetry.data import Event
 
 
 @dataclass

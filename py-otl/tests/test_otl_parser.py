@@ -1,8 +1,8 @@
-from otl.rc import OtlRC
-from otl.otl_muncher import otl_to_command_list
+from pyotl.rc import OtlRC
+from pyotl.otl_muncher import otl_to_command_list
 
 
-from otl.path_utils import get_git_root
+from pyotl.path_utils import get_git_root
 
 
 def test_sanity_otl_parse():

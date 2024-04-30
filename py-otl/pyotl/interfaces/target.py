@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from abc import ABC
 from enum import Enum
 from typing import List, Dict, Literal
-from otl.interfaces.runtime import RuntimeRequirements
-from otl.interfaces.paths import OtlPath
-from otl.path_utils import get_git_root
+from pyotl.interfaces.runtime import RuntimeRequirements
+from pyotl.interfaces.paths import OtlPath
+from pyotl.path_utils import get_git_root
 
 
 class OtlTargetType(Enum):

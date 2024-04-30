@@ -1,7 +1,7 @@
-from otl.otl import PySubscriber
+from pyotl.otl import PySubscriber
 from dataclasses import dataclass
 import betterproto
-from otl.otl_telemetry.data import Event, InvokeEvent
+from pyotl.otl_telemetry.data import Event, InvokeEvent
 
 
 from typing import List, Protocol

@@ -1,7 +1,7 @@
 from typing import List, Literal, Dict, Any
 from enum import Enum
-from otl.interfaces.runtime import RuntimeRequirements
-from otl.interfaces.target import OtlTargetType, Target
+from pyotl.interfaces.runtime import RuntimeRequirements
+from pyotl.interfaces.target import OtlTargetType, Target
 from dataclasses import dataclass, asdict
 
 CommandRef = str
