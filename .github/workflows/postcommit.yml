@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cd test_suite && cargo test
+      - run: cargo test
 
   py-test-linux:
     runs-on: ubuntu-latest
