@@ -42,6 +42,7 @@ fn maybe_set_protoc() {
 }
 
 fn main() -> io::Result<()> {
+    maybe_set_protoc();
     let tonic = tonic_build::configure();
     // We want to use optional everywhere
     let tonic = tonic
