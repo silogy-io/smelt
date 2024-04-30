@@ -322,7 +322,7 @@ impl CommandGraph {
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
-            let out = tx.execute_commands(refs).await;
+            let _out = tx.execute_commands(refs).await;
 
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();

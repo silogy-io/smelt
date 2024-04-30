@@ -3,17 +3,17 @@ use std::io::Write;
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
-use dice::{DiceData, UserComputationData};
+use dice::{UserComputationData};
 use otl_core::OtlErr;
 use otl_data::{
-    command_event::CommandVariant, CommandEvent, CommandFinished, CommandOutput, Event,
+    CommandOutput, Event,
 };
 use otl_events::{runtime_support::GetTraceId, to_file};
 
 use tokio::{
     fs::File,
     io::AsyncWriteExt,
-    sync::mpsc::{channel, Sender},
+    sync::mpsc::{Sender},
 };
 
 use super::{ExecutorErr, ExecutorShim};
@@ -55,7 +55,7 @@ impl Executor for LocalExecutor {
         tx: Sender<Event>,
         dd: &UserComputationData,
     ) -> Result<Event, ExecutorErr> {
-        let val = dd.get_trace_id();
+        let _val = dd.get_trace_id();
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let rv = execute_local_command(local_command.as_ref(), trace_id.clone(), tx.clone())

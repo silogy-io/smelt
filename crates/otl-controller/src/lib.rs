@@ -12,7 +12,7 @@ struct SubscriberCtx {
     recv_chan: Receiver<Box<dyn Subscriber>>,
 }
 
-impl<'a> SubscriberCtx {
+impl SubscriberCtx {
     fn new(subscribers: Vec<Box<dyn Subscriber>>) -> Self {
         let (send_chan, recv_chan) = channel(50);
         Self {
@@ -101,7 +101,7 @@ impl OtlController {
                     match val {
                         Some(val) => {
                         let event = Arc::new(val);
-                        let val = self
+                        let _val = self
                             .for_each_subscriber(|subscriber| subscriber.recv_event(event.clone()))
                             .await;
                         }
