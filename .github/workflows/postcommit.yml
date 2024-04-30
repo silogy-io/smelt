@@ -42,7 +42,7 @@ jobs:
         run: |
           set -e
           pip install --upgrade "pip<20"
-          pip install otl --find-links dist --force-reinstall
+          pip install pyotl --find-links dist --force-reinstall
           pip install pytest
           cd py-otl && pytest
 
@@ -73,6 +73,6 @@ jobs:
         run: |
           set -e
           pip install --upgrade "pip<20"
-          pip install otl --find-links dist --force-reinstall
+          pip install pyotl --find-links dist --force-reinstall
           pip install pytest
           cd py-otl && pytest
