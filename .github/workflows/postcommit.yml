@@ -14,7 +14,16 @@ permissions:
   contents: read
 
 jobs:
-  linux:
+  rust-test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cd test_suite && cargo test
+
+  py-test-linux:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,7 +54,7 @@ jobs:
           pip install pytest
           cd py-otl && pytest
 
-  macos:
+  py-test-macos:
     runs-on: macos-latest
     strategy:
       matrix:
