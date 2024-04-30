@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 from pyotl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
-from pyotl.otl import PyController, PySubscriber
+from pyotl.pyotl import PyController, PySubscriber
 import yaml
 import time
 

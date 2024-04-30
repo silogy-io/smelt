@@ -28,7 +28,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --out dist --find-interpreter --manifest-path py-otl/Cargo.toml
+          args: --out dist --manifest-path py-otl/Cargo.toml -i python3.10
           sccache: "true"
           manylinux: auto
       - name: Upload wheels
@@ -41,7 +41,6 @@ jobs:
         shell: bash
         run: |
           set -e
-          pip install --upgrade "pip<20"
           pip install pyotl --find-links dist --force-reinstall
           pip install pytest
           cd py-otl && pytest
@@ -72,7 +71,6 @@ jobs:
         shell: bash
         run: |
           set -e
-          pip install --upgrade "pip<20"
           pip install pyotl --find-links dist --force-reinstall
           pip install pytest
           cd py-otl && pytest
