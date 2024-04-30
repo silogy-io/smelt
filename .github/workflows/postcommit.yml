@@ -31,17 +31,17 @@ jobs:
           args: --out dist --find-interpreter --manifest-path py-otl/Cargo.toml
           sccache: "true"
           manylinux: auto
-      #- name: Upload wheels
-      #  uses: actions/upload-artifact@v4
-      #  with:
-      #    name: wheels-linux-${{ matrix.target }}
-      #    path: dist
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ matrix.target }}
+          path: dist
       - name: pytest
         if: ${{ startsWith(matrix.target, 'x86_64') }}
         shell: bash
         run: |
           set -e
-          pip install dist/*
+          pip install otl --find-links dist --force-reinstall
           pip install pytest
           cd py-otl && pytest
 
@@ -60,18 +60,17 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --out dist --find-interpreter --manifest-path py-otl/Cargo.toml
-          sccache:
-            "true"
-            #- name: Upload wheels
-            #  uses: actions/upload-artifact@v4
-            #  with:
-            #    name: wheels-macos-${{ matrix.target }}
-            #    path: dist
+          sccache: "true"
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.target }}
+          path: dist
       - name: pytest
         if: ${{ !startsWith(matrix.target, 'aarch64') }}
         shell: bash
         run: |
           set -e
-          pip install dist/*
+          pip install otl --find-links dist --force-reinstall
           pip install pytest
           cd py-otl && pytest
