@@ -21,12 +21,14 @@ message CommandEvent {
     CommandStarted started = 5;
     CommandCancelled cancelled = 6;
     CommandFinished finished = 7;
+    CommandStdout stdout = 8;
   }
 }
 
 message CommandScheduled {}
 message CommandStarted {}
 message CommandCancelled {}
+message CommandStdout { string output = 1;}
 message CommandFinished { CommandOutput out = 1; }
 message CommandOutput { int32 status_code = 1; }
 

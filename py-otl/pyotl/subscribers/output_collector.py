@@ -1,8 +1,10 @@
+from datetime import datetime
 import enum
 from typing import Dict, Optional
 from rich.console import Group
 from rich.tree import Tree
 import rich
+from pyotl.interfaces.target import OtlTargetType, Target
 from pyotl.output import otl_console
 from dataclasses import dataclass, field
 from pyotl.otl_telemetry.data import CommandEvent, CommandFinished, Event
@@ -23,6 +25,14 @@ class Status(enum.Enum):
     started = "started"
     finished = "finished"
     cancelled = "cancelled"
+
+
+@dataclass
+class StatusObj:
+    name: str
+    started_time: datetime
+    command_type: OtlTargetType
+    status: Status
 
 
 class RenderableTree(RenderableColumn):
@@ -84,13 +94,14 @@ class OutputConsole:
             (command_name, payload) = betterproto.which_one_of(
                 event_payload, "CommandVariant"
             )
-            self.status_dict[name] = Status(command_name)
-            if command_name == "started":
-                self.processed_started()
+            if command_name == "stdout":
+                self.status_dict[name] = Status(command_name)
+                if command_name == "started":
+                    self.processed_started()
 
-            if command_name == "finished":
-                payload: CommandFinished
-                self.process_finished(payload.out.status_code)
+                if command_name == "finished":
+                    payload: CommandFinished
+                    self.process_finished(payload.out.status_code)
 
     def processed_started(self):
         self.total_executing += 1

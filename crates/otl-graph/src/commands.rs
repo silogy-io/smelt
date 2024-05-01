@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 use allocative::Allocative;
 use dupe::Dupe;
 
-
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
-
-
 
 use otl_core::OtlErr;
 pub use otl_data::CommandOutput;

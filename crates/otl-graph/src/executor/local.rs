@@ -1,5 +1,5 @@
 use crate::executor::Executor;
-use std::io::Write;
+use std::{io::Write, process::Stdio};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
@@ -8,7 +8,11 @@ use otl_core::OtlErr;
 use otl_data::{CommandOutput, Event};
 use otl_events::{runtime_support::GetTraceId, to_file};
 
-use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
+use tokio::{
+    fs::File,
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    sync::mpsc::Sender,
+};
 
 use super::{ExecutorErr, ExecutorShim};
 
@@ -91,7 +95,7 @@ async fn execute_local_command(
     tokio::fs::create_dir_all(&working_dir).await?;
     let mut file = File::create(&script_file).await?;
     let stderr = File::create(&stderr_file).await?;
-    let stdout = File::create(&stdout_file).await?;
+    let mut stdout = File::create(&stdout_file).await?;
 
     let mut buf: Vec<u8> = Vec::new();
 
@@ -107,17 +111,55 @@ async fn execute_local_command(
     file.flush().await?;
 
     tx_chan
-        .send(Event::command_started(command.name.clone(), trace_id))
+        .send(Event::command_started(
+            command.name.clone(),
+            trace_id.clone(),
+        ))
         .await;
-    let mut command = tokio::process::Command::new("bash");
-    command
+    let mut commandlocal = tokio::process::Command::new("bash");
+    commandlocal
         .arg(script_file)
-        .stdout(stdout.into_std().await)
-        .stderr(stderr.into_std().await);
-    let cstsatus = command.status().await.map(|val| CommandOutput {
-        status_code: val.code().unwrap_or(-555),
-    })?;
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut comm_handle = commandlocal.spawn()?;
+    let mut reader = BufReader::new(comm_handle.stdout.take().unwrap());
+    let mut lines = reader.lines();
 
-    to_file(&cstsatus, &working_dir).await?;
-    Ok(cstsatus)
+    async fn handle_line(
+        command: &Command,
+        line: String,
+        trace_id: String,
+        tx_chan: &Sender<Event>,
+        stdout: &mut File,
+    ) {
+        let _handleme = tx_chan
+            .send(Event::command_stdout(
+                command.name.clone(),
+                trace_id.clone(),
+                line.clone(),
+            ))
+            .await;
+        let bytes = line.as_str();
+        let val = stdout.write(bytes.as_bytes());
+    }
+
+    let cstatus: CommandOutput = loop {
+        tokio::select!(
+            Ok(Some(line)) = lines.next_line() => {
+                handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
+            }
+            status_code = comm_handle.wait() => {
+                break status_code.map(|val| CommandOutput { status_code: val.code().unwrap_or(-555)});
+            }
+
+
+        );
+    }?;
+
+    while let Ok(Some(line)) = lines.next_line().await {
+        handle_line(command, line, trace_id.clone(), &tx_chan, &mut stdout).await;
+    }
+
+    to_file(&cstatus, &working_dir).await?;
+    Ok(cstatus)
 }

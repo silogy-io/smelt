@@ -56,10 +56,15 @@ class PyGraph:
     def runloop(self):
         with OutputConsole() as console:
             while not self.done_tracker.is_done:
-                message = maybe_get_message(self.listener, blocking=True)
+                # tbh, this could be async
+                # but async interopt with rust is kind of experimental and i dont want to do it yet
+                message = maybe_get_message(self.listener, blocking=False)
                 if message:
                     self.done_tracker.process_message(message)
                     console.process_message(message)
+                if not message:
+                    # add a little bit of backoff
+                    time.sleep(0.05)
 
     def run_one_test(self, name: str):
         self.done_tracker.reset()
