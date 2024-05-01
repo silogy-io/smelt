@@ -13,7 +13,7 @@ impl ClientCommand {
         }
     }
 
-    pub fn execute_comamnd(command_name: String) -> Self {
+    pub fn execute_command(command_name: String) -> Self {
         let cc = ClientCommands::Runone(RunOne { command_name });
 
         ClientCommand {

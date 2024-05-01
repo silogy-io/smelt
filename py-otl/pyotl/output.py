@@ -1,3 +1,3 @@
-import rich
+from rich.console import Console
 
-otl_console = rich.console.Console()
+otl_console = Console()

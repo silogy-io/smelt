@@ -104,7 +104,7 @@ impl PyController {
     pub fn run_one_test(&self, test: String) -> PyResult<()> {
         self.handle
             .tx_client
-            .send(ClientCommand::execute_comamnd(test))
+            .send(ClientCommand::execute_command(test))
             .map_err(client_channel_err)?;
         Ok(())
     }

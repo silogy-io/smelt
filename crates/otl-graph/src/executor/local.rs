@@ -3,18 +3,12 @@ use std::io::Write;
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
-use dice::{UserComputationData};
+use dice::UserComputationData;
 use otl_core::OtlErr;
-use otl_data::{
-    CommandOutput, Event,
-};
+use otl_data::{CommandOutput, Event};
 use otl_events::{runtime_support::GetTraceId, to_file};
 
-use tokio::{
-    fs::File,
-    io::AsyncWriteExt,
-    sync::mpsc::{Sender},
-};
+use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
 
 use super::{ExecutorErr, ExecutorShim};
 
@@ -83,7 +77,7 @@ impl From<LocalExecutor> for ExecutorShim {
 async fn execute_local_command(
     command: &Command,
     trace_id: String,
-    _tx_chan: Sender<Event>,
+    tx_chan: Sender<Event>,
 ) -> Result<CommandOutput, std::io::Error> {
     let env = &command.runtime.env;
     let working_dir = env
@@ -112,7 +106,7 @@ async fn execute_local_command(
     file.write_all(&mut buf).await?;
     file.flush().await?;
 
-    _tx_chan
+    tx_chan
         .send(Event::command_started(command.name.clone(), trace_id))
         .await;
     let mut command = tokio::process::Command::new("bash");

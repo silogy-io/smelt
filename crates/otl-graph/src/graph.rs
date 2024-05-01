@@ -104,13 +104,6 @@ impl Key for CommandRef {
         let name = self.0.name.clone();
         let trace = ctx.per_transaction_data().get_trace_id();
 
-        let _ = tx
-            .send(new_command_event(
-                name.clone(),
-                otl_data::command_event::CommandVariant::Started(CommandStarted {}),
-                trace,
-            ))
-            .await;
         let executor = ctx.global_data().get_executor();
         let local_tx = tx.clone();
 

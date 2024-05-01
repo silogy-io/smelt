@@ -10,6 +10,7 @@ from pyotl.otl_telemetry.data import Event
 import betterproto
 
 from pyotl.subscribers.is_done import IsDoneSubscriber
+from pyotl.subscribers.output_collector import OutputConsole
 
 
 def maybe_get_message(
@@ -52,21 +53,23 @@ class PyGraph:
     def stimulus(self):
         return self.get_test_type(OtlTargetType.Stimulus)
 
+    def runloop(self):
+        with OutputConsole() as console:
+            while not self.done_tracker.is_done:
+                message = maybe_get_message(self.listener, blocking=True)
+                if message:
+                    self.done_tracker.process_message(message)
+                    console.process_message(message)
+
     def run_one_test(self, name: str):
         self.done_tracker.reset()
         self.controller.run_one_test(name)
-        while not self.done_tracker.is_done:
-            message = maybe_get_message(self.listener, blocking=True)
-            if message:
-                self.done_tracker.process_message(message)
+        self.runloop()
 
     def run_all_tests(self, maybe_type: str):
         self.done_tracker.reset()
         handle = self.controller.run_all_tests(maybe_type)
-        while not self.done_tracker.is_done:
-            message = maybe_get_message(self.listener, blocking=True)
-            if message:
-                self.done_tracker.process_message(message)
+        self.runloop()
 
     def get_all_tests_as_scripts(self) -> List[Tuple[str, List[str]]]:
         """
