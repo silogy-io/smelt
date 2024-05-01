@@ -7,7 +7,7 @@ import rich
 from pyotl.interfaces.target import OtlTargetType, Target
 from pyotl.output import otl_console
 from dataclasses import dataclass, field
-from pyotl.otl_telemetry.data import CommandEvent, CommandFinished, Event
+from pyotl.otl_telemetry.data import CommandEvent, CommandFinished, CommandStdout, Event
 import betterproto
 from rich.progress import (
     Progress,
@@ -54,6 +54,7 @@ class OutputConsole:
     Simple subscriber for creating a console
     """
 
+    print_stdout: bool = False
     is_done: bool = False
     total_run: int = 0
     total_executing: int = 0
@@ -94,14 +95,18 @@ class OutputConsole:
             (command_name, payload) = betterproto.which_one_of(
                 event_payload, "CommandVariant"
             )
-            if command_name == "stdout":
+            if command_name != "stdout":
                 self.status_dict[name] = Status(command_name)
                 if command_name == "started":
                     self.processed_started()
 
                 if command_name == "finished":
-                    payload: CommandFinished
                     self.process_finished(payload.out.status_code)
+
+            # we are processing stdout of a command
+            else:
+                if self.print_stdout:
+                    self.progress.print(payload.output)
 
     def processed_started(self):
         self.total_executing += 1

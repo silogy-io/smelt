@@ -23,6 +23,7 @@ class CommandEvent(betterproto.Message):
     started: "CommandStarted" = betterproto.message_field(5, group="CommandVariant")
     cancelled: "CommandCancelled" = betterproto.message_field(6, group="CommandVariant")
     finished: "CommandFinished" = betterproto.message_field(7, group="CommandVariant")
+    stdout: "CommandStdout" = betterproto.message_field(8, group="CommandVariant")
 
 
 @dataclass
@@ -38,6 +39,11 @@ class CommandStarted(betterproto.Message):
 @dataclass
 class CommandCancelled(betterproto.Message):
     pass
+
+
+@dataclass
+class CommandStdout(betterproto.Message):
+    output: str = betterproto.string_field(1)
 
 
 @dataclass

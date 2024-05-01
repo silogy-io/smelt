@@ -106,7 +106,10 @@ def execute(
 
     commands = otl_to_command_list(test_list=str(otl_file), rc=otlrc)
     graph = PyGraph.from_command_list(commands)
-    graph.run_all_tests(tt)
+    if target_name:
+        graph.run_one_test(target_name)
+    else:
+        graph.run_all_tests(tt)
 
 
 def main():
