@@ -64,7 +64,7 @@ class PyGraph:
                     console.process_message(message)
                 if not message:
                     # add a little bit of backoff
-                    time.sleep(0.05)
+                    time.sleep(0.01)
 
     def run_one_test(self, name: str):
         self.done_tracker.reset()

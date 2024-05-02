@@ -6,10 +6,18 @@ use otl_client::Subscriber;
 use otl_graph::{spawn_otl_server, CommandGraph, OtlServerHandle};
 use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedSender};
 
+/// This struct owns all logic around subscribers that are present in the system
 struct SubscriberCtx {
+    /// Contains all of the subscribers that are present in the system
     subscribers: Vec<Box<dyn Subscriber>>,
-    send_chan: Sender<Box<dyn Subscriber>>,
+
+    /// Channel where the context can receive new subscribers from -- if the client
+    /// wants to register a new subscriber at runtime, it will be sent on this channel
     recv_chan: Receiver<Box<dyn Subscriber>>,
+
+    /// Other half of the recv_chan above -- we keep it around so we can pass it out to clients
+    /// easily -- perhaps this should be removed though
+    send_chan: Sender<Box<dyn Subscriber>>,
 }
 
 impl SubscriberCtx {
@@ -23,13 +31,21 @@ impl SubscriberCtx {
     }
 }
 
+/// Client side handle for the OtlController -- this is the struct that imperative code and end
+/// users have access  to
 pub struct OtlControllerHandle {
+    /// Channel for submitting new subscribers to the controller
     pub send_chan: Sender<Box<dyn Subscriber>>,
+    /// Used to kick off actual client commands like running many tests
+    /// ClientCommand is the thin interface
     pub tx_client: UnboundedSender<ClientCommand>,
 }
 
+/// Top level struct that contains all state on the "server side"
 pub struct OtlController {
+    /// Holds all the subscriber logic for "responding" to Events
     ctx: SubscriberCtx,
+    /// Holds handles for server -- allows us to receive events
     server_handle: OtlServerHandle,
 }
 

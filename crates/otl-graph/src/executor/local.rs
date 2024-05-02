@@ -140,7 +140,8 @@ async fn execute_local_command(
             ))
             .await;
         let bytes = line.as_str();
-        let val = stdout.write(bytes.as_bytes());
+        let val = stdout.write(bytes.as_bytes()).await;
+        stdout.write(&[b'\n']).await;
     }
 
     let cstatus: CommandOutput = loop {

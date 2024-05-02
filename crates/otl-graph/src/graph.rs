@@ -365,8 +365,13 @@ pub fn spawn_otl_server() -> OtlServerHandle {
     OtlServerHandle { rx_tele, tx_client }
 }
 
+/// Handle for interacting with the OtlGraph
 pub struct OtlServerHandle {
+    /// Channel for sending client commands -- covers stuff like running tests
     pub tx_client: UnboundedSender<ClientCommand>,
+    /// Channel for receiving telemetry events from an execution
+    ///
+    /// Events include information like when each command starts, ends, is cancelled, etc
     pub rx_tele: Receiver<Event>,
 }
 

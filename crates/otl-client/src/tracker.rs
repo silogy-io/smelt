@@ -8,6 +8,8 @@ use otl_data::{
 use std::{collections::HashMap, path::PathBuf, sync::Arc, time::SystemTime};
 use thiserror::Error;
 
+type InvocationUUID = String;
+
 #[derive(Error, Debug)]
 pub enum InvocationTrackerError {
     #[error("Invalid state transition for a command")]
@@ -234,12 +236,16 @@ impl InvocationState {
     }
 }
 
+/// Tracks all the state within one ClientCommand -- e.g. if a client wants to run one test, this
+/// struct will track all of the stuff that follows from that (building dependencies), etc
 #[derive(Default)]
 pub struct SingleInvocationTracker {
     invoker: InvocationState,
     command_map: HashMap<CommandHandle, ExecCommand>,
 }
 
+///RunningInvocationTracker tracks the data associated with each client submitted command.
+///If the client says run one test that is an invocation, if the client says run all tests, that is another invocation
 pub struct RunningInvocationTracker {
-    all_invocations: HashMap<String, SingleInvocationTracker>,
+    all_invocations: HashMap<InvocationUUID, SingleInvocationTracker>,
 }
