@@ -3,18 +3,18 @@ use std::{io::Write, process::Stdio};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
+use async_trait::async_trait;
 use dice::UserComputationData;
 use otl_core::OtlErr;
 use otl_data::{CommandOutput, Event};
 use otl_events::{runtime_support::GetTraceId, to_file};
-
 use tokio::{
     fs::File,
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     sync::mpsc::Sender,
 };
 
-use super::{ExecutorErr, ExecutorShim};
+use super::ExecutorErr;
 
 pub struct LocalExecutorBuilder {
     threads: usize,
@@ -30,22 +30,13 @@ impl LocalExecutorBuilder {
     }
 
     pub fn build(self) -> Result<LocalExecutor, OtlErr> {
-        //let rt = thread::spawn(move || {
-        //    let rt = tokio::runtime::Builder::new_multi_thread()
-        //        .worker_threads(self.threads)
-        //        .build()
-        //        .unwrap();
-        //    rt
-        //})
-        //.join()
-        //.unwrap();
-
         Ok(LocalExecutor {})
     }
 }
 
 pub struct LocalExecutor {}
 
+#[async_trait]
 impl Executor for LocalExecutor {
     async fn execute_commands(
         &self,
@@ -53,7 +44,6 @@ impl Executor for LocalExecutor {
         tx: Sender<Event>,
         dd: &UserComputationData,
     ) -> Result<Event, ExecutorErr> {
-        let _val = dd.get_trace_id();
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let rv = execute_local_command(local_command.as_ref(), trace_id.clone(), tx.clone())
@@ -69,12 +59,6 @@ impl Executor for LocalExecutor {
             Err(_) => todo!("Haven't handled the error case yet"),
         }
         Ok(rv?)
-    }
-}
-
-impl From<LocalExecutor> for ExecutorShim {
-    fn from(val: LocalExecutor) -> Self {
-        ExecutorShim::Local(val)
     }
 }
 
@@ -122,7 +106,7 @@ async fn execute_local_command(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;
-    let mut reader = BufReader::new(comm_handle.stdout.take().unwrap());
+    let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();
 
     async fn handle_line(
@@ -140,8 +124,8 @@ async fn execute_local_command(
             ))
             .await;
         let bytes = line.as_str();
-        let val = stdout.write(bytes.as_bytes()).await;
-        stdout.write(&[b'\n']).await;
+        let _unhandled = stdout.write(bytes.as_bytes()).await;
+        let _unhandled = stdout.write(&[b'\n']).await;
     }
 
     let cstatus: CommandOutput = loop {

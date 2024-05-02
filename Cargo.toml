@@ -67,7 +67,6 @@ otl-events = { path = "crates/otl-events", default-features = false }
 otl-core = { path = "crates/otl-core", default-features = false }
 otl-graph = { path = "crates/otl-graph", default-features = false }
 otl-data = { path = "crates/otl-data", default-features = false }
-otl-server = { path = "crates/otl-server", default-features = false }
 otl-client = { path = "crates/otl-client", default-features = false }
 otl-controller = { path = "crates/otl-controller", default-features = false }
 

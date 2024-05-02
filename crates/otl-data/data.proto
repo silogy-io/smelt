@@ -4,16 +4,19 @@ package otl_telemetry.data;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+// Event flows from server -> client only
 message Event {
   google.protobuf.Timestamp time = 1;
   // A globally-unique ID (UUIDv4) of this trace. Required.
   string trace_id = 2;
+  // type of event
   oneof et {
     CommandEvent command = 15;
     InvokeEvent invoke = 16;
   }
 }
 
+// CommandEvents covers activity happening on a per target basis
 message CommandEvent {
   string command_ref = 1;
   oneof CommandVariant {
@@ -32,6 +35,9 @@ message CommandStdout { string output = 1;}
 message CommandFinished { CommandOutput out = 1; }
 message CommandOutput { int32 status_code = 1; }
 
+
+
+// InvokeEvent demarcates the start of a graph execution. 
 message InvokeEvent {
   oneof InvokeVariant {
     ExecutionStart start = 5;

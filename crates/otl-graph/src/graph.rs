@@ -214,9 +214,14 @@ impl CommandSetter for DiceTransactionUpdater {
     }
 }
 
+/// Struct that holds all the state for executing tasks
 pub struct CommandGraph {
+    /// Dice is the graph library we use to figure out dependencies and pass state to events
     dice: Arc<Dice>,
+    /// The commands that are currently contained in the graph -- they hold no information
+    /// regarding dependencies, etc
     pub(crate) all_commands: Vec<CommandRef>,
+    /// The receiver for all ClientCommands -- these kick off executions of the dice graph
     rx_chan: UnboundedReceiver<ClientCommand>,
 }
 
@@ -228,7 +233,7 @@ impl CommandGraph {
         let executor = LocalExecutorBuilder::new().threads(8).build()?;
 
         let mut dice_builder = Dice::builder();
-        dice_builder.set_executor(executor);
+        dice_builder.set_executor(Arc::new(executor));
         dice_builder.set_tx_channel(tx_chan);
 
         let dice = dice_builder.build(DetectCycles::Enabled);
@@ -343,26 +348,6 @@ impl CommandGraph {
         });
         Ok(())
     }
-}
-
-pub fn spawn_otl_server() -> OtlServerHandle {
-    let (tx_client, rx_client) = tokio::sync::mpsc::unbounded_channel();
-    let (tx_tele, rx_tele) = tokio::sync::mpsc::channel(100);
-
-    use tokio::runtime::Builder;
-
-    std::thread::spawn(|| {
-        let rt = Builder::new_multi_thread()
-            .worker_threads(4) // specify the number of threads here
-            .enable_all()
-            .build()
-            .unwrap();
-
-        //todo -- add failure handling here
-        let mut graph = rt.block_on(CommandGraph::new(rx_client, tx_tele)).unwrap();
-        rt.block_on(graph.eat_commands());
-    });
-    OtlServerHandle { rx_tele, tx_client }
 }
 
 /// Handle for interacting with the OtlGraph

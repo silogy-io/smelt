@@ -6,10 +6,10 @@ use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use otl_data::Event;
 
 use thiserror::Error;
-use tokio::sync::mpsc::{Sender};
+use tokio::sync::mpsc::Sender;
 mod local;
+use async_trait::async_trait;
 pub use local::LocalExecutorBuilder;
-
 
 #[derive(Error, Debug)]
 pub enum ExecutorErr {
@@ -17,7 +17,8 @@ pub enum ExecutorErr {
     CommandIOErr(#[from] std::io::Error),
 }
 
-pub trait Executor {
+#[async_trait]
+pub trait Executor: Send + Sync {
     async fn execute_commands(
         &self,
         command: Arc<Command>,
@@ -26,46 +27,23 @@ pub trait Executor {
     ) -> Result<Event, ExecutorErr>;
 }
 
-// We use this instead of Box<dyn Executor> because trait objects with async methods aren't
-// supported yet
-//
-// see https://rust-lang.github.io/async-fundamentals-initiative/explainer/async_fn_in_dyn_trait.html
-//
-// This should cover all types of executors we implement
-pub enum ExecutorShim {
-    Local(local::LocalExecutor),
-}
-
-impl Executor for ExecutorShim {
-    async fn execute_commands(
-        &self,
-        command: Arc<Command>,
-        tx: Sender<Event>,
-        dice_data: &UserComputationData,
-    ) -> Result<Event, ExecutorErr> {
-        match self {
-            Self::Local(local_exec) => local_exec.execute_commands(command, tx, dice_data).await,
-        }
-    }
-}
-
 pub trait SetExecutor {
-    fn set_executor(&mut self, exec: impl Into<ExecutorShim>);
+    fn set_executor(&mut self, exec: Arc<dyn Executor>);
 }
 
 pub trait GetExecutor {
-    fn get_executor(&self) -> Arc<ExecutorShim>;
+    fn get_executor(&self) -> Arc<dyn Executor>;
 }
 
 impl SetExecutor for DiceDataBuilder {
-    fn set_executor(&mut self, exec: impl Into<ExecutorShim>) {
-        self.set(Arc::new(exec.into()))
+    fn set_executor(&mut self, exec: Arc<dyn Executor>) {
+        self.set(exec)
     }
 }
 
 impl GetExecutor for DiceData {
-    fn get_executor(&self) -> Arc<ExecutorShim> {
-        self.get::<Arc<ExecutorShim>>()
+    fn get_executor(&self) -> Arc<dyn Executor> {
+        self.get::<Arc<dyn Executor>>()
             .expect("Channel should be set")
             .clone()
     }

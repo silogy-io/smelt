@@ -3,7 +3,7 @@ use otl_data::client_commands::ClientCommand;
 use std::{future::Future, sync::Arc};
 
 use otl_client::Subscriber;
-use otl_graph::{spawn_otl_server, CommandGraph, OtlServerHandle};
+use otl_graph::{CommandGraph, OtlServerHandle};
 use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedSender};
 
 /// This struct owns all logic around subscribers that are present in the system
@@ -80,27 +80,12 @@ pub fn spawn_otl_with_server() -> OtlControllerHandle {
     handle
 }
 
-impl Default for OtlController {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl OtlController {
     pub fn handle(&self) -> OtlControllerHandle {
         OtlControllerHandle {
             send_chan: self.ctx.send_chan.clone(),
             tx_client: self.server_handle.tx_client.clone(),
         }
-    }
-    pub fn new() -> Self {
-        Self::new_with_subscribers(vec![])
-    }
-
-    pub fn new_with_subscribers(subscribers: Vec<Box<dyn Subscriber>>) -> Self {
-        let server_handle = spawn_otl_server();
-        let ctx = SubscriberCtx::new(subscribers);
-        OtlController { ctx, server_handle }
     }
 
     pub fn add_subscriber(&mut self, subscriber: impl Into<Box<dyn Subscriber>>) {
