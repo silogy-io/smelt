@@ -9,11 +9,11 @@ use dice::{
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
-    Future, StreamExt, TryFutureExt,
+    Future, TryFutureExt,
 };
-use otl_data::CommandStarted;
+
 use otl_events::{
-    self, new_command_event,
+    self,
     runtime_support::{GetTraceId, GetTxChannel, SetTraceId, SetTxChannel},
     Event,
 };
@@ -25,7 +25,7 @@ use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
+    executor::{GetExecutor, LocalExecutorBuilder, SetExecutor},
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
@@ -60,8 +60,8 @@ impl From<CommandRef> for QueryCommandRef {
 }
 
 impl LookupCommand {
-    fn from_str_ref(strref: &String) -> Self {
-        Self(Arc::new(strref.clone()))
+    fn from_str_ref(strref: &str) -> Self {
+        Self(Arc::new(strref.to_string()))
     }
 }
 
@@ -101,8 +101,6 @@ impl Key for CommandRef {
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
         let tx = ctx.global_data().get_tx_channel();
-        let name = self.0.name.clone();
-        let trace = ctx.per_transaction_data().get_trace_id();
 
         let executor = ctx.global_data().get_executor();
         let local_tx = tx.clone();
@@ -396,13 +394,10 @@ mod tests {
         graph.run_all_typed("test".to_string()).await.unwrap();
         let events = gh.async_blocking_events().await;
         for event in events {
-            match event.et.unwrap() {
-                otl_data::event::Et::Command(val) => {
-                    if let Some(passed) = val.passed() {
-                        assert!(passed)
-                    }
+            if let otl_data::event::Et::Command(val) = event.et.unwrap() {
+                if let Some(passed) = val.passed() {
+                    assert!(passed)
                 }
-                _ => {}
             }
         }
     }

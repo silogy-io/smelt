@@ -97,12 +97,12 @@ impl Event {
     }
 
     pub fn finished_event(&self) -> bool {
-        match self.et.as_ref().unwrap() {
+        matches!(
+            self.et.as_ref().unwrap(),
             crate::event::Et::Invoke(InvokeEvent {
                 invoke_variant: Some(invoke_event::InvokeVariant::Done(_)),
-            }) => true,
-            _ => false,
-        }
+            })
+        )
     }
 
     pub fn done(trace_id: String) -> Self {

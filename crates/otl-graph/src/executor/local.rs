@@ -78,7 +78,7 @@ async fn execute_local_command(
     let stdout_file = working_dir.join(Command::stdout_file());
     tokio::fs::create_dir_all(&working_dir).await?;
     let mut file = File::create(&script_file).await?;
-    let stderr = File::create(&stderr_file).await?;
+    let _stderr = File::create(&stderr_file).await?;
     let mut stdout = File::create(&stdout_file).await?;
 
     let mut buf: Vec<u8> = Vec::new();
@@ -91,10 +91,10 @@ async fn execute_local_command(
         writeln!(buf, "{}", script_line)?;
     }
 
-    file.write_all(&mut buf).await?;
+    file.write_all(&buf).await?;
     file.flush().await?;
 
-    tx_chan
+    let _handle_me = tx_chan
         .send(Event::command_started(
             command.name.clone(),
             trace_id.clone(),

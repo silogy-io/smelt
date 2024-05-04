@@ -60,15 +60,15 @@ impl Subscriber for SingleInvocationTracker {
                             slot.or_insert(ExecCommand::scheduled(ts));
                         }
                         CommandVariant::Started(_) => {
-                            slot.and_modify(|val| rv = val.to_started(ts));
+                            slot.and_modify(|val| rv = val.started(ts));
                         }
                         CommandVariant::Finished(CommandFinished {
                             out: Some(CommandOutput { status_code }),
                         }) => {
-                            slot.and_modify(|val| rv = val.to_completed(ts, *status_code));
+                            slot.and_modify(|val| rv = val.completed(ts, *status_code));
                         }
                         CommandVariant::Cancelled(_) => {
-                            slot.and_modify(|val| rv = val.to_cancelled(ts));
+                            slot.and_modify(|val| rv = val.cancelled(ts));
                         }
                         _ => {
                             return Err(InvocationTrackerError::UncoveredCommand(
@@ -129,7 +129,7 @@ impl ExecCommand {
         }
     }
 
-    fn to_started(
+    fn started(
         &mut self,
         started_time: impl Into<SystemTime>,
     ) -> Result<(), InvocationTrackerError> {
@@ -145,7 +145,7 @@ impl ExecCommand {
             _ => Err(InvocationTrackerError::InvalidStateTransition),
         }
     }
-    fn to_completed(
+    fn completed(
         &mut self,
         completed_time: impl Into<SystemTime>,
         status_code: i32,
@@ -167,7 +167,7 @@ impl ExecCommand {
             _ => Err(InvocationTrackerError::InvalidStateTransition),
         }
     }
-    fn to_cancelled(
+    fn cancelled(
         &mut self,
         cancelled_time: impl Into<SystemTime>,
     ) -> Result<(), InvocationTrackerError> {

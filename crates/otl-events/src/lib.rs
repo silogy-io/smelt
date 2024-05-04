@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 pub mod runtime_support;
 
 pub use otl_data::Event;
@@ -7,12 +6,10 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 pub use helpers::*;
 mod helpers {
+    use std::path::Path;
+
     use super::*;
-    use otl_data::{
-        command_event::CommandVariant,
-        invoke_event::{InvokeVariant},
-        InvokeEvent,
-    };
+    use otl_data::{command_event::CommandVariant, invoke_event::InvokeVariant, InvokeEvent};
     use otl_data::{event::Et, CommandOutput};
     use otl_data::{CommandEvent, Event};
 
@@ -48,11 +45,11 @@ mod helpers {
     const fn output_asfile() -> &'static str {
         "command.status"
     }
-    pub async fn to_file(out: &CommandOutput, _base_path: &PathBuf) -> Result<(), std::io::Error> {
+    pub async fn to_file(out: &CommandOutput, _base_path: &Path) -> Result<(), std::io::Error> {
         let mut command_out = File::create(output_asfile()).await?;
 
         command_out
-            .write(serde_json::to_vec(out)?.as_slice())
+            .write_all(serde_json::to_vec(out)?.as_slice())
             .await?;
         Ok(())
     }
