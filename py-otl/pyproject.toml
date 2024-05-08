@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "otl"
+name = "pyotl"
 version = "0.1.0"
 description = "otl is a system to describe tests for eda"
 authors = ["James <james@silogy.io>"]
@@ -11,6 +11,8 @@ typer = "0.9.0"
 pyyaml = "6.0.1"
 pydantic = "2.6.4"
 toml = "0.10.2"
+betterproto = { version = "1.2.5", extras = ["compiler"] }
+rich = "^13.7.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -22,12 +24,15 @@ setuptools = "^69.2.0"
 
 #we need this for maturin 
 [project]
-name = "otl"
+name = "pyotl"
 dependencies = [
   "typer>=0.9.0",
   "pyyaml>=6.0.1",
   "pydantic>=2.6.0",
   "toml>=0.10.2",
+  "betterproto[compiler]>=1.2.5",
+  "rich>=13.7.1",
+
 ]
 
 

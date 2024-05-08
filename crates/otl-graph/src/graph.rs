@@ -1,8 +1,10 @@
 use allocative::Allocative;
+use otl_data::client_commands::{client_command::ClientCommands, *};
+
 use derive_more::Display;
 use dice::{
     CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
-    DiceTransactionUpdater, Key,
+    DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
 use futures::{
@@ -10,16 +12,25 @@ use futures::{
     Future, TryFutureExt,
 };
 
+use otl_events::{
+    self,
+    runtime_support::{GetTraceId, GetTxChannel, SetTraceId, SetTxChannel},
+    Event,
+};
+
 use dice::InjectedKey;
 use futures::FutureExt;
 use std::{str::FromStr, sync::Arc};
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
-    commands::{execute_command, Command, CommandOutput, TargetType},
-    maybe_cache,
+    commands::{Command, TargetType},
+    executor::{GetExecutor, LocalExecutorBuilder, SetExecutor},
+    utils::invoke_start_message,
 };
 use async_trait::async_trait;
 use otl_core::OtlErr;
+use otl_data::CommandOutput;
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandRef(Arc<Command>);
@@ -49,8 +60,8 @@ impl From<CommandRef> for QueryCommandRef {
 }
 
 impl LookupCommand {
-    fn from_str_ref(strref: &String) -> Self {
-        Self(Arc::new(strref.clone()))
+    fn from_str_ref(strref: &str) -> Self {
+        Self(Arc::new(strref.to_string()))
     }
 }
 
@@ -85,13 +96,22 @@ impl Key for CommandRef {
                 },
             )
         }));
+
         let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        let output = match self.0.target_type {
-            TargetType::Test => execute_command(self.0.as_ref()).await.map_err(Arc::new),
-            _ => maybe_cache(self.0.as_ref()).await.map_err(Arc::new),
-        }?;
+        let tx = ctx.global_data().get_tx_channel();
+
+        let executor = ctx.global_data().get_executor();
+        let local_tx = tx.clone();
+
+        let output: CommandOutput = executor
+            .execute_commands(self.0.clone(), local_tx,  ctx.per_transaction_data())
+            .await
+            .map(|val| {
+                val.command_output().unwrap()
+            }).expect( "Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
+
         Ok(CommandVal {
             output,
             command: self.clone(),
@@ -119,12 +139,6 @@ async fn get_command_deps(
     future::join_all(futs).await.into_iter().collect()
 }
 
-#[derive(Clone)]
-pub enum GraphKey {
-    Target(String),
-    File(std::path::PathBuf),
-}
-
 pub trait CommandSetter {
     fn add_command(&mut self, command: CommandRef) -> Result<(), OtlErr>;
     fn add_commands(
@@ -135,7 +149,7 @@ pub trait CommandSetter {
 pub type CommandOutputFuture<'a> =
     dyn Future<Output = Result<CommandOutput, Arc<OtlErr>>> + Send + 'a;
 #[async_trait]
-pub trait LocalCommandExecutor {
+pub trait CommandExecutor {
     async fn execute_command(
         &mut self,
         command_name: &CommandRef,
@@ -148,7 +162,7 @@ pub trait LocalCommandExecutor {
 }
 
 #[async_trait]
-impl LocalCommandExecutor for DiceComputations<'_> {
+impl CommandExecutor for DiceComputations<'_> {
     async fn execute_command(
         &mut self,
         command: &CommandRef,
@@ -198,109 +212,191 @@ impl CommandSetter for DiceTransactionUpdater {
     }
 }
 
+/// Struct that holds all the state for executing tasks
 pub struct CommandGraph {
+    /// Dice is the graph library we use to figure out dependencies and pass state to events
     dice: Arc<Dice>,
+    /// The commands that are currently contained in the graph -- they hold no information
+    /// regarding dependencies, etc
     pub(crate) all_commands: Vec<CommandRef>,
+    /// The receiver for all ClientCommands -- these kick off executions of the dice graph
+    rx_chan: UnboundedReceiver<ClientCommand>,
 }
+
 impl CommandGraph {
-    pub async fn from_commands_str(commands: impl AsRef<str>) -> Result<Self, OtlErr> {
-        let commands: Vec<Command> = serde_yaml::from_str(commands.as_ref())?;
-        Self::new(commands).await
-    }
+    pub async fn new(
+        rx_chan: UnboundedReceiver<ClientCommand>,
+        tx_chan: Sender<Event>,
+    ) -> Result<Self, OtlErr> {
+        let executor = LocalExecutorBuilder::new().threads(8).build()?;
 
-    pub async fn new(commands: Vec<Command>) -> Result<Self, OtlErr> {
-        let dice = Dice::builder().build(DetectCycles::Enabled);
-        let mut ctx = dice.updater();
-        let commands: Vec<CommandRef> = commands
-            .into_iter()
-            .map(|val| CommandRef(Arc::new(val)))
-            .collect();
-        ctx.add_commands(commands.iter().cloned())?;
+        let mut dice_builder = Dice::builder();
+        dice_builder.set_executor(Arc::new(executor));
+        dice_builder.set_tx_channel(tx_chan);
 
-        let _ctx = ctx.commit().await;
+        let dice = dice_builder.build(DetectCycles::Enabled);
+
         let graph = CommandGraph {
             dice,
-            all_commands: commands,
+            rx_chan,
+            all_commands: vec![],
         };
 
         Ok(graph)
     }
 
-    pub async fn run_all_typed(
-        &self,
-        maybe_type: String,
-    ) -> Result<Vec<Result<CommandOutput, Arc<OtlErr>>>, OtlErr> {
-        let tt = TargetType::from_str(maybe_type.as_str())?;
-        let refs = self
-            .all_commands
-            .iter()
-            .filter(|&val| val.0.target_type == tt)
-            .cloned()
-            .collect();
-
-        let ctx = self.dice.updater();
-        let mut tx = ctx.commit().await;
-
-        Ok(tx.execute_commands(refs).await)
+    // This should hopefully never return
+    pub async fn eat_commands(&mut self) {
+        loop {
+            if let Some(ClientCommand {
+                client_commands: Some(command),
+            }) = self.rx_chan.recv().await
+            {
+                let rv = self.eat_command(command).await;
+                if let Err(_err) = rv {
+                    dbg!("Todo -- send out a warning via a channel or something, at least log with tracing at this point when i add it in");
+                }
+            }
+        }
     }
 
-    pub async fn run_all_typed_actor(
-        &self,
-        maybe_type: String,
-    ) -> Result<Vec<Result<CommandOutput, Arc<OtlErr>>>, OtlErr> {
-        let tt = TargetType::from_str(maybe_type.as_str())?;
-        let refs = self
-            .all_commands
-            .iter()
-            .filter(|&val| val.0.target_type == tt)
-            .cloned()
-            .collect();
-
-        let ctx = self.dice.updater();
-        //let (rx, tx) = tokio::sync::mpsc::channel(100);
-        let mut tx = ctx.commit().await;
-
-        Ok(tx.execute_commands(refs).await)
+    async fn eat_command(&mut self, command: ClientCommands) -> Result<(), OtlErr> {
+        match command {
+            ClientCommands::Setter(SetCommands { command_content }) => {
+                let script = serde_yaml::from_str(&command_content)?;
+                self.set_commands(script).await?;
+            }
+            ClientCommands::Runone(RunOne { command_name }) => {
+                self.run_one_test(command_name).await?;
+            }
+            ClientCommands::Runtype(RunType { typeinfo }) => {
+                self.run_all_typed(typeinfo).await?;
+            }
+        }
+        Ok(())
     }
 
-    pub async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
+    pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), OtlErr> {
+        let mut ctx = self.dice.updater();
+        let commands: Vec<CommandRef> = commands
+            .into_iter()
+            .map(|val| CommandRef(Arc::new(val)))
+            .collect();
+        ctx.add_commands(commands.iter().cloned())?;
+        self.all_commands = commands;
+        let _ctx = ctx.commit().await;
+        Ok(())
+    }
+
+    async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
         let ctx = self.dice.updater();
-        let tx = ctx.commit().await;
+        let mut data = UserComputationData::new();
+
+        data.init_trace_id();
+
+        let tx = ctx.commit_with_data(data).await;
+        let val = tx.global_data().get_tx_channel();
+        // todo -- handle err
+        let _ = val
+            .send(invoke_start_message(
+                tx.per_transaction_data().get_trace_id(),
+            ))
+            .await;
+
         Ok(tx)
     }
 
-    pub async fn run_one_test(
-        &self,
-        test_name: impl Into<String>,
-    ) -> Result<CommandOutput, Arc<OtlErr>> {
+    pub async fn run_all_typed(&self, maybe_type: String) -> Result<(), OtlErr> {
+        let tt = TargetType::from_str(maybe_type.as_str())?;
+        let refs = self
+            .all_commands
+            .iter()
+            .filter(|&val| val.0.target_type == tt)
+            .cloned()
+            .collect();
+
+        let mut tx = self.start_tx().await?;
+
+        tokio::task::spawn(async move {
+            let _out = tx.execute_commands(refs).await;
+
+            let val = tx.global_data().get_tx_channel();
+            let trace = tx.per_transaction_data().get_trace_id();
+            let _ = val.send(Event::done(trace)).await;
+        });
+        Ok(())
+    }
+
+    pub async fn run_one_test(&self, test_name: impl Into<String>) -> Result<(), OtlErr> {
         let ctx = self.dice.updater();
         let mut tx = ctx.commit().await;
         let command = tx
             .compute(&LookupCommand(Arc::new(test_name.into())))
-            .await
-            .map_err(|val| Arc::new(OtlErr::DiceFail(val)))?;
-        tx.execute_command(&command).await
+            .await?;
+
+        //tx.execute_command(&command).await
+
+        let mut tx = self.start_tx().await?;
+
+        tokio::task::spawn(async move {
+            let _ = tx.execute_command(&command).await;
+            let val = tx.global_data().get_tx_channel();
+            let trace = tx.per_transaction_data().get_trace_id();
+            val.send(Event::done(trace)).await
+        });
+        Ok(())
     }
+}
+
+/// Handle for interacting with the OtlGraph
+pub struct OtlServerHandle {
+    /// Channel for sending client commands -- covers stuff like running tests
+    pub tx_client: UnboundedSender<ClientCommand>,
+    /// Channel for receiving telemetry events from an execution
+    ///
+    /// Events include information like when each command starts, ends, is cancelled, etc
+    pub rx_tele: Receiver<Event>,
 }
 
 #[cfg(test)]
 mod tests {
+    use tokio::sync::mpsc::{channel, unbounded_channel};
+
     use super::*;
-    
+
+    struct TestGraphHandle {
+        rx_chan: Receiver<Event>,
+    }
+
+    impl TestGraphHandle {
+        pub async fn async_blocking_events(&mut self) -> Vec<Event> {
+            let mut rv = vec![];
+            loop {
+                if let Some(val) = self.rx_chan.recv().await {
+                    if val.finished_event() {
+                        break;
+                    }
+                    rv.push(val);
+                }
+            }
+            rv
+        }
+    }
 
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
 
-        let script = script.unwrap();
-        let graph = CommandGraph::new(script).await.unwrap();
-        let results = graph.run_all_typed("test".to_string()).await.unwrap();
-        for result in results {
-            match result {
-                Ok(out) => {
-                    assert_eq!(out.status_code, 0)
-                }
-                Err(err) => {
-                    panic!("Seeing error {:?}", err);
+        let _script = script.unwrap();
+        let (_tx, rx) = unbounded_channel();
+        let (tx, rx_handle) = channel(100);
+        let graph = CommandGraph::new(rx, tx).await.unwrap();
+        let mut gh = TestGraphHandle { rx_chan: rx_handle };
+        graph.run_all_typed("test".to_string()).await.unwrap();
+        let events = gh.async_blocking_events().await;
+        for event in events {
+            if let otl_data::event::Et::Command(val) = event.et.unwrap() {
+                if let Some(passed) = val.passed() {
+                    assert!(passed)
                 }
             }
         }
@@ -309,6 +405,7 @@ mod tests {
     #[tokio::test]
     async fn dependency_less_exec() {
         let yaml_data = include_str!("../../../test_data/command_lists/cl1.yaml");
+
         execute_all_tests_in_file(yaml_data).await
     }
 

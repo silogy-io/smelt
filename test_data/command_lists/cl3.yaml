@@ -1,0 +1,61 @@
+- name: sim
+  target_type: build
+  script:
+    - echo "hello world"
+    - echo "sim" &> sim
+  dependencies: []
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: sim2
+  target_type: build
+  script:
+    - echo "hello world"
+    - echo "sim2" &> sim2
+  dependencies: []
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: sim3
+  target_type: build
+  script:
+    - echo "hello world" &> sim3
+    - rm sim2
+    - rm sim
+  dependencies: [sim, sim2]
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: stim
+  target_type: stimulus
+  script:
+    - echo "hello world 2" &> myout
+  dependencies: []
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: test
+  target_type: test
+  script:
+    - echo "hello world 3"
+    - cat myout
+    - rm sim3
+  dependencies: [sim3, stim]
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}

@@ -23,25 +23,57 @@ edition = "2021"
 #crate-type = ["cdylib"]
 
 [workspace.dependencies]
+serde = { version = "1.0.197", features = ["std", "derive"] }
 pyo3 = "0.21.1"
-dice = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
-allocative = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
-dupe = {git = "https://github.com/facebook/buck2", rev="9e17b241"}
+prost = "0.11.9"
+prost-build = "0.11.9"
+prost-derive = "0.11.9"
+prost-types = "0.11.9"
+dice = { git = "https://github.com/facebook/buck2", rev = "9e17b241" }
+allocative = { git = "https://github.com/facebook/buck2", rev = "9e17b241", features = [
+  "anyhow",
+  "bumpalo",
+  "dashmap",
+  "either",
+  "futures",
+  "hashbrown",
+  "indexmap",
+  "num-bigint",
+  "once_cell",
+  "parking_lot",
+  "prost-types",
+  "relative-path",
+  "serde_json",
+  "slab",
+  "smallvec",
+  "compact_str",
+  "sorted_vector_map",
+  "tokio",
+  "triomphe",
+] }
+dupe = { git = "https://github.com/facebook/buck2", rev = "9e17b241" }
+tonic = { version = "0.9.2", features = ["tls", "tls-webpki-roots"] }
+tonic-build = { version = "0.9.2", features = ["prost", "cleanup-markdown"] }
 thiserror = "1.0.58"
-serde = "1.0.197"
 serde_yaml = "0.9.34"
-tokio = "1.37.0"
+tokio = { version = "1.37.0", features = ["full", "tracing"] }
 futures = "0.3.30"
 derive_more = "0.99.17"
 async-trait = "0.1.79"
 fuzzy-matcher = "0.3.7"
 pythonize = "0.21.1"
 serde_json = "1.0.115"
-otl-core = { path = "crates/otl-core", default-features = false}
-otl-graph = { path = "crates/otl-graph", default-features = false}
-py-otl = { path = "py-otl", default-features = false}
+otl-events = { path = "crates/otl-events", default-features = false }
+otl-core = { path = "crates/otl-core", default-features = false }
+otl-graph = { path = "crates/otl-graph", default-features = false }
+otl-data = { path = "crates/otl-data", default-features = false }
+otl-client = { path = "crates/otl-client", default-features = false }
+otl-controller = { path = "crates/otl-controller", default-features = false }
 
-
+py-otl = { path = "py-otl", default-features = false }
+chrono = "0.4.37"
+hex = "0.4.3"
+anyhow = "1.0.82"
 
 
 [profile.opt-dev]

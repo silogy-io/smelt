@@ -1,14 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use allocative::Allocative;
-use derive_more::Display;
 use dupe::Dupe;
 
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
 
-use tokio::{fs::File, io::AsyncWriteExt};
-
 use otl_core::OtlErr;
+pub use otl_data::CommandOutput;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
@@ -39,19 +37,19 @@ pub enum CommandRtStatus {
 }
 
 impl Command {
-    const fn script_file() -> &'static str {
+    pub const fn script_file() -> &'static str {
         "command.sh"
     }
 
-    const fn stderr_file() -> &'static str {
+    pub const fn stderr_file() -> &'static str {
         "command.err"
     }
 
-    const fn stdout_file() -> &'static str {
+    pub const fn stdout_file() -> &'static str {
         "command.out"
     }
 
-    fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
+    pub fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
         Ok(std::env::current_dir().map(|val| val.join("otl-out").join(&self.name))?)
     }
 
@@ -63,7 +61,7 @@ impl Command {
             .chain(self.script.iter().cloned())
     }
 
-    fn working_dir(&self) -> Result<PathBuf, OtlErr> {
+    pub fn working_dir(&self) -> Result<PathBuf, OtlErr> {
         let env = &self.runtime.env;
         let working_dir = env
             .get("TARGET_ROOT")
@@ -72,7 +70,7 @@ impl Command {
         Ok(working_dir)
     }
 
-    async fn get_status_from_fs(&self) -> Result<CommandOutput, OtlErr> {
+    pub async fn get_status_from_fs(&self) -> Result<CommandOutput, OtlErr> {
         if let Ok(working_dir) = self.working_dir() {
             let val = working_dir
                 .exists()
@@ -151,29 +149,6 @@ impl fmt::Display for Runtime {
     }
 }
 
-#[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative, Serialize, Deserialize)]
-pub struct CommandOutput {
-    pub(crate) status_code: i32,
-}
-
-impl CommandOutput {
-    fn passed(&self) -> bool {
-        self.status_code == 0
-    }
-
-    const fn asfile() -> &'static str {
-        "command.status"
-    }
-    async fn to_file(&self, _base_path: &PathBuf) -> Result<(), OtlErr> {
-        let mut command_out = File::create(CommandOutput::asfile()).await?;
-
-        command_out
-            .write(serde_json::to_vec(self)?.as_slice())
-            .await?;
-        Ok(())
-    }
-}
-
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct CommandScript(Arc<CommandScriptInner>);
 
@@ -183,59 +158,17 @@ pub(crate) struct CommandScriptInner {
     deps: Vec<CommandScript>,
 }
 
-pub async fn maybe_cache(command: &Command) -> Result<CommandOutput, OtlErr> {
-    if let Ok(command_out) = command.get_status_from_fs().await {
-        if command_out.passed() {
-            return Ok(command_out);
-        }
-    } else {
-        //pass
-    };
-
-    execute_command(command).await
-}
-
-pub async fn execute_command(command: &Command) -> Result<CommandOutput, OtlErr> {
-    let env = &command.runtime.env;
-    let working_dir = env
-        .get("TARGET_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| command.default_target_root().unwrap());
-
-    let script_file = working_dir.join(Command::script_file());
-    let stderr_file = working_dir.join(Command::stderr_file());
-    let stdout_file = working_dir.join(Command::stdout_file());
-    tokio::fs::create_dir_all(&working_dir).await?;
-    let mut file = File::create(&script_file).await?;
-    let stderr = File::create(&stderr_file).await?;
-    let stdout = File::create(&stdout_file).await?;
-
-    let mut buf: Vec<u8> = Vec::new();
-
-    use std::io::Write;
-    for (env_name, env_val) in env.iter() {
-        writeln!(buf, "export {}={}", env_name, env_val)?;
-    }
-
-    for script_line in &command.script {
-        writeln!(buf, "{}", script_line)?;
-    }
-
-    file.write_all(&mut buf).await?;
-    file.flush().await?;
-
-    let mut command = tokio::process::Command::new("bash");
-    command
-        .arg("-C")
-        .arg(script_file)
-        .stdout(stdout.into_std().await)
-        .stderr(stderr.into_std().await);
-    let cstsatus = command.status().await.map(|val| CommandOutput {
-        status_code: val.code().unwrap_or(-555),
-    })?;
-    cstsatus.to_file(&working_dir).await?;
-    Ok(cstsatus)
-}
+//pub async fn maybe_cache(command: &Command) -> Result<CommandOutput, OtlErr> {
+//    if let Ok(command_out) = command.get_status_from_fs().await {
+//        if command_out.passed() {
+//            return Ok(command_out);
+//        }
+//    } else {
+//        //pass
+//    };
+//
+//    execute_command(command).await
+//}
 
 #[cfg(test)]
 mod tests {
