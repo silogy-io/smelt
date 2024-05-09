@@ -1,5 +1,5 @@
 from pydantic.dataclasses import dataclass
-from typing import Dict
+from typing import ClassVar, Dict, Optional
 from pathlib import Path
 from pyotl.path_utils import get_git_root
 import toml
@@ -26,9 +26,6 @@ class OtlRC:
         rc_path = Path(f"{git_root}/.otlrc")
 
         if not rc_path.exists():
-            print(
-                "WARNING: otlrc is unitialized! execute `otl-cli init` to create all the expected scaffolding"
-            )
             return OtlRC.default()
 
         stream = rc_path.read_text()
@@ -58,3 +55,7 @@ class OtlRC:
     def abs_rules_dir(self) -> Path:
         git_root = get_git_root()
         return Path(f"{git_root}/{self.otl_rules_dir}")
+
+
+class OtlRcHolder:
+    current_rc: ClassVar[OtlRC] = OtlRC.try_load()

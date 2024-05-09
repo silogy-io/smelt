@@ -6,7 +6,7 @@ from pyotl.pygraph import PyGraph
 from pyotl.rc import OtlRC
 from pyotl.importer import get_all_targets
 from pyotl.interfaces import OtlTargetType
-from pyotl.otl_muncher import otl_to_command_list
+from pyotl.otl_muncher import create_graph, parse_otl
 from pyotl.serde import SafeDataclassDumper
 from pyotl.pyotlexec.naive import execute_command_list
 from typing import Optional
@@ -88,10 +88,8 @@ def munch(
     help="Converts .otl files to a command file",
 ):
     typer.echo(f"Validating: {otl_file}")
-    otlrc = OtlRC.try_load()
 
-    targets = get_all_targets(otlrc)
-    commands = otl_to_command_list(test_list=str(otl_file), rc=otlrc)
+    _, commands = parse_otl(test_list=str(otl_file))
     yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
 
 
@@ -102,10 +100,8 @@ def execute(
     target_name: Optional[str] = typer.Option(None, help="Target name"),
     help="Goes through the entire flow, from otl file to executing a command list",
 ):
-    otlrc = OtlRC.try_load()
 
-    commands = otl_to_command_list(test_list=str(otl_file), rc=otlrc)
-    graph = PyGraph.from_command_list(commands)
+    graph = create_graph(str(otl_file))
     if target_name:
         graph.run_one_test(target_name)
     else:
