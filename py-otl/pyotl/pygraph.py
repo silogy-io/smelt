@@ -1,13 +1,14 @@
 from typing import Dict, List, Optional, Tuple
 from pyotl.interfaces import Command, OtlTargetType
 from dataclasses import dataclass
+from pyotl.interfaces.target import Target
 from pyotl.pyotl import PyController, PySubscriber
 import yaml
 import time
 
 
 from pyotl.otl_telemetry.data import Event
-import betterproto
+
 
 from pyotl.subscribers.is_done import IsDoneSubscriber
 from pyotl.subscribers.output_collector import OutputConsole
@@ -33,13 +34,14 @@ class PyGraph:
     Graph that simply sorts commands by their target type
     """
 
-    targets: Dict[OtlTargetType, List[Command]]
+    otl_targets: Optional[Dict[str, Target]]
+    commands: Dict[OtlTargetType, List[Command]]
     controller: PyController
     listener: PySubscriber
     done_tracker = IsDoneSubscriber()
 
     def get_test_type(self, tt: OtlTargetType) -> List[Command]:
-        return self.targets[tt]
+        return self.commands[tt]
 
     @property
     def build(self):
@@ -82,11 +84,11 @@ class PyGraph:
         """
         return [
             (command.name, command.script)
-            for command in self.targets[OtlTargetType.Test]
+            for command in self.commands[OtlTargetType.Test]
         ]
 
     @classmethod
-    def from_command_list(cls, commands: List[Command]):
+    def init(cls, otl_targets: Dict[str, Target], commands: List[Command]):
         rv = {}
         for tar_typ in OtlTargetType:
             rv[tar_typ.value] = []
@@ -97,4 +99,6 @@ class PyGraph:
         graph = PyController()
         graph.set_graph(commands_as_str)
         listener = graph.add_py_listener()
-        return cls(targets=rv, controller=graph, listener=listener)
+        return cls(
+            otl_targets=otl_targets, commands=rv, controller=graph, listener=listener
+        )

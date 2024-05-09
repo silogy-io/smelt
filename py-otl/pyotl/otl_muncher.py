@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 import yaml
-from typing import Dict, Any, Type, List
+from typing import Dict, Any, Tuple, Type, List
 from pydantic import BaseModel
 from pyotl.importer import DocumentedTarget, get_all_targets, get_default_targets
 from pyotl.interfaces import Target, Command
-from pyotl.rc import OtlRC
+from pyotl.rc import OtlRC, OtlRcHolder
 from pyotl.path_utils import get_git_root
 from pyotl.pygraph import PyGraph
 
@@ -25,7 +25,7 @@ def populate_rule_args(
     target_name: str,
     rule_payload: SerYamlTarget,
     all_rules: Dict[str, DocumentedTarget],
-):
+) -> PreTarget:
     rule_payload.rule_args["name"] = target_name
     if rule_payload.rule not in all_rules:
         # TODO: make a pretty error that
@@ -42,16 +42,26 @@ def to_target(pre_target: PreTarget) -> Target:
     return pre_target.target_typ(**pre_target.rule_args)
 
 
-def otl_to_command_list(
-    test_list: str, rc: OtlRC, default_rules_only: bool = False
-) -> List[Command]:
+def parse_otl(
+    test_list: str, default_rules_only: bool = False
+) -> Tuple[Dict[str, Target], List[Command]]:
     yaml_content = open(test_list).read()
-    return otl_contents_to_command_list(yaml_content, rc, default_rules_only)
+    targets = otl_contents_to_targets(
+        yaml_content, default_rules_only=default_rules_only
+    )
+    rc = OtlRcHolder.current_rc
+    command_list = [
+        Command.from_target(otl_target, default_root=rc.otl_default_root)
+        for otl_target in targets.values()
+    ]
+    return targets, command_list
 
 
-def otl_contents_to_command_list(
-    otl_content: str, rc: OtlRC, default_rules_only: bool = False
-) -> List[Command]:
+def otl_contents_to_targets(
+    otl_content: str,
+    rc: OtlRC = OtlRcHolder.current_rc,
+    default_rules_only: bool = False,
+) -> Dict[str, Target]:
     rule_inst = yaml.safe_load(otl_content)
     # NOTE: semantically we split up validation of the otl file -> converting to target objects -> generating a command list
     # while dependency based
@@ -64,17 +74,9 @@ def otl_contents_to_command_list(
         target.name: populate_rule_args(target.name, target, all_rules)
         for target in yaml_targets
     }
-    inst_rules = {
-        name: to_target(pre_target) for name, pre_target in pre_targets.items()
-    }
-
-    command_list = [
-        Command.from_target(otl_target, default_root=rc.otl_default_root)
-        for otl_target in inst_rules.values()
-    ]
-    return command_list
+    return {name: to_target(pre_target) for name, pre_target in pre_targets.items()}
 
 
-def otl_parse(test_list: str, rc: OtlRC) -> PyGraph:
-    command_list = otl_to_command_list(test_list, rc)
-    return PyGraph.from_command_list(command_list)
+def create_graph(test_list: str) -> PyGraph:
+    targets, command_list = parse_otl(test_list)
+    return PyGraph.init(targets, command_list)
