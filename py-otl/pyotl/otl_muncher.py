@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 import yaml
-from typing import Dict, Any, Tuple, Type, List
+from typing import Dict, Any, Iterable, Tuple, Type, List
 from pydantic import BaseModel
 from pyotl.importer import DocumentedTarget, get_all_targets, get_default_targets
 from pyotl.interfaces import Target, Command
 from pyotl.rc import OtlRC, OtlRcHolder
 from pyotl.path_utils import get_git_root
-from pyotl.pygraph import PyGraph
 
 
 class SerYamlTarget(BaseModel):
@@ -49,12 +48,19 @@ def parse_otl(
     targets = otl_contents_to_targets(
         yaml_content, default_rules_only=default_rules_only
     )
+    command_list = lower_target_to_command(targets.values())
+
+    return targets, command_list
+
+
+def lower_target_to_command(targets: Iterable[Target]):
+
     rc = OtlRcHolder.current_rc
     command_list = [
         Command.from_target(otl_target, default_root=rc.otl_default_root)
-        for otl_target in targets.values()
+        for otl_target in targets
     ]
-    return targets, command_list
+    return command_list
 
 
 def otl_contents_to_targets(
@@ -75,8 +81,3 @@ def otl_contents_to_targets(
         for target in yaml_targets
     }
     return {name: to_target(pre_target) for name, pre_target in pre_targets.items()}
-
-
-def create_graph(test_list: str) -> PyGraph:
-    targets, command_list = parse_otl(test_list)
-    return PyGraph.init(targets, command_list)

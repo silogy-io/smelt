@@ -17,7 +17,6 @@ from rich.progress import (
     TaskID,
     TimeElapsedColumn,
 )
-import time
 
 
 class Status(enum.Enum):
@@ -105,7 +104,7 @@ class OutputConsole:
 
             # we are processing stdout of a command
             else:
-                if self.print_stdout:
+                if self.progress and self.print_stdout:
                     self.progress.print(payload.output)
 
     def processed_started(self):

@@ -2,14 +2,15 @@ from typing_extensions import Annotated
 from pathlib import Path
 import typer
 import yaml
-from pyotl.pygraph import PyGraph
 from pyotl.rc import OtlRC
 from pyotl.importer import get_all_targets
 from pyotl.interfaces import OtlTargetType
-from pyotl.otl_muncher import create_graph, parse_otl
+from pyotl.otl_muncher import parse_otl
+from pyotl.pygraph import create_graph
 from pyotl.serde import SafeDataclassDumper
 from pyotl.pyotlexec.naive import execute_command_list
 from typing import Optional
+from typer import Typer, Argument, Exit
 
 app = typer.Typer()
 
@@ -69,10 +70,6 @@ def targets(
     print(targets)
 
 
-from typing import Any
-from typer import Typer, Argument, Exit
-
-
 def validate_type(value: str):
     if value not in OtlTargetType._value2member_map_:
         raise Exit(
@@ -98,6 +95,7 @@ def execute(
     otl_file: TlPath,
     tt: str = typer.Option("test", help="OTL target type", callback=validate_type),
     target_name: Optional[str] = typer.Option(None, help="Target name"),
+    rerun: bool = typer.Option(False, help="Rerun the command", is_flag=True),
     help="Goes through the entire flow, from otl file to executing a command list",
 ):
 
@@ -106,6 +104,8 @@ def execute(
         graph.run_one_test(target_name)
     else:
         graph.run_all_tests(tt)
+    if rerun:
+        graph.rerun()
 
 
 def main():

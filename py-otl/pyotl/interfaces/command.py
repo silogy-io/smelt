@@ -9,11 +9,22 @@ CommandRef = str
 
 @dataclass
 class Command:
+    """
+    The simplest unit of compute in otl -- commands are the nodes that are scheduled and executed by the runtime
+
+    Functionally, Command is a simple wrapper around a `bash` script
+    """
+
     name: str
-    # todo: this really needs to be an otl target type literal, but i am too annoyed at pyright now to figure it out
     target_type: str
     script: List[str]
+    """
+    A list of bash commands that will be executed in sequence
+    """
     dependencies: List[CommandRef]
+    """
+    Paths to files this command creates
+    """
     outputs: List[str]
     runtime: RuntimeRequirements
 

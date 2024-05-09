@@ -109,6 +109,14 @@ impl PyController {
         Ok(())
     }
 
+    pub fn run_many_tests(&self, tests: Vec<String>) -> PyResult<()> {
+        self.handle
+            .tx_client
+            .send(ClientCommand::execute_many(tests))
+            .map_err(client_channel_err)?;
+        Ok(())
+    }
+
     pub fn add_py_listener(&self) -> PyResult<PySubscriber> {
         let (sub, fwder) = PySubscriber::create_subscriber(self.handle.tx_client.clone());
         self.handle

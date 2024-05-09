@@ -18,6 +18,12 @@ TargetRef = str
 
 @dataclass
 class Target(ABC):
+    """
+    A target is a structure that holds logic to generate a `Command`
+
+    Targets are higher level abstraction to generate a new command based off of certain new input criterea -- for instance, if a target fails, and you create a new command
+    """
+
     name: str
 
     def get_outputs(self) -> Dict[str, OtlPath]:

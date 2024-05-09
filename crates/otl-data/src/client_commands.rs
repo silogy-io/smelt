@@ -21,6 +21,14 @@ impl ClientCommand {
         }
     }
 
+    pub fn execute_many(command_names: Vec<String>) -> Self {
+        let cc = ClientCommands::Runmany(RunMany { command_names });
+
+        ClientCommand {
+            client_commands: Some(cc),
+        }
+    }
+
     pub fn execute_type(typeinfo: String) -> Self {
         let cc = ClientCommands::Runtype(RunType { typeinfo });
 
