@@ -102,3 +102,7 @@ class PyGraph:
         return cls(
             otl_targets=otl_targets, commands=rv, controller=graph, listener=listener
         )
+
+    @classmethod
+    def init_commands_only(cls, commands: List[Command]):
+        return cls.init({}, commands)
