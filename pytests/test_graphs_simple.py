@@ -1,4 +1,4 @@
-from pyotl.pygraph import PyGraph
+from pyotl.pygraph import PyGraph, create_graph
 from pyotl.path_utils import get_git_root
 from pyotl.interfaces import Command
 import yaml
@@ -13,4 +13,11 @@ def test_sanity_pygraph():
     graph.run_all_tests("test")
 
 
-test_sanity_pygraph()
+def test_sanity_pygraph_rerun():
+    test_list = f"{get_git_root()}/examples/tests_only.otl"
+    graph = create_graph(test_list)
+    graph.run_all_tests("test")
+    graph.rerun()
+
+
+test_sanity_pygraph_rerun()

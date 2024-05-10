@@ -3,7 +3,7 @@ use otl_data::client_commands::{client_command::ClientCommands, *};
 
 use derive_more::Display;
 use dice::{
-    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
@@ -272,6 +272,9 @@ impl CommandGraph {
             ClientCommands::Runtype(RunType { typeinfo }) => {
                 self.run_all_typed(typeinfo).await?;
             }
+            ClientCommands::Runmany(RunMany { command_names }) => {
+                self.run_many_tests(command_names).await?;
+            }
         }
         Ok(())
     }
@@ -323,6 +326,29 @@ impl CommandGraph {
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
             let _ = val.send(Event::done(trace)).await;
+        });
+        Ok(())
+    }
+
+    pub async fn run_many_tests(&self, test_names: Vec<String>) -> Result<(), OtlErr> {
+        let ctx = self.dice.updater();
+        let mut tx = ctx.commit().await;
+        let mut refs = Vec::new();
+
+        for test_name in test_names {
+            let val = tx
+                .compute(&LookupCommand(Arc::new(test_name.into())))
+                .await?;
+            refs.push(val);
+        }
+
+        let mut tx = self.start_tx().await?;
+
+        tokio::task::spawn(async move {
+            let _ = tx.execute_commands(refs).await;
+            let val = tx.global_data().get_tx_channel();
+            let trace = tx.per_transaction_data().get_trace_id();
+            val.send(Event::done(trace)).await
         });
         Ok(())
     }
