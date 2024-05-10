@@ -1,32 +1,25 @@
 [project]
 name = "pyotl"
-version = "0.1.0"
+version = "0.2.0"
 description = "otl is a system to describe tests for eda"
 requires-python = ">=3.8"
-dependencies = [
-  "typer>=0.9.0",
-  "pyyaml>=6.0.1",
-  "pydantic>=2.6.0",
-  "toml>=0.10.2",
-  "betterproto[compiler]>=1.2.5",
-  "rich>=13.7.1",
-]
+dependencies = [ "typer>=0.9.0", "pyyaml>=6.0.1", "pydantic>=2.6.0", "toml>=0.10.2", "betterproto[compiler]>=1.2.5", "rich>=13.7.1",]
 [[project.authors]]
 name = "James Connolly"
 email = "james@silogy.io"
 
 [build-system]
-requires = ["maturin>=1.5,<2.0"]
+requires = [ "maturin>=1.5,<2.0",]
 build-backend = "maturin"
 
 [tool.scripts]
 otl-cli = "otl.cli:main"
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = [ "pyo3/extension-module",]
 
 [tool.poetry]
 name = "pyotl"
 version = "0.1.0"
 description = "igore_me"
-authors = ["hack_section"]
+authors = [ "hack_section",]
