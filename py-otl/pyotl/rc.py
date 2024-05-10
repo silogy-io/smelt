@@ -58,4 +58,4 @@ class OtlRC:
 
 
 class OtlRcHolder:
-    current_rc: ClassVar[OtlRC] = OtlRC.try_load()
+    current_rc: ClassVar[OtlRC] = OtlRC.default()
