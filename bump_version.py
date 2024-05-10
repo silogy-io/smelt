@@ -67,13 +67,14 @@ def main():
     print(f"bumped to version {out_version}")
 
     if args.push_git:
-        subprocess.run(["git", "checkout", "-b", f"release-{out_version}"])
-        subprocess.run(["taplo", "fmt", "Cargo.toml", "py-otl/pyproject.toml"])
+        branch = f"release-{out_version}"
+        subprocess.run(["git", "checkout", "-b", branch])
+        subprocess.run(["taplo", "fmt", pypath, cargopath])
         subprocess.run(["git", "add", pypath, cargopath])
         subprocess.run(["git", "commit", "-m", f"Bump version to {out_version}"])
-        subprocess.run(["git", "push"])
-        # subprocess.run(["git", "tag", out_version])
-        # subprocess.run(["git", "push", "origin", out_version])
+        subprocess.run(["git", "push", "origin", branch])
+        subprocess.run(["git", "tag", out_version])
+        subprocess.run(["git", "push", "origin", out_version])
 
 
 if __name__ == "__main__":
