@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
-members = [ "crates/*", "py-otl",]
+members = ["crates/*", "py-otl"]
 
 [workspace.package]
-version = "0.2.0"
-authors = [ "James Connolly <james@silogy.io>",]
+version = "0.2.1"
+authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
 [workspace.dependencies]
@@ -42,7 +42,7 @@ lto = "fat"
 
 [workspace.dependencies.serde]
 version = "1.0.197"
-features = [ "std", "derive",]
+features = ["std", "derive"]
 
 [workspace.dependencies.dice]
 git = "https://github.com/facebook/buck2"
@@ -51,7 +51,27 @@ rev = "9e17b241"
 [workspace.dependencies.allocative]
 git = "https://github.com/facebook/buck2"
 rev = "9e17b241"
-features = [ "anyhow", "bumpalo", "dashmap", "either", "futures", "hashbrown", "indexmap", "num-bigint", "once_cell", "parking_lot", "prost-types", "relative-path", "serde_json", "slab", "smallvec", "compact_str", "sorted_vector_map", "tokio", "triomphe",]
+features = [
+  "anyhow",
+  "bumpalo",
+  "dashmap",
+  "either",
+  "futures",
+  "hashbrown",
+  "indexmap",
+  "num-bigint",
+  "once_cell",
+  "parking_lot",
+  "prost-types",
+  "relative-path",
+  "serde_json",
+  "slab",
+  "smallvec",
+  "compact_str",
+  "sorted_vector_map",
+  "tokio",
+  "triomphe",
+]
 
 [workspace.dependencies.dupe]
 git = "https://github.com/facebook/buck2"
@@ -59,15 +79,15 @@ rev = "9e17b241"
 
 [workspace.dependencies.tonic]
 version = "0.9.2"
-features = [ "tls", "tls-webpki-roots",]
+features = ["tls", "tls-webpki-roots"]
 
 [workspace.dependencies.tonic-build]
 version = "0.9.2"
-features = [ "prost", "cleanup-markdown",]
+features = ["prost", "cleanup-markdown"]
 
 [workspace.dependencies.tokio]
 version = "1.37.0"
-features = [ "full", "tracing",]
+features = ["full", "tracing"]
 
 [workspace.dependencies.otl-events]
 path = "crates/otl-events"
