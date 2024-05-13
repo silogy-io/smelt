@@ -16,6 +16,8 @@ from pyotl.subscribers.retcode import RetcodeTracker
 
 from copy import deepcopy
 
+from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
+
 
 def default_target_rerun_callback(target: Target, return_code: int) -> Optional[Target]:
     """
@@ -79,6 +81,22 @@ class PyGraph:
                     # add a little bit of backoff
                     time.sleep(0.01)
 
+    def console_runloop(self, test_name: str, sink: StdoutSink):
+        stdout_tracker = StdoutPrinter(test_name, sink)
+        while True:
+            # tbh, this could be async
+            # but async interopt with rust is kind of experimental and i dont want to do it yet
+            message = maybe_get_message(self.listener, blocking=False)
+            if message:
+                self.done_tracker.process_message(message)
+                self.retcode_tacker.process_message(message)
+                stdout_tracker.process_message(message)
+            if not message:
+                # add a little bit of backoff
+                if self.done_tracker.is_done:
+                    break
+                time.sleep(0.01)
+
     def reset(self):
         self.done_tracker.reset()
         self.retcode_tacker.reset()
@@ -87,6 +105,14 @@ class PyGraph:
         self.reset()
         self.controller.run_one_test(name)
         self.runloop()
+
+    def run_one_test_interactive(self, name: str, sink: StdoutSink = print):
+        """
+        Runs a single test, with a "sink" handle to process all of the stdout for that specific command
+        """
+        self.reset()
+        self.controller.run_one_test(name)
+        self.console_runloop(name, sink)
 
     def run_specific_commands(self, commands: List[Command]):
         self.reset()

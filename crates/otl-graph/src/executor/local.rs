@@ -106,6 +106,10 @@ async fn execute_local_command(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;
+    let stderr = comm_handle.stderr.take().unwrap();
+    let stderr_reader = BufReader::new(stderr);
+    let mut stderr_lines = stderr_reader.lines();
+
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();
 
@@ -131,6 +135,9 @@ async fn execute_local_command(
     let cstatus: CommandOutput = loop {
         tokio::select!(
             Ok(Some(line)) = lines.next_line() => {
+                handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
+            }
+            Ok(Some(line)) = stderr_lines.next_line() => {
                 handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
             }
             status_code = comm_handle.wait() => {
