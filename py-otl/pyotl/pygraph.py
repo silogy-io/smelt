@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Tuple, cast
+from typing import Callable, Dict, Generator, List, Optional, Tuple, cast
 from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
 from pyotl.otl_muncher import lower_target_to_command, parse_otl
@@ -81,7 +81,9 @@ class PyGraph:
                     # add a little bit of backoff
                     time.sleep(0.01)
 
-    def console_runloop(self, test_name: str, sink: StdoutSink):
+    def console_runloop(
+        self, test_name: str, sink: StdoutSink
+    ) -> Generator[bool, None, None]:
         stdout_tracker = StdoutPrinter(test_name, sink)
         while True:
             # tbh, this could be async
@@ -94,8 +96,8 @@ class PyGraph:
             if not message:
                 # add a little bit of backoff
                 if self.done_tracker.is_done:
-                    break
-                time.sleep(0.01)
+                    yield False
+                yield True
 
     def reset(self):
         self.done_tracker.reset()
@@ -112,7 +114,8 @@ class PyGraph:
         """
         self.reset()
         self.controller.run_one_test(name)
-        self.console_runloop(name, sink)
+        for step in self.console_runloop(name, sink):
+            time.sleep(0.1)
 
     def run_specific_commands(self, commands: List[Command]):
         self.reset()
