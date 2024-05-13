@@ -101,7 +101,7 @@ def execute(
 
     graph = create_graph(str(otl_file))
     if target_name:
-        graph.run_one_test(target_name)
+        graph.run_one_test_interactive(target_name)
     else:
         graph.run_all_tests(tt)
     if rerun:
