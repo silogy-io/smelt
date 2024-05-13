@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "py-otl"]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
