@@ -96,8 +96,8 @@ class PyGraph:
             if not message:
                 # add a little bit of backoff
                 if self.done_tracker.is_done:
-                    yield False
-                yield True
+                    yield True
+                yield False
 
     def reset(self):
         self.done_tracker.reset()
@@ -114,7 +114,9 @@ class PyGraph:
         """
         self.reset()
         self.controller.run_one_test(name)
-        for step in self.console_runloop(name, sink):
+        for is_done in self.console_runloop(name, sink):
+            if is_done:
+                return
             time.sleep(0.1)
 
     def run_specific_commands(self, commands: List[Command]):
