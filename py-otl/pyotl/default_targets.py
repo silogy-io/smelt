@@ -15,39 +15,17 @@ class raw_bash(Target):
     """
 
     cmds: List[str] = field(default_factory=list)
+    debug_cmds: List[str] = field(default_factory=list)
     deps: List[TargetRef] = field(default_factory=list)
-    outputs: Dict[str, str] = field(default_factory=dict)
 
     def gen_script(self) -> List[str]:
-        return self.cmds
+        if "Debug" in self.injected_state and self.debug_cmds:
+            return self.debug_cmds
+        else:
+            return self.cmds
 
     def dependencies(self) -> List[TargetRef]:
         return self.deps
-
-    def get_outputs(self) -> Dict[str, OtlPath]:
-        return {
-            out_name: OtlPath.abs_path(out_path)
-            for out_name, out_path in self.outputs.items()
-        }
-
-
-@dataclass
-class run_spi(Target):
-    """
-    sanity test -- will move this to examples, eventually
-    """
-
-    seed: int
-
-    def gen_script(self) -> List[str]:
-        return ['echo "hello world"']
-
-    def get_outputs(self) -> Dict[str, OtlPath]:
-        return {"log": OtlPath.abs_path(f"{self.name}.log")}
-
-    def gen_script_wavedump(self) -> List[str]: ...
-
-    def gen_script_verbose(self) -> List[str]: ...
 
 
 @dataclass

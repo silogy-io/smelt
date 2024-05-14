@@ -13,11 +13,29 @@ def test_sanity_pygraph():
     graph.run_all_tests("test")
 
 
-def test_sanity_pygraph_rerun():
-    test_list = f"{get_git_root()}/examples/tests_only.otl"
+def test_sanity_pygraph_rerun_nofailing():
+    test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl"
+    graph = create_graph(test_list)
+    graph.run_all_tests("test")
+    graph.rerun()
+    # we have 3 tests, 0 of which fail -- so we should rerun no tests
+    expected_failing_tests = 0
+    observed_reexec = graph.retcode_tracker.total_executed()
+    assert (
+        observed_reexec == expected_failing_tests
+    ), f"Expecteted to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
+
+
+def test_sanity_pygraph_rerun_with_failing():
+    test_list = f"{get_git_root()}/test_data/otl_files/failing_tests_only.otl"
     graph = create_graph(test_list)
     graph.run_all_tests("test")
     graph.rerun()
 
+    # we have 3 tests, 2 of which fail -- when we re-run, we only run those two
+    expected_failing_tests = 2
+    observed_reexec = graph.retcode_tracker.total_executed()
 
-test_sanity_pygraph_rerun()
+    assert (
+        observed_reexec == expected_failing_tests
+    ), f"Expecteted to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"

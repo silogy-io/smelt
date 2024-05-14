@@ -26,9 +26,10 @@ def default_target_rerun_callback(target: Target, return_code: int) -> Optional[
     Power users could supply their own logic, but we should define something that is robust and sane
     """
 
-    if target.rule_type() == OtlTargetType.Test:
+    if target.rule_type() == OtlTargetType.Test and return_code != 0:
         new_target = deepcopy(target)
         new_target.name = f"{new_target.name}_rerun"
+        new_target.injected_state = {"debug": "True"}
         return new_target
 
 

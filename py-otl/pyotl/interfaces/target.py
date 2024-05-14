@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field, asdict
 from abc import ABC
 from enum import Enum
 from typing import List, Dict, Literal
@@ -25,6 +25,10 @@ class Target(ABC):
     """
 
     name: str
+    injected_state: Dict[str, str] = field(init=False)
+
+    def __post_init__(self):
+        self.injected_state = {}
 
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {}
