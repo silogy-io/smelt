@@ -65,7 +65,7 @@ class PyGraph:
     controller: PyController
     listener: PySubscriber
     done_tracker = IsDoneSubscriber()
-    retcode_tacker = RetcodeTracker()
+    retcode_tracker = RetcodeTracker()
 
     def runloop(self):
         with OutputConsole() as console:
@@ -75,7 +75,7 @@ class PyGraph:
                 message = maybe_get_message(self.listener, blocking=False)
                 if message:
                     self.done_tracker.process_message(message)
-                    self.retcode_tacker.process_message(message)
+                    self.retcode_tracker.process_message(message)
                     console.process_message(message)
                 if not message:
                     # add a little bit of backoff
@@ -91,7 +91,7 @@ class PyGraph:
             message = maybe_get_message(self.listener, blocking=False)
             if message:
                 self.done_tracker.process_message(message)
-                self.retcode_tacker.process_message(message)
+                self.retcode_tracker.process_message(message)
                 stdout_tracker.process_message(message)
             if not message:
                 # add a little bit of backoff
@@ -101,7 +101,7 @@ class PyGraph:
 
     def reset(self):
         self.done_tracker.reset()
-        self.retcode_tacker.reset()
+        self.retcode_tracker.reset()
 
     def run_one_test(self, name: str):
         self.reset()
@@ -139,7 +139,7 @@ class PyGraph:
         if self.otl_targets:
             new_targets = [
                 rerun_callback(self.otl_targets[target], retcode)
-                for target, retcode in self.retcode_tacker.retcode.items()
+                for target, retcode in self.retcode_tracker.retcode_dict.items()
             ]
 
             filtered_targets = [target for target in new_targets if target]

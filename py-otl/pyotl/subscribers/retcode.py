@@ -7,10 +7,10 @@ from pyotl.otl_telemetry.data import CommandEvent, CommandFinished, Event
 @dataclass
 class RetcodeTracker:
     """
-    Simple subscriber that maps commands to return codes
+    Simple subscriber that maps commands to their return codes
     """
 
-    retcode: Dict[str, int] = field(default_factory=dict)
+    retcode_dict: Dict[str, int] = field(default_factory=dict)
 
     def process_message(self, message: Event):
         (variant, event_payload) = betterproto.which_one_of(message, "et")
@@ -22,7 +22,7 @@ class RetcodeTracker:
 
             if command_name == "finished":
                 command_payload = cast(CommandFinished, command_payload)
-                self.retcode[event_payload.command_ref] = (
+                self.retcode_dict[event_payload.command_ref] = (
                     command_payload.out.status_code
                 )
             else:
@@ -31,4 +31,4 @@ class RetcodeTracker:
             pass
 
     def reset(self):
-        self.retcode = {}
+        self.retcode_dict = {}
