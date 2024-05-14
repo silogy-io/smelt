@@ -84,6 +84,14 @@ class PyGraph:
     def console_runloop(
         self, test_name: str, sink: StdoutSink
     ) -> Generator[bool, None, None]:
+        """
+        Generator that will try to consume as many `Event` messages as possible
+
+        All of the stdout from the "test_name" command will be given to the `sink`.
+        By default, sink should just be print
+
+        The yielded value will be
+        """
         stdout_tracker = StdoutPrinter(test_name, sink)
         while True:
             # tbh, this could be async
@@ -95,18 +103,11 @@ class PyGraph:
                 stdout_tracker.process_message(message)
             if not message:
                 # add a little bit of backoff
-                if self.done_tracker.is_done:
-                    yield True
-                yield False
+                yield self.done_tracker.is_done
 
     def reset(self):
         self.done_tracker.reset()
         self.retcode_tracker.reset()
-
-    def run_one_test(self, name: str):
-        self.reset()
-        self.controller.run_one_test(name)
-        self.runloop()
 
     def run_one_test_interactive(self, name: str, sink: StdoutSink = print):
         """
