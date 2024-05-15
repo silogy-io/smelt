@@ -68,8 +68,8 @@ class PyGraph:
     """
     controller: PyController
     listener: PySubscriber
-    done_tracker = IsDoneSubscriber()
-    retcode_tracker = RetcodeTracker()
+    done_tracker : IsDoneSubscriber
+    retcode_tracker : RetcodeTracker
 
     def runloop(self):
         with OutputConsole() as console:
@@ -111,7 +111,8 @@ class PyGraph:
 
     def reset(self):
         self.done_tracker.reset()
-        self.retcode_tracker.reset()
+       # self.retcode_tracker.reset()
+        
 
     def run_one_test_interactive(self, name: str, sink: StdoutSink = print):
         """
@@ -151,7 +152,10 @@ class PyGraph:
                 )
                 for target, retcode in self.retcode_tracker.retcode_dict.items()
                 if (target in self.otl_targets and (orig_target := self.otl_targets[target]))
-            }    
+            }
+
+
+
             """
             For each target, we go through and see if any of the "derived" targets have "changed" from the original target 
 
@@ -161,7 +165,7 @@ class PyGraph:
             2. the command contents has changed and it does not need to be re-run (for example, when a if we want to have a debug build
             3. A dependency of the target has changed
 
-            If a target has changed, we lower it to a command, and return it here 
+            If a derived target has changed from its original, we lower it to a command, correct its dependencies and it is returned as part of the new commands list
             """
 
             new_commands = [
@@ -169,20 +173,15 @@ class PyGraph:
                 for target in all_derived.values()
                 if (new_target := target.get_new_command(all_derived)) is not None
             ]
+            if not any(new_commands):
+                return "No new commands were produced"
             all_commands_to_add, requires_rerun = map(list, zip(*new_commands))
             all_commands_to_add = cast(List[Command], all_commands_to_add)
             requires_rerun = cast(List[bool], requires_rerun)
-            """
-            target_to_add is a List[Targets] that need to be added to the graph -- they are new nodes
-            requires_rerun is a List[bool] that maps to each target 
-            """
-
+            
             if not any(requires_rerun):
-                print("No rerun is required!")
+                print("No commands need a rerun is required!")
                 return
-
-            
-            
 
             # TODO: its likely that we will also need to handle regenerating dependencies
             #       for a first pass functionality, lets ignore this for now
@@ -190,8 +189,8 @@ class PyGraph:
             self.add_commands(all_commands_to_add)
             commands_to_run = [
                 command
-                for command, orig_tars in zip(all_commands_to_add, requires_rerun)
-                if orig_tars
+                for command, rerun in new_commands 
+                if rerun 
             ]
             self.run_specific_commands(commands_to_run)
         else:
@@ -200,28 +199,16 @@ class PyGraph:
             )
 
     def add_commands(self, commands: List[Command]):
-        for command in commands:
-            self.commands[command.target_type].append(command)
-
+        self.commands += commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
 
     @classmethod
     def init(cls, otl_targets: Dict[str, Target], commands: List[Command]):
-        rv = {}
-        for tar_typ in OtlTargetType:
-            rv[tar_typ.value] = []
-
-        for tar_typ in OtlTargetType:
-            rv[tar_typ.value] = []
-        for command in commands:
-            rv[command.target_type].append(command)
-
         graph = PyController()
-
         listener = graph.add_py_listener()
         rv = cls(
-            otl_targets=otl_targets, commands=rv, controller=graph, listener=listener
+            otl_targets=otl_targets, commands=[], controller=graph, listener=listener, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
         )
         rv.add_commands(commands)
         return rv

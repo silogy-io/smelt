@@ -16,22 +16,20 @@ class raw_bash(Target):
 
     cmds: List[str] = field(default_factory=list)
     debug_cmds: List[str] = field(default_factory=list)
+    dependencies: List[TargetRef] = field(default_factory=list)
 
     def gen_script(self) -> List[str]:
-
         if "debug" in self.injected_state and self.debug_cmds:
             return self.debug_cmds
         else:
             return self.cmds
 
+    def get_dependencies(self) -> List[TargetRef]:
+        return self.dependencies
+
 
 @dataclass
-class raw_bash_build(Target):
-    cmds: List[str] = field(default_factory=list)
-
+class raw_bash_build(raw_bash):
     @staticmethod
     def rule_type() -> OtlTargetType:
         return OtlTargetType.Build
-
-    def gen_script(self) -> List[str]:
-        return self.cmds

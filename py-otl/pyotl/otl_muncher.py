@@ -20,21 +20,12 @@ class PreTarget:
     rule_args: Dict[str, Any]
 
 
-def add_baseclass_defaults(rule_args: Dict[str, Any]) -> Dict[str, Any]:
-    defaults = {"dependencies": []}
-    for k, v in defaults.items():
-        if k not in rule_args:
-            rule_args[k] = v
-    return rule_args
-
-
 def populate_rule_args(
     target_name: str,
     rule_payload: SerYamlTarget,
     all_rules: Dict[str, DocumentedTarget],
 ) -> PreTarget:
     rule_payload.rule_args["name"] = target_name
-    rule_payload.rule_args = add_baseclass_defaults(rule_payload.rule_args)
     if rule_payload.rule not in all_rules:
         # TODO: make a pretty error that
         #

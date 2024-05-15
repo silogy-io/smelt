@@ -25,7 +25,6 @@ class Target(ABC):
     """
 
     name: str
-    dependencies: List[TargetRef]
     injected_state: Dict[str, Any] = field(init=False)
 
     def __post_init__(self):
@@ -58,4 +57,4 @@ class Target(ABC):
         return RuntimeRequirements.default(self.runtime_env_vars())
 
     def get_dependencies(self) -> List[TargetRef]:
-        return self.dependencies
+        return []

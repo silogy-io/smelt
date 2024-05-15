@@ -254,7 +254,7 @@ impl CommandGraph {
             {
                 let rv = self.eat_command(command).await;
                 if let Err(_err) = rv {
-                    dbg!("Todo -- send out a warning via a channel or something, at least log with tracing at this point when i add it in");
+                    dbg!("err is {}", _err);
                 }
             }
         }
