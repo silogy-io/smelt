@@ -16,16 +16,12 @@ class raw_bash(Target):
 
     cmds: List[str] = field(default_factory=list)
     debug_cmds: List[str] = field(default_factory=list)
-    deps: List[TargetRef] = field(default_factory=list)
 
     def gen_script(self) -> List[str]:
         if "Debug" in self.injected_state and self.debug_cmds:
             return self.debug_cmds
         else:
             return self.cmds
-
-    def dependencies(self) -> List[TargetRef]:
-        return self.deps
 
 
 @dataclass

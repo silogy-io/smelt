@@ -34,7 +34,7 @@ class Command:
         target_type = target.rule_type().value
         script = target.gen_script()
         runtime = target.runtime_requirements()
-        dependencies = target.dependencies()
+        dependencies = target.get_dependencies()
         default_env = target.required_runtime_env_vars(default_root)
         runtime.env.update(default_env)
 
