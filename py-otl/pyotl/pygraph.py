@@ -1,11 +1,9 @@
-import functools
-from typing import Callable, Dict, Generator, List, Optional, Tuple, cast
+from typing import Dict, Generator, List, Optional, Tuple, cast
 from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
-from pyotl.interfaces.target import TargetRef
-from pyotl.otl_muncher import lower_target_to_command, parse_otl
-from pyotl.path_utils import memoize
+from pyotl.otl_muncher import lower_targets_to_commands, parse_otl
 from pyotl.pyotl import PyController, PySubscriber
+from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
 import time
 
@@ -22,63 +20,9 @@ from copy import deepcopy
 from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
 
 
-@dataclass
-class DerivedTarget:
-    origin: Target
-    """
-    The original target that
-    """
-    derived_target: Target
-    """
-    The target that was derived from the `origin` target, with none of its dependencies updated
-    """
-    requires_rerun: bool
-    """
-    true if the origin target requires rerun 
-    """
-
-    @functools.cached_property
-    def derived_is_different(self) -> bool:
-        return "\n".join(self.origin.gen_script()) != "\n".join(
-            self.origin.gen_script()
-        )
-
-    def get_new_target(
-        self, all_derived: Dict[TargetRef, "DerivedTarget"]
-    ) -> Optional[Target]:
-        dependenents = [
-            all_derived[dep].get_new_target(all_derived)
-            for dep in self.derived_target.get_dependencies()
-        ]
-        return self._maybe_new(tuple(dependenents))
-
-    @functools.cache
-    def _maybe_new(self, dependenents: Tuple[None | Target]) -> Optional[Target]:
-        deps_changed = any(dependenents)
-        if deps_changed:
-            """
-            One of the dependencies changed
-            """
-            rv = deepcopy(self.derived_target)
-
-            def choose(new: Optional[Target], old: str) -> str:
-                return new.name if new else old
-
-            new_deps = [
-                choose(new_dep, old_dep)
-                for new_dep, old_dep in zip(
-                    dependenents, self.derived_target.get_dependencies()
-                )
-            ]
-            rv.deps = new_deps
-            return rv
-        elif self.derived_is_different:
-            return deepcopy(self.derived_target)
-        else:
-            return None
-
-
-def default_target_rerun_callback(target: Target, return_code: int) -> DerivedTarget:
+def default_target_rerun_callback(
+    target: Target, return_code: int
+) -> Tuple[Target, bool]:
     """
     First pass at re-run logic -- currently we just rerun all tests that are tagged as tests
 
@@ -89,9 +33,7 @@ def default_target_rerun_callback(target: Target, return_code: int) -> DerivedTa
     new_target = deepcopy(target)
     new_target.name = f"{new_target.name}_rerun"
     new_target.injected_state = {"debug": "True"}
-    return DerivedTarget(
-        origin=target, derived_target=new_target, requires_rerun=requires_rerun
-    )
+    return (new_target, requires_rerun)
 
 
 def maybe_get_message(
@@ -120,9 +62,9 @@ class PyGraph:
 
     This is used to re-generate new commands on failure
     """
-    commands: Dict[str, List[Command]]
+    commands: List[Command]
     """ 
-    holds all of the commands that are live in the graph
+    holds all of the commands that are live in the graph -- some of these may not map back to an otl target
     """
     controller: PyController
     listener: PySubscriber
@@ -195,42 +137,60 @@ class PyGraph:
 
     def rerun(
         self,
-        rerun_callback: Callable[
-            [Target, int], DerivedTarget
-        ] = default_target_rerun_callback,
+        rerun_callback: RerunCallback = default_target_rerun_callback,
     ):
         if self.otl_targets:
-            all_derived = {
-                target: rerun_callback(self.otl_targets[target], retcode)
-                for target, retcode in self.retcode_tracker.retcode_dict.items()
-            }
+            """
+            We create a dictionary that maps all of the target names to a "DerivedTarget", that holds all of the state for prospective targets that may need to be created 
 
-            changed_targets = [
+            This dictionary maps the original target name -> DerivedTarget bundle
+            """
+            all_derived = {
+                target: DerivedTarget.from_cb(
+                    orig_target, rerun_callback(self.otl_targets[target], retcode)
+                )
+                for target, retcode in self.retcode_tracker.retcode_dict.items()
+                if (target in self.otl_targets and (orig_target := self.otl_targets[target]))
+            }    
+            """
+            For each target, we go through and see if any of the "derived" targets have "changed" from the original target 
+
+            a target changing can mean one of three things
+
+            1. it needs to be rerun 
+            2. the command contents has changed and it does not need to be re-run (for example, when a if we want to have a debug build
+            3. A dependency of the target has changed
+
+            If a target has changed, we lower it to a command, and return it here 
+            """
+
+            new_commands = [
                 (new_target, target.requires_rerun)
                 for target in all_derived.values()
-                if (new_target := target.get_new_target(all_derived)) is not None
+                if (new_target := target.get_new_command(all_derived)) is not None
             ]
-            targets_to_add, requires_rerun = map(list, zip(*changed_targets))
-            # add back type info because i am a type maxxer
-
-            targets_to_add = cast(List[Target], targets_to_add)
+            all_commands_to_add, requires_rerun = map(list, zip(*new_commands))
+            all_commands_to_add = cast(List[Command], all_commands_to_add)
             requires_rerun = cast(List[bool], requires_rerun)
+            """
+            target_to_add is a List[Targets] that need to be added to the graph -- they are new nodes
+            requires_rerun is a List[bool] that maps to each target 
+            """
+
             if not any(requires_rerun):
                 print("No rerun is required!")
                 return
 
-            for target in targets_to_add:
-                self.otl_targets[target.name] = target
-
-            commands_to_add = lower_target_to_command(targets_to_add)
+            
+            
 
             # TODO: its likely that we will also need to handle regenerating dependencies
             #       for a first pass functionality, lets ignore this for now
 
-            self.add_commands(commands_to_add)
+            self.add_commands(all_commands_to_add)
             commands_to_run = [
                 command
-                for command, orig_tars in zip(commands_to_add, requires_rerun)
+                for command, orig_tars in zip(all_commands_to_add, requires_rerun)
                 if orig_tars
             ]
             self.run_specific_commands(commands_to_run)

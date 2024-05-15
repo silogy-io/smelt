@@ -20,12 +20,21 @@ class PreTarget:
     rule_args: Dict[str, Any]
 
 
+def add_baseclass_defaults(rule_args: Dict[str, Any]) -> Dict[str, Any]:
+    defaults = {"dependencies": []}
+    for k, v in defaults.items():
+        if k not in rule_args:
+            rule_args[k] = v
+    return rule_args
+
+
 def populate_rule_args(
     target_name: str,
     rule_payload: SerYamlTarget,
     all_rules: Dict[str, DocumentedTarget],
 ) -> PreTarget:
     rule_payload.rule_args["name"] = target_name
+    rule_payload.rule_args = add_baseclass_defaults(rule_payload.rule_args)
     if rule_payload.rule not in all_rules:
         # TODO: make a pretty error that
         #
@@ -48,19 +57,17 @@ def parse_otl(
     targets = otl_contents_to_targets(
         yaml_content, default_rules_only=default_rules_only
     )
-    command_list = lower_target_to_command(targets.values())
-
+    command_list = lower_targets_to_commands(targets.values())
     return targets, command_list
 
 
-def lower_target_to_command(targets: Iterable[Target]):
-
+def target_to_command(target: Target) -> Command:
     rc = OtlRcHolder.current_rc
-    command_list = [
-        Command.from_target(otl_target, default_root=rc.otl_default_root)
-        for otl_target in targets
-    ]
-    return command_list
+    return Command.from_target(target, default_root=rc.otl_default_root)
+
+
+def lower_targets_to_commands(targets: Iterable[Target]) -> List[Command]:
+    return [target_to_command(target) for target in targets]
 
 
 def otl_contents_to_targets(
