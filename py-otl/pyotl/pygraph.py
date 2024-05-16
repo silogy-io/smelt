@@ -74,7 +74,6 @@ class PyGraph:
 
     def runloop(self):
         errhandler = OtlErrorHandler()
-
         with OutputConsole() as console:
             while not self.done_tracker.is_done:
                 # tbh, this could be async
