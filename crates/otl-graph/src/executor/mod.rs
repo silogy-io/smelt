@@ -5,26 +5,21 @@ use dice::{DiceData, DiceDataBuilder, UserComputationData};
 
 use otl_data::Event;
 
-use thiserror::Error;
-use tokio::sync::mpsc::Sender;
+mod common;
 mod local;
+
+use anyhow;
 use async_trait::async_trait;
 pub use local::LocalExecutorBuilder;
-
-#[derive(Error, Debug)]
-pub enum ExecutorErr {
-    #[error("CommandIoError {0}")]
-    CommandIOErr(#[from] std::io::Error),
-}
 
 #[async_trait]
 pub trait Executor: Send + Sync {
     async fn execute_commands(
         &self,
         command: Arc<Command>,
-        tx: Sender<Event>,
         dice_data: &UserComputationData,
-    ) -> Result<Event, ExecutorErr>;
+        global_dice_data: &DiceData,
+    ) -> anyhow::Result<Event>;
 }
 
 pub trait SetExecutor {

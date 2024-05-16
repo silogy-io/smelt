@@ -33,6 +33,7 @@ class OtlErrorHandler:
             if error.sig == OtlErrorType.CLIENT_ERROR:
                 raise ClientErr(error.error_payload)
             if error.sig == OtlErrorType.INTERNAL_ERROR:
+                print("hello")
                 raise OtlErrEx(error.error_payload)
         else:
             pass

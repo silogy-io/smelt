@@ -131,6 +131,13 @@ impl Event {
         });
         Event::new(et, trace_id)
     }
+    pub fn runtime_error(payload: String, trace_id: String) -> Event {
+        let et = Et::Error(OtlError {
+            sig: OtlErrorType::InternalError.into(),
+            error_payload: payload,
+        });
+        Event::new(et, trace_id)
+    }
 }
 
 impl CommandEvent {

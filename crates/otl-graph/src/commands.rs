@@ -3,7 +3,12 @@ use serde::{Deserialize, Serialize};
 use allocative::Allocative;
 use dupe::Dupe;
 
-use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
 
 use otl_core::OtlErr;
 pub use otl_data::CommandOutput;
@@ -49,8 +54,8 @@ impl Command {
         "command.out"
     }
 
-    pub fn default_target_root(&self) -> Result<PathBuf, OtlErr> {
-        Ok(std::env::current_dir().map(|val| val.join("otl-out").join(&self.name))?)
+    pub fn default_target_root(&self, root: &Path) -> Result<PathBuf, OtlErr> {
+        Ok(root.join("otl-out").join(&self.name))
     }
 
     pub fn script_contents(&self) -> impl Iterator<Item = String> + '_ {
@@ -61,17 +66,8 @@ impl Command {
             .chain(self.script.iter().cloned())
     }
 
-    pub fn working_dir(&self) -> Result<PathBuf, OtlErr> {
-        let env = &self.runtime.env;
-        let working_dir = env
-            .get("TARGET_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| self.default_target_root().unwrap());
-        Ok(working_dir)
-    }
-
-    pub async fn get_status_from_fs(&self) -> Result<CommandOutput, OtlErr> {
-        if let Ok(working_dir) = self.working_dir() {
+    pub async fn get_status_from_fs(&self, root: &Path) -> Result<CommandOutput, OtlErr> {
+        if let Ok(working_dir) = self.default_target_root(root) {
             let val = working_dir
                 .exists()
                 .then(|| working_dir.join("command.status"));

@@ -3,7 +3,7 @@ use otl_client::Subscriber;
 use otl_controller::{spawn_otl_with_server, OtlControllerHandle};
 use otl_core::OtlErr;
 use otl_data::client_commands::ClientCommand;
-use otl_events::Event;
+use otl_data::{client_commands::ConfigureOtl, Event};
 
 use prost::Message;
 use pyo3::{
@@ -12,7 +12,7 @@ use pyo3::{
     types::{PyBytes, PyType},
 };
 
-use std::sync::Arc;
+use std::{sync::Arc};
 use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
@@ -20,16 +20,9 @@ pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
     PyRuntimeError::new_err(otl_string)
 }
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
 /// A Python module implemented in Rust.
 #[pymodule]
 fn pyotl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
     m.add_class::<PyController>()?;
     m.add_class::<PySubscriber>()?;
     Ok(())
@@ -80,8 +73,11 @@ fn client_channel_err(_in_err: impl std::error::Error) -> PyErr {
 impl PyController {
     #[new]
     #[classmethod]
-    pub fn new(_cls: Bound<'_, PyType>) -> PyResult<Self> {
-        let handle = spawn_otl_with_server();
+    pub fn new(_cls: Bound<'_, PyType>, serialized_cfg: Vec<u8>) -> PyResult<Self> {
+        let cfg: ConfigureOtl =
+            ConfigureOtl::decode(serialized_cfg.as_slice()).expect("Malformed cfg message");
+
+        let handle = spawn_otl_with_server(cfg);
         Ok(PyController { handle })
     }
 

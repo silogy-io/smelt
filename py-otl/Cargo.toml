@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 [dependencies]
 
 otl-core = { workspace = true }
-otl-graph = { workspace = true }
+otl-graph = { workspace = true, features = ["docker"] }
 otl-events = { workspace = true }
 otl-data = { workspace = true }
 otl-controller = { workspace = true }

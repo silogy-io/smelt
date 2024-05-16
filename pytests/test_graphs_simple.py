@@ -1,4 +1,4 @@
-from pyotl.pygraph import PyGraph, create_graph
+from pyotl.pygraph import PyGraph, create_graph, create_graph_with_docker
 from pyotl.path_utils import get_git_root
 from pyotl.interfaces import Command
 
@@ -21,7 +21,7 @@ def test_sanity_pygraph_rerun_nofailing():
     """
     test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
     graph = create_graph(test_list)
-    print(graph.retcode_tracker)
+
     orig = graph.retcode_tracker.total_executed()
 
     graph.run_all_tests("test")

@@ -14,18 +14,18 @@ use futures::{
 
 use otl_events::{
     self,
-    runtime_support::{GetTraceId, GetTxChannel, SetTraceId, SetTxChannel},
+    runtime_support::{GetTraceId, GetTxChannel, SetOtlRoot, SetTraceId, SetTxChannel},
     Event,
 };
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{str::FromStr, sync::Arc};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{GetExecutor, LocalExecutorBuilder, SetExecutor},
+    executor::{Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
@@ -102,14 +102,18 @@ impl Key for CommandRef {
         let tx = ctx.global_data().get_tx_channel();
 
         let executor = ctx.global_data().get_executor();
-        let local_tx = tx.clone();
+        let _local_tx = tx.clone();
 
-        let output: CommandOutput = executor
-            .execute_commands(self.0.clone(), local_tx,  ctx.per_transaction_data())
+        let output = executor
+            .execute_commands(
+                self.0.clone(),
+                ctx.per_transaction_data(),
+                ctx.global_data(),
+            )
             .await
-            .map(|val| {
-                val.command_output().unwrap()
-            }).expect( "Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
+            .map(|val| val.command_output().unwrap());
+
+        let output = output.map_err(|err| Arc::new(OtlErr::ExecutorFailed(err.to_string())))?;
 
         Ok(CommandVal {
             output,
@@ -227,11 +231,25 @@ impl CommandGraph {
     pub async fn new(
         rx_chan: UnboundedReceiver<ClientCommand>,
         tx_chan: Sender<Event>,
+        cfg: ConfigureOtl,
     ) -> Result<Self, OtlErr> {
-        let executor = LocalExecutorBuilder::new().threads(8).build()?;
+        let executor: Arc<dyn Executor> = match cfg.init_executor {
+            Some(exec_val) => match exec_val {
+                configure_otl::InitExecutor::Local(_) => Arc::new(
+                    LocalExecutorBuilder::new()
+                        .build()
+                        .expect("Could not create executor"),
+                ),
+                configure_otl::InitExecutor::Docker(docker_cfg) => {
+                    unimplemented!("Removed from this MR")
+                }
+            },
+            None => Arc::new(LocalExecutorBuilder::new().build().unwrap()),
+        };
 
         let mut dice_builder = Dice::builder();
-        dice_builder.set_executor(Arc::new(executor));
+        dice_builder.set_otl_root(PathBuf::from(cfg.otl_root));
+        dice_builder.set_executor(executor);
         dice_builder.set_tx_channel(tx_chan.clone());
 
         let dice = dice_builder.build(DetectCycles::Enabled);
@@ -300,6 +318,9 @@ impl CommandGraph {
         let mut data = UserComputationData::new();
 
         data.init_trace_id();
+        //TODO: change this! otl root should set by the client, probably by otl-rc
+        //      however adding this in is not different from what was present before -- now we are
+        //      just centralizing the idea of a "root", and allowing it to be set
 
         let tx = ctx.commit_with_data(data).await;
         let val = tx.global_data().get_tx_channel();
@@ -329,7 +350,7 @@ impl CommandGraph {
 
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
-            let _ = val.send(Event::done(trace)).await;
+            handle_result(_out, val, trace).await;
         });
         Ok(())
     }
@@ -340,19 +361,17 @@ impl CommandGraph {
         let mut refs = Vec::new();
 
         for test_name in test_names {
-            let val = tx
-                .compute(&LookupCommand(Arc::new(test_name)))
-                .await?;
+            let val = tx.compute(&LookupCommand(Arc::new(test_name))).await?;
             refs.push(val);
         }
 
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
-            let _ = tx.execute_commands(refs).await;
+            let result = tx.execute_commands(refs).await;
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
-            val.send(Event::done(trace)).await
+            handle_result(result, val, trace).await;
         });
         Ok(())
     }
@@ -369,12 +388,31 @@ impl CommandGraph {
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
-            let _ = tx.execute_command(&command).await;
+            let output = tx.execute_command(&command).await;
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
-            val.send(Event::done(trace)).await
+            handle_result(vec![output], val, trace).await;
         });
         Ok(())
+    }
+}
+
+async fn handle_result(
+    compute_result: Vec<Result<CommandOutput, Arc<OtlErr>>>,
+    tx: Sender<Event>,
+    trace: String,
+) {
+    let mut fails = 0;
+    for res in compute_result {
+        if let Err(ref cmd_out) = res {
+            let _ = tx
+                .send(Event::runtime_error(cmd_out.to_string(), trace.clone()))
+                .await;
+            fails += 1;
+        }
+    }
+    if fails == 0 {
+        let _ = tx.send(Event::done(trace)).await;
     }
 }
 
@@ -413,13 +451,22 @@ mod tests {
         }
     }
 
+    fn testing_cfg() -> ConfigureOtl {
+        ConfigureOtl {
+            otl_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
+            job_slots: 1,
+            init_executor: Some(configure_otl::InitExecutor::Local(CfgLocal {})),
+        }
+    }
+
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
 
         let _script = script.unwrap();
         let (_tx, rx) = unbounded_channel();
         let (tx, rx_handle) = channel(100);
-        let graph = CommandGraph::new(rx, tx).await.unwrap();
+
+        let graph = CommandGraph::new(rx, tx, testing_cfg()).await.unwrap();
         let mut gh = TestGraphHandle { rx_chan: rx_handle };
         graph.run_all_typed("test".to_string()).await.unwrap();
         let events = gh.async_blocking_events().await;
