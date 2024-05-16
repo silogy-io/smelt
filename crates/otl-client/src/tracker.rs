@@ -79,6 +79,7 @@ impl Subscriber for SingleInvocationTracker {
                     };
                     Ok(())
                 }
+                Et::Error(_) => Ok(()),
             }
         } else {
             Err(InvocationTrackerError::EventMissing.into())

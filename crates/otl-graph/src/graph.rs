@@ -3,7 +3,7 @@ use otl_data::client_commands::{client_command::ClientCommands, *};
 
 use derive_more::Display;
 use dice::{
-    CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
@@ -75,7 +75,6 @@ impl InjectedKey for LookupCommand {
 #[async_trait]
 impl Key for CommandRef {
     type Value = Result<CommandVal, Arc<OtlErr>>;
-
     async fn compute(
         &self,
         ctx: &mut DiceComputations,
@@ -221,6 +220,7 @@ pub struct CommandGraph {
     pub(crate) all_commands: Vec<CommandRef>,
     /// The receiver for all ClientCommands -- these kick off executions of the dice graph
     rx_chan: UnboundedReceiver<ClientCommand>,
+    tx_chan: Sender<Event>,
 }
 
 impl CommandGraph {
@@ -232,7 +232,7 @@ impl CommandGraph {
 
         let mut dice_builder = Dice::builder();
         dice_builder.set_executor(Arc::new(executor));
-        dice_builder.set_tx_channel(tx_chan);
+        dice_builder.set_tx_channel(tx_chan.clone());
 
         let dice = dice_builder.build(DetectCycles::Enabled);
 
@@ -240,6 +240,7 @@ impl CommandGraph {
             dice,
             rx_chan,
             all_commands: vec![],
+            tx_chan,
         };
 
         Ok(graph)
@@ -254,7 +255,10 @@ impl CommandGraph {
             {
                 let rv = self.eat_command(command).await;
                 if let Err(_err) = rv {
-                    dbg!("err is {}", _err);
+                    let _handleme = self
+                        .tx_chan
+                        .send(Event::client_error(_err.to_string()))
+                        .await;
                 }
             }
         }
@@ -337,7 +341,7 @@ impl CommandGraph {
 
         for test_name in test_names {
             let val = tx
-                .compute(&LookupCommand(Arc::new(test_name.into())))
+                .compute(&LookupCommand(Arc::new(test_name)))
                 .await?;
             refs.push(val);
         }

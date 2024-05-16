@@ -13,6 +13,7 @@ message Event {
   oneof et {
     CommandEvent command = 15;
     InvokeEvent invoke = 16;
+    OtlError error = 17;
   }
 }
 
@@ -31,13 +32,11 @@ message CommandEvent {
 message CommandScheduled {}
 message CommandStarted {}
 message CommandCancelled {}
-message CommandStdout { string output = 1;}
+message CommandStdout { string output = 1; }
 message CommandFinished { CommandOutput out = 1; }
 message CommandOutput { int32 status_code = 1; }
 
-
-
-// InvokeEvent demarcates the start of a graph execution. 
+// InvokeEvent demarcates the start of a graph execution.
 message InvokeEvent {
   oneof InvokeVariant {
     ExecutionStart start = 5;
@@ -51,3 +50,17 @@ message ExecutionStart {
   string hostname = 3;
 }
 message AllCommandsDone {}
+
+enum OtlErrorType {
+  // Client caused error
+  CLIENT_ERROR = 0;
+  // Internal error -- anything that is thrown by the otl runtime
+  INTERNAL_ERROR = 1;
+  // Internal warning -- anything that the otl runtime wants to broadcast back
+  INTERNAL_WARN = 2;
+}
+
+message OtlError {
+  OtlErrorType sig = 1;
+  string error_payload = 2;
+}

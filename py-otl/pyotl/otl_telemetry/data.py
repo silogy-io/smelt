@@ -7,17 +7,31 @@ from datetime import datetime
 import betterproto
 
 
+class OtlErrorType(betterproto.Enum):
+    # Client caused error
+    CLIENT_ERROR = 0
+    # Internal error -- anything that is thrown by the otl runtime
+    INTERNAL_ERROR = 1
+    # Internal warning -- anything that the otl runtime wants to broadcast back
+    INTERNAL_WARN = 2
+
+
 @dataclass
 class Event(betterproto.Message):
+    """Event flows from server -> client only"""
+
     time: datetime = betterproto.message_field(1)
     # A globally-unique ID (UUIDv4) of this trace. Required.
     trace_id: str = betterproto.string_field(2)
     command: "CommandEvent" = betterproto.message_field(15, group="et")
     invoke: "InvokeEvent" = betterproto.message_field(16, group="et")
+    error: "OtlError" = betterproto.message_field(17, group="et")
 
 
 @dataclass
 class CommandEvent(betterproto.Message):
+    """CommandEvents covers activity happening on a per target basis"""
+
     command_ref: str = betterproto.string_field(1)
     scheduled: "CommandScheduled" = betterproto.message_field(4, group="CommandVariant")
     started: "CommandStarted" = betterproto.message_field(5, group="CommandVariant")
@@ -58,6 +72,8 @@ class CommandOutput(betterproto.Message):
 
 @dataclass
 class InvokeEvent(betterproto.Message):
+    """InvokeEvent demarcates the start of a graph execution."""
+
     start: "ExecutionStart" = betterproto.message_field(5, group="InvokeVariant")
     done: "AllCommandsDone" = betterproto.message_field(6, group="InvokeVariant")
 
@@ -72,3 +88,9 @@ class ExecutionStart(betterproto.Message):
 @dataclass
 class AllCommandsDone(betterproto.Message):
     pass
+
+
+@dataclass
+class OtlError(betterproto.Message):
+    sig: "OtlErrorType" = betterproto.enum_field(1)
+    error_payload: str = betterproto.string_field(2)
