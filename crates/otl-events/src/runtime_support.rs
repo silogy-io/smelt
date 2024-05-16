@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::Event;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use uuid::Uuid;
@@ -17,6 +19,14 @@ pub trait SetTraceId {
 
 pub trait GetTraceId {
     fn get_trace_id(&self) -> String;
+}
+
+pub trait SetOtlRoot {
+    fn set_otl_root(&mut self, pathbuf: PathBuf);
+}
+
+pub trait GetOtlRoot {
+    fn get_otl_root(&self) -> PathBuf;
 }
 
 impl SetTxChannel for DiceDataBuilder {
@@ -45,6 +55,23 @@ impl GetTraceId for UserComputationData {
     fn get_trace_id(&self) -> String {
         self.data
             .get::<LocalUuid>()
+            .expect("Trace id should be set")
+            .0
+            .clone()
+    }
+}
+
+struct OtlRootHolder(PathBuf);
+impl SetOtlRoot for UserComputationData {
+    fn set_otl_root(&mut self, pathbuf: PathBuf) {
+        self.data.set(OtlRootHolder(pathbuf))
+    }
+}
+
+impl GetOtlRoot for UserComputationData {
+    fn get_otl_root(&self) -> PathBuf {
+        self.data
+            .get::<OtlRootHolder>()
             .expect("Trace id should be set")
             .0
             .clone()

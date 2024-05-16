@@ -10,7 +10,7 @@ edition.workspace = true
 otl-core = { workspace = true }
 otl-events = { workspace = true }
 otl-data = { workspace = true }
-
+anyhow = { workspace = true }
 dice = { workspace = true }
 allocative = { workspace = true }
 dupe = { workspace = true }
@@ -27,3 +27,9 @@ pythonize = { workspace = true }
 serde_json = { workspace = true }
 tokio-stream = "0.1.15"
 whoami = "1.5.1"
+bollard = { version = "0.16.1", optional = true }
+
+
+[features]
+default = ["docker"]
+docker = ["dep:bollard"]
