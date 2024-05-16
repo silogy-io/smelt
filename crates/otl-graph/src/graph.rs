@@ -3,7 +3,7 @@ use otl_data::client_commands::{client_command::ClientCommands, *};
 
 use derive_more::Display;
 use dice::{
-    CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
@@ -341,7 +341,7 @@ impl CommandGraph {
 
         for test_name in test_names {
             let val = tx
-                .compute(&LookupCommand(Arc::new(test_name.into())))
+                .compute(&LookupCommand(Arc::new(test_name)))
                 .await?;
             refs.push(val);
         }
