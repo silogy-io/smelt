@@ -122,6 +122,15 @@ impl Event {
             })
             .flatten()
     }
+
+    pub fn client_error(payload: String) -> Event {
+        let trace_id = "CLIENT_ERROR".to_string();
+        let et = Et::Error(OtlError {
+            sig: OtlErrorType::ClientError.into(),
+            error_payload: payload,
+        });
+        Event::new(et, trace_id)
+    }
 }
 
 impl CommandEvent {

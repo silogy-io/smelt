@@ -11,6 +11,7 @@ import time
 from pyotl.otl_telemetry.data import Event
 
 
+from pyotl.subscribers.error_handler import OtlErrorHandler
 from pyotl.subscribers.is_done import IsDoneSubscriber
 from pyotl.subscribers.output_collector import OutputConsole
 from pyotl.subscribers.retcode import RetcodeTracker
@@ -72,6 +73,8 @@ class PyGraph:
     retcode_tracker : RetcodeTracker
 
     def runloop(self):
+        errhandler = OtlErrorHandler()
+
         with OutputConsole() as console:
             while not self.done_tracker.is_done:
                 # tbh, this could be async
@@ -81,6 +84,7 @@ class PyGraph:
                     self.done_tracker.process_message(message)
                     self.retcode_tracker.process_message(message)
                     console.process_message(message)
+                    errhandler.process_message(message)
                 if not message:
                     # add a little bit of backoff
                     time.sleep(0.01)

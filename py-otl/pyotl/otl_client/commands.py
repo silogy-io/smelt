@@ -2,6 +2,7 @@
 # sources: client.data.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from typing import List
 
 import betterproto
 
@@ -11,6 +12,7 @@ class ClientCommand(betterproto.Message):
     setter: "SetCommands" = betterproto.message_field(1, group="ClientCommands")
     runone: "RunOne" = betterproto.message_field(2, group="ClientCommands")
     runtype: "RunType" = betterproto.message_field(3, group="ClientCommands")
+    runmany: "RunMany" = betterproto.message_field(4, group="ClientCommands")
 
 
 @dataclass
@@ -21,6 +23,11 @@ class SetCommands(betterproto.Message):
 @dataclass
 class RunOne(betterproto.Message):
     command_name: str = betterproto.string_field(1)
+
+
+@dataclass
+class RunMany(betterproto.Message):
+    command_names: List[str] = betterproto.string_field(1)
 
 
 @dataclass

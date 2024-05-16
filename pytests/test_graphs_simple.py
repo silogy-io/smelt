@@ -60,3 +60,15 @@ def test_sanity_pygraph_new_build():
     assert (
         observed_reexec == expected_failing_tests
     ), f"Expecteted to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
+
+
+def test_invalid_graph():
+    test_list = f"{get_git_root()}/test_data/command_lists/cl_invalid.yaml"
+    lod = yaml.safe_load(open(test_list))
+    commands = [Command.from_dict(obj) for obj in lod]
+    graph = PyGraph.init_commands_only(commands)
+    graph.run_all_tests("build")
+    graph.run_all_tests("test")
+
+
+test_invalid_graph()
