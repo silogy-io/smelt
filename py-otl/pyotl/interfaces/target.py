@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field, asdict
 from abc import ABC
 from enum import Enum
-from typing import List, Dict, Literal
+from typing import Any, List, Dict, Literal
 from pyotl.interfaces.runtime import RuntimeRequirements
 from pyotl.interfaces.paths import OtlPath
 from pyotl.path_utils import get_git_root
@@ -25,6 +25,10 @@ class Target(ABC):
     """
 
     name: str
+    injected_state: Dict[str, Any] = field(init=False)
+
+    def __post_init__(self):
+        self.injected_state = {}
 
     def get_outputs(self) -> Dict[str, OtlPath]:
         return {}
@@ -52,5 +56,5 @@ class Target(ABC):
     def runtime_requirements(self) -> RuntimeRequirements:
         return RuntimeRequirements.default(self.runtime_env_vars())
 
-    def dependencies(self) -> List[TargetRef]:
+    def get_dependencies(self) -> List[TargetRef]:
         return []

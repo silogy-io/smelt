@@ -30,5 +30,8 @@ class RetcodeTracker:
         else:
             pass
 
+    def total_executed(self) -> int:
+        return len(self.retcode_dict.items())
+
     def reset(self):
         self.retcode_dict = {}

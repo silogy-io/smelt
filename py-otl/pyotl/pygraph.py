@@ -1,8 +1,9 @@
-from typing import Callable, Dict, Generator, List, Optional, Tuple, cast
+from typing import Dict, Generator, List, Optional, Tuple, cast
 from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
-from pyotl.otl_muncher import lower_target_to_command, parse_otl
+from pyotl.otl_muncher import lower_targets_to_commands, parse_otl
 from pyotl.pyotl import PyController, PySubscriber
+from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
 import time
 
@@ -19,17 +20,20 @@ from copy import deepcopy
 from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
 
 
-def default_target_rerun_callback(target: Target, return_code: int) -> Optional[Target]:
+def default_target_rerun_callback(
+    target: Target, return_code: int
+) -> Tuple[Target, bool]:
     """
     First pass at re-run logic -- currently we just rerun all tests that are tagged as tests
 
     Power users could supply their own logic, but we should define something that is robust and sane
     """
 
-    if target.rule_type() == OtlTargetType.Test:
-        new_target = deepcopy(target)
-        new_target.name = f"{new_target.name}_rerun"
-        return new_target
+    requires_rerun = target.rule_type() == OtlTargetType.Test and return_code != 0
+    new_target = deepcopy(target)
+    new_target.name = f"{new_target.name}_rerun"
+    new_target.injected_state = {"debug": "True"}
+    return (new_target, requires_rerun)
 
 
 def maybe_get_message(
@@ -58,14 +62,14 @@ class PyGraph:
 
     This is used to re-generate new commands on failure
     """
-    commands: Dict[str, List[Command]]
+    commands: List[Command]
     """ 
-    holds all of the commands that are live in the graph
+    holds all of the commands that are live in the graph -- some of these may not map back to an otl target
     """
     controller: PyController
     listener: PySubscriber
-    done_tracker = IsDoneSubscriber()
-    retcode_tracker = RetcodeTracker()
+    done_tracker : IsDoneSubscriber
+    retcode_tracker : RetcodeTracker
 
     def runloop(self):
         with OutputConsole() as console:
@@ -107,7 +111,8 @@ class PyGraph:
 
     def reset(self):
         self.done_tracker.reset()
-        self.retcode_tracker.reset()
+       # self.retcode_tracker.reset()
+        
 
     def run_one_test_interactive(self, name: str, sink: StdoutSink = print):
         """
@@ -133,52 +138,77 @@ class PyGraph:
 
     def rerun(
         self,
-        rerun_callback: Callable[
-            [Target, int], Optional[Target]
-        ] = default_target_rerun_callback,
+        rerun_callback: RerunCallback = default_target_rerun_callback,
     ):
         if self.otl_targets:
-            new_targets = [
-                rerun_callback(self.otl_targets[target], retcode)
-                for target, retcode in self.retcode_tracker.retcode_dict.items()
-            ]
+            """
+            We create a dictionary that maps all of the target names to a "DerivedTarget", that holds all of the state for prospective targets that may need to be created 
 
-            filtered_targets = [target for target in new_targets if target]
-            for target in filtered_targets:
-                self.otl_targets[target.name] = target
+            This dictionary maps the original target name -> DerivedTarget bundle
+            """
+            all_derived = {
+                target: DerivedTarget.from_cb(
+                    orig_target, rerun_callback(self.otl_targets[target], retcode)
+                )
+                for target, retcode in self.retcode_tracker.retcode_dict.items()
+                if (target in self.otl_targets and (orig_target := self.otl_targets[target]))
+            }
+
+
+
+            """
+            For each target, we go through and see if any of the "derived" targets have "changed" from the original target 
+
+            a target changing can mean one of three things
+
+            1. it needs to be rerun 
+            2. the command contents has changed and it does not need to be re-run (for example, when a if we want to have a debug build
+            3. A dependency of the target has changed
+
+            If a derived target has changed from its original, we lower it to a command, correct its dependencies and it is returned as part of the new commands list
+            """
+
+            new_commands = [
+                (new_target, target.requires_rerun)
+                for target in all_derived.values()
+                if (new_target := target.get_new_command(all_derived)) is not None
+            ]
+            if not any(new_commands):
+                return "No new commands were produced"
+            all_commands_to_add, requires_rerun = map(list, zip(*new_commands))
+            all_commands_to_add = cast(List[Command], all_commands_to_add)
+            requires_rerun = cast(List[bool], requires_rerun)
+            
+            if not any(requires_rerun):
+                print("No commands need a rerun is required!")
+                return
+
             # TODO: its likely that we will also need to handle regenerating dependencies
             #       for a first pass functionality, lets ignore this for now
-            command_list = lower_target_to_command(filtered_targets)
-            self.add_commands(command_list)
-            self.run_specific_commands(command_list)
+
+            self.add_commands(all_commands_to_add)
+            commands_to_run = [
+                command
+                for command, rerun in new_commands 
+                if rerun 
+            ]
+            self.run_specific_commands(commands_to_run)
         else:
             print(
                 "Warning! Cannot auto re-run because no otl targets have been provided"
             )
 
     def add_commands(self, commands: List[Command]):
-        for command in commands:
-            self.commands[command.target_type].append(command)
-
+        self.commands += commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
 
     @classmethod
     def init(cls, otl_targets: Dict[str, Target], commands: List[Command]):
-        rv = {}
-        for tar_typ in OtlTargetType:
-            rv[tar_typ.value] = []
-
-        for tar_typ in OtlTargetType:
-            rv[tar_typ.value] = []
-        for command in commands:
-            rv[command.target_type].append(command)
-
         graph = PyController()
-
         listener = graph.add_py_listener()
         rv = cls(
-            otl_targets=otl_targets, commands=rv, controller=graph, listener=listener
+            otl_targets=otl_targets, commands=[], controller=graph, listener=listener, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
         )
         rv.add_commands(commands)
         return rv

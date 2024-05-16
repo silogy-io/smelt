@@ -15,48 +15,21 @@ class raw_bash(Target):
     """
 
     cmds: List[str] = field(default_factory=list)
-    deps: List[TargetRef] = field(default_factory=list)
-    outputs: Dict[str, str] = field(default_factory=dict)
+    debug_cmds: List[str] = field(default_factory=list)
+    dependencies: List[TargetRef] = field(default_factory=list)
 
     def gen_script(self) -> List[str]:
-        return self.cmds
+        if "debug" in self.injected_state and self.debug_cmds:
+            return self.debug_cmds
+        else:
+            return self.cmds
 
-    def dependencies(self) -> List[TargetRef]:
-        return self.deps
-
-    def get_outputs(self) -> Dict[str, OtlPath]:
-        return {
-            out_name: OtlPath.abs_path(out_path)
-            for out_name, out_path in self.outputs.items()
-        }
+    def get_dependencies(self) -> List[TargetRef]:
+        return self.dependencies
 
 
 @dataclass
-class run_spi(Target):
-    """
-    sanity test -- will move this to examples, eventually
-    """
-
-    seed: int
-
-    def gen_script(self) -> List[str]:
-        return ['echo "hello world"']
-
-    def get_outputs(self) -> Dict[str, OtlPath]:
-        return {"log": OtlPath.abs_path(f"{self.name}.log")}
-
-    def gen_script_wavedump(self) -> List[str]: ...
-
-    def gen_script_verbose(self) -> List[str]: ...
-
-
-@dataclass
-class raw_bash_build(Target):
-    cmds: List[str] = field(default_factory=list)
-
+class raw_bash_build(raw_bash):
     @staticmethod
     def rule_type() -> OtlTargetType:
         return OtlTargetType.Build
-
-    def gen_script(self) -> List[str]:
-        return self.cmds
