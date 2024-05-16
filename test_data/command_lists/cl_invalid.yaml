@@ -1,0 +1,23 @@
+- name: test1
+  target_type: test
+  script:
+    - script:
+        - "hey"
+  dependencies: []
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: t2
+  target_type: test
+  script:
+    - echo "hello world 2"
+  dependencies: []
+  outputs: []
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
