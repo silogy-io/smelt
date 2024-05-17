@@ -5,13 +5,13 @@ use dice::{DiceData, DiceDataBuilder, UserComputationData};
 
 use otl_data::Event;
 
-use tokio::sync::mpsc::Sender;
+
 mod common;
 #[cfg(feature = "docker")]
 mod docker;
 mod local;
 
-use anyhow;
+
 use async_trait::async_trait;
 pub use docker::DockerExecutor;
 pub use local::LocalExecutorBuilder;

@@ -12,7 +12,7 @@ use pyo3::{
     types::{PyBytes, PyType},
 };
 
-use std::{io::Read, sync::Arc};
+use std::{sync::Arc};
 use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {

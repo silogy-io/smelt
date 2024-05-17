@@ -1,6 +1,6 @@
 use crate::executor::{common::handle_line, Executor};
-use dice::{DiceData, DiceDataBuilder, UserComputationData};
-use std::{io::Write, process::Stdio};
+use dice::{DiceData, UserComputationData};
+use std::{process::Stdio};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
@@ -12,8 +12,7 @@ use otl_events::{
     to_file,
 };
 use tokio::{
-    fs::File,
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, BufReader},
     sync::mpsc::Sender,
 };
 
@@ -77,7 +76,7 @@ async fn execute_local_command(
     command: &Command,
     trace_id: String,
     tx_chan: Sender<Event>,
-    dd: &UserComputationData,
+    _dd: &UserComputationData,
     root: PathBuf,
 ) -> anyhow::Result<CommandOutput> {
     let shell = "bash";

@@ -102,7 +102,7 @@ impl Key for CommandRef {
         let tx = ctx.global_data().get_tx_channel();
 
         let executor = ctx.global_data().get_executor();
-        let local_tx = tx.clone();
+        let _local_tx = tx.clone();
 
         let output: CommandOutput = executor
             .execute_commands(self.0.clone(), ctx.per_transaction_data(), ctx.global_data())
@@ -430,12 +430,12 @@ mod tests {
     }
 
     fn testing_cfg() -> ConfigureOtl {
-        let cfg = ConfigureOtl {
+        
+        ConfigureOtl {
             otl_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
             job_slots: 1,
             init_executor: Some(configure_otl::InitExecutor::Local(CfgLocal {})),
-        };
-        cfg
+        }
     }
 
     async fn execute_all_tests_in_file(yaml_data: &str) {

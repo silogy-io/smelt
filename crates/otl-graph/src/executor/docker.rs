@@ -3,23 +3,21 @@ use crate::Command;
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
-use otl_core::OtlErr;
+
 use otl_data::{CommandOutput, Event};
 use otl_events::{
     runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel},
-    to_file,
 };
 use std::{
-    collections::{BTreeMap, HashMap},
-    path::PathBuf,
+    collections::{HashMap},
     sync::Arc,
 };
-use tokio::sync::mpsc::Sender;
 
-use bollard::{container::LogOutput, image::ListImagesOptions};
+
+use bollard::{container::LogOutput};
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
-    container::{AttachContainerOptions, Config, CreateContainerOptions, StartContainerOptions},
+    container::{Config, CreateContainerOptions, StartContainerOptions},
     service::HostConfig,
 };
 
@@ -57,7 +55,7 @@ impl Executor for DockerExecutor {
         dd: &UserComputationData,
         global_data: &DiceData,
     ) -> anyhow::Result<Event> {
-        let shell = "bash";
+        let _shell = "bash";
         let trace_id = dd.get_trace_id();
 
         let docker = Docker::connect_with_local_defaults().unwrap();
@@ -70,7 +68,7 @@ impl Executor for DockerExecutor {
         let Workspace {
             script_file,
             mut stdout,
-            working_dir,
+            working_dir: _,
         } = prepare_workspace(&command, root.clone()).await?;
 
         let base_binds = vec![format!("{}:{}", root_as_str, root_as_str)];
