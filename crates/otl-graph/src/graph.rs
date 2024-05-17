@@ -14,7 +14,7 @@ use futures::{
 
 use otl_events::{
     self,
-    runtime_support::{GetTraceId, GetTxChannel, SetTraceId, SetTxChannel},
+    runtime_support::{GetTraceId, GetTxChannel, SetOtlRoot, SetTraceId, SetTxChannel},
     Event,
 };
 
@@ -300,6 +300,9 @@ impl CommandGraph {
         let mut data = UserComputationData::new();
 
         data.init_trace_id();
+        //TODO: change this! otl root should set by the client, probably by otl-rc
+        let temproot = std::env::current_dir()?;
+        data.set_otl_root(temproot);
 
         let tx = ctx.commit_with_data(data).await;
         let val = tx.global_data().get_tx_channel();
@@ -340,9 +343,7 @@ impl CommandGraph {
         let mut refs = Vec::new();
 
         for test_name in test_names {
-            let val = tx
-                .compute(&LookupCommand(Arc::new(test_name)))
-                .await?;
+            let val = tx.compute(&LookupCommand(Arc::new(test_name))).await?;
             refs.push(val);
         }
 

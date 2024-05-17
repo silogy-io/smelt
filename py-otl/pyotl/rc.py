@@ -9,7 +9,8 @@ from pprint import pprint
 
 @dataclass(frozen=True)
 class OtlRC:
-    otl_default_root: str
+
+    otl_default_out: str
     otl_rules_dir: str
     jobs: int
 
@@ -17,7 +18,7 @@ class OtlRC:
     def default(cls):
         default_jobs = 8
         return cls(
-            otl_default_root="otl-out", otl_rules_dir="otl_rules", jobs=default_jobs
+            otl_default_out="otl-out", otl_rules_dir="otl_rules", jobs=default_jobs
         )
 
     @classmethod
@@ -33,7 +34,7 @@ class OtlRC:
         try:
             rc_content = toml.loads(stream)
             return cls(
-                otl_default_root=rc_content["otl_default_root"],
+                otl_default_out=rc_content["otl_default_out"],
                 otl_rules_dir=rc_content["otl_rules_dir"],
                 jobs=rc_content["jobs"],
             )

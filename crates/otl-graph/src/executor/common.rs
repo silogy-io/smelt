@@ -20,13 +20,12 @@ pub(crate) struct Workspace {
     pub(crate) working_dir: PathBuf,
 }
 
-pub(crate) async fn prepare_workspace(command: &Command) -> anyhow::Result<Workspace> {
+pub(crate) async fn prepare_workspace(
+    command: &Command,
+    otl_root: PathBuf,
+) -> anyhow::Result<Workspace> {
     let env = &command.runtime.env;
-    let working_dir = env
-        .get("TARGET_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| command.default_target_root().unwrap());
-
+    let working_dir = command.default_target_root(otl_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
     let stdout_file = working_dir.join(Command::stdout_file());
     tokio::fs::create_dir_all(&working_dir).await?;

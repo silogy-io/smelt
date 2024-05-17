@@ -54,7 +54,7 @@ def parse_otl(
 
 def target_to_command(target: Target) -> Command:
     rc = OtlRcHolder.current_rc
-    return Command.from_target(target, default_root=rc.otl_default_root)
+    return Command.from_target(target, default_root=rc.otl_default_out)
 
 
 def lower_targets_to_commands(targets: Iterable[Target]) -> List[Command]:

@@ -7,7 +7,10 @@ use async_trait::async_trait;
 use dice::UserComputationData;
 use otl_core::OtlErr;
 use otl_data::{CommandOutput, Event};
-use otl_events::{runtime_support::GetTraceId, to_file};
+use otl_events::{
+    runtime_support::{GetOtlRoot, GetTraceId},
+    to_file,
+};
 use tokio::{
     fs::File,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -46,7 +49,7 @@ impl Executor for LocalExecutor {
     ) -> anyhow::Result<Event> {
         let local_command = command;
         let trace_id = dd.get_trace_id();
-        let rv = execute_local_command(local_command.as_ref(), trace_id.clone(), tx.clone())
+        let rv = execute_local_command(local_command.as_ref(), trace_id.clone(), tx.clone(), dd)
             .await
             .map(|output| {
                 Event::command_finished(local_command.name.clone(), dd.get_trace_id(), output)
@@ -66,19 +69,22 @@ async fn execute_local_command(
     command: &Command,
     trace_id: String,
     tx_chan: Sender<Event>,
+    dd: &UserComputationData,
 ) -> anyhow::Result<CommandOutput> {
+    let shell = "bash";
     let _handle_me = tx_chan
         .send(Event::command_started(
             command.name.clone(),
             trace_id.clone(),
         ))
         .await;
+    let root = dd.get_otl_root();
     let Workspace {
         script_file,
         mut stdout,
         working_dir,
-    } = prepare_workspace(command).await?;
-    let mut commandlocal = tokio::process::Command::new("bash");
+    } = prepare_workspace(command, root).await?;
+    let mut commandlocal = tokio::process::Command::new(shell);
     commandlocal
         .arg(script_file)
         .stdout(Stdio::piped())
