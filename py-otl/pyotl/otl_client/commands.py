@@ -2,7 +2,7 @@
 # sources: client.data.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 import betterproto
 
@@ -35,3 +35,29 @@ class RunType(betterproto.Message):
     # Eventually, perhaps we should encode this as info in protobuf not today
     # babey
     typeinfo: str = betterproto.string_field(1)
+
+
+@dataclass
+class ConfigureOtl(betterproto.Message):
+    """
+    This configuration is done once, when OTL is initialized The client should
+    provide this when creating an otl handle
+    """
+
+    otl_root: str = betterproto.string_field(1)
+    job_slots: int = betterproto.uint64_field(2)
+    local: "CfgLocal" = betterproto.message_field(3, group="InitExecutor")
+    docker: "CfgDocker" = betterproto.message_field(4, group="InitExecutor")
+
+
+@dataclass
+class CfgLocal(betterproto.Message):
+    pass
+
+
+@dataclass
+class CfgDocker(betterproto.Message):
+    image_name: str = betterproto.string_field(1)
+    additional_mounts: Dict[str, str] = betterproto.map_field(
+        2, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+    )

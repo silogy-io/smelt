@@ -3,7 +3,7 @@ use otl_client::Subscriber;
 use otl_controller::{spawn_otl_with_server, OtlControllerHandle};
 use otl_core::OtlErr;
 use otl_data::client_commands::ClientCommand;
-use otl_events::Event;
+use otl_data::{client_commands::ConfigureOtl, Event};
 
 use prost::Message;
 use pyo3::{
@@ -12,7 +12,7 @@ use pyo3::{
     types::{PyBytes, PyType},
 };
 
-use std::sync::Arc;
+use std::{io::Read, sync::Arc};
 use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
@@ -80,8 +80,11 @@ fn client_channel_err(_in_err: impl std::error::Error) -> PyErr {
 impl PyController {
     #[new]
     #[classmethod]
-    pub fn new(_cls: Bound<'_, PyType>) -> PyResult<Self> {
-        let handle = spawn_otl_with_server();
+    pub fn new(_cls: Bound<'_, PyType>, serialized_cfg: Vec<u8>) -> PyResult<Self> {
+        let cfg: ConfigureOtl =
+            ConfigureOtl::decode(serialized_cfg.as_slice()).expect("Malformed cfg message");
+
+        let handle = spawn_otl_with_server(cfg);
         Ok(PyController { handle })
     }
 

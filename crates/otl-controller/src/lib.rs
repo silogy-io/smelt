@@ -1,5 +1,5 @@
 use futures::{stream::FuturesUnordered, StreamExt};
-use otl_data::client_commands::ClientCommand;
+use otl_data::client_commands::{ClientCommand, ConfigureOtl};
 use std::{future::Future, sync::Arc};
 
 use otl_client::Subscriber;
@@ -49,7 +49,7 @@ pub struct OtlController {
     server_handle: OtlServerHandle,
 }
 
-pub fn spawn_otl_with_server() -> OtlControllerHandle {
+pub fn spawn_otl_with_server(cfg: ConfigureOtl) -> OtlControllerHandle {
     let (tx_client, rx_client) = tokio::sync::mpsc::unbounded_channel();
     let (tx_tele, rx_tele) = tokio::sync::mpsc::channel(100);
 

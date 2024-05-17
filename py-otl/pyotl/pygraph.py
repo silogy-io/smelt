@@ -2,13 +2,18 @@ from typing import Dict, Generator, List, Optional, Tuple, cast
 from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
 from pyotl.otl_muncher import lower_targets_to_commands, parse_otl
+from pyotl.path_utils import get_git_root, memoize
 from pyotl.pyotl import PyController, PySubscriber
+from pyotl.rc import OtlRcHolder
 from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
 import time
 
 
+
+
 from pyotl.otl_telemetry.data import Event
+from pyotl.otl_client.commands import ConfigureOtl
 
 
 from pyotl.subscribers.error_handler import OtlErrorHandler
@@ -19,6 +24,15 @@ from pyotl.subscribers.retcode import RetcodeTracker
 from copy import deepcopy
 
 from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
+
+
+@memoize
+def default_cfg() -> ConfigureOtl:
+    rv = ConfigureOtl()
+    rv.job_slots = 8
+    rv.otl_root = get_git_root()
+
+    return rv
 
 
 def default_target_rerun_callback(
@@ -48,6 +62,7 @@ def maybe_get_message(
         if message is None:
             return None
         event = Event.FromString(message)
+        
     return event
 
 
@@ -207,8 +222,9 @@ class PyGraph:
         self.controller.set_graph(commands_as_str)
 
     @classmethod
-    def init(cls, otl_targets: Dict[str, Target], commands: List[Command]):
-        graph = PyController()
+    def init(cls, otl_targets: Dict[str, Target], commands: List[Command], cfg : ConfigureOtl = default_cfg()):
+        cfg_bytes = bytes(cfg)
+        graph = PyController(cfg_bytes)
         listener = graph.add_py_listener()
         rv = cls(
             otl_targets=otl_targets, commands=[], controller=graph, listener=listener, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
@@ -222,6 +238,8 @@ class PyGraph:
         return cls.init({}, commands)
 
 
-def create_graph(otl_test_list: str) -> PyGraph:
+
+
+def create_graph(otl_test_list: str, cfg : ConfigureOtl = default_cfg()) -> PyGraph:
     targets, command_list = parse_otl(otl_test_list)
-    return PyGraph.init(targets, command_list)
+    return PyGraph.init(targets, command_list, cfg)

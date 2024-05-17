@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 package otl_telemetry.data;
-import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 // Event flows from server -> client only

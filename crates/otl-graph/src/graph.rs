@@ -301,6 +301,8 @@ impl CommandGraph {
 
         data.init_trace_id();
         //TODO: change this! otl root should set by the client, probably by otl-rc
+        //      however adding this in is not different from what was present before -- now we are
+        //      just centralizing the idea of a "root", and allowing it to be set
         let temproot = std::env::current_dir()?;
         data.set_otl_root(temproot);
 
