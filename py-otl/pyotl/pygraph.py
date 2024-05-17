@@ -8,12 +8,12 @@ from pyotl.rc import OtlRcHolder
 from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
 import time
-
+import os
 
 
 
 from pyotl.otl_telemetry.data import Event
-from pyotl.otl_client.commands import ConfigureOtl
+from pyotl.otl_client.commands import CfgDocker, CfgLocal, ConfigureOtl
 
 
 from pyotl.subscribers.error_handler import OtlErrorHandler
@@ -30,7 +30,12 @@ from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
 def default_cfg() -> ConfigureOtl:
     rv = ConfigureOtl()
     rv.job_slots = 8
-    rv.otl_root = get_git_root()
+    try:
+        rv.otl_root = get_git_root()
+    except:
+        
+        rv.otl_root = os.getcwd()
+    rv.local = CfgLocal()
 
     return rv
 
@@ -238,8 +243,13 @@ class PyGraph:
         return cls.init({}, commands)
 
 
-
-
 def create_graph(otl_test_list: str, cfg : ConfigureOtl = default_cfg()) -> PyGraph:
     targets, command_list = parse_otl(otl_test_list)
     return PyGraph.init(targets, command_list, cfg)
+
+def create_graph_with_docker(otl_test_list: str, docker_img: str) -> PyGraph:
+    cfg = default_cfg()
+    cfg.docker = CfgDocker()
+    cfg.docker.image_name = docker_img
+    cfg.docker.additional_mounts = {}
+    return create_graph(otl_test_list)

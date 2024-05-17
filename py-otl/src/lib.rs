@@ -20,16 +20,9 @@ pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
     PyRuntimeError::new_err(otl_string)
 }
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
 /// A Python module implemented in Rust.
 #[pymodule]
 fn pyotl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, &m)?)?;
     m.add_class::<PyController>()?;
     m.add_class::<PySubscriber>()?;
     Ok(())

@@ -73,6 +73,3 @@ def test_invalid_graph():
         commands = [Command.from_dict(obj) for obj in lod]
         graph = PyGraph.init_commands_only(commands)
         graph.run_all_tests("test")
-
-
-test_sanity_pygraph_new_build()

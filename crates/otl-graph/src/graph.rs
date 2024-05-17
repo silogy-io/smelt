@@ -20,12 +20,12 @@ use otl_events::{
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{str::FromStr, sync::Arc};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{GetExecutor, LocalExecutorBuilder, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
@@ -105,7 +105,7 @@ impl Key for CommandRef {
         let local_tx = tx.clone();
 
         let output: CommandOutput = executor
-            .execute_commands(self.0.clone(), local_tx,  ctx.per_transaction_data())
+            .execute_commands(self.0.clone(), ctx.per_transaction_data(), ctx.global_data())
             .await
             .map(|val| {
                 val.command_output().unwrap()
@@ -227,11 +227,26 @@ impl CommandGraph {
     pub async fn new(
         rx_chan: UnboundedReceiver<ClientCommand>,
         tx_chan: Sender<Event>,
+        cfg: ConfigureOtl,
     ) -> Result<Self, OtlErr> {
-        let executor = LocalExecutorBuilder::new().threads(8).build()?;
+        let executor: Arc<dyn Executor> = match cfg.init_executor {
+            Some(exec_val) => match exec_val {
+                configure_otl::InitExecutor::Local(_) => Arc::new(
+                    LocalExecutorBuilder::new()
+                        .build()
+                        .expect("Could not create executor"),
+                ),
+                configure_otl::InitExecutor::Docker(docker_cfg) => Arc::new(
+                    DockerExecutor::new(docker_cfg.image_name, docker_cfg.additional_mounts)
+                        .expect("Could not create docker executor"),
+                ),
+            },
+            None => Arc::new(LocalExecutorBuilder::new().build().unwrap()),
+        };
 
         let mut dice_builder = Dice::builder();
-        dice_builder.set_executor(Arc::new(executor));
+        dice_builder.set_otl_root(PathBuf::from(cfg.otl_root));
+        dice_builder.set_executor(executor);
         dice_builder.set_tx_channel(tx_chan.clone());
 
         let dice = dice_builder.build(DetectCycles::Enabled);
@@ -303,8 +318,6 @@ impl CommandGraph {
         //TODO: change this! otl root should set by the client, probably by otl-rc
         //      however adding this in is not different from what was present before -- now we are
         //      just centralizing the idea of a "root", and allowing it to be set
-        let temproot = std::env::current_dir()?;
-        data.set_otl_root(temproot);
 
         let tx = ctx.commit_with_data(data).await;
         let val = tx.global_data().get_tx_channel();
@@ -416,13 +429,23 @@ mod tests {
         }
     }
 
+    fn testing_cfg() -> ConfigureOtl {
+        let cfg = ConfigureOtl {
+            otl_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
+            job_slots: 1,
+            init_executor: Some(configure_otl::InitExecutor::Local(CfgLocal {})),
+        };
+        cfg
+    }
+
     async fn execute_all_tests_in_file(yaml_data: &str) {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
 
         let _script = script.unwrap();
         let (_tx, rx) = unbounded_channel();
         let (tx, rx_handle) = channel(100);
-        let graph = CommandGraph::new(rx, tx).await.unwrap();
+
+        let graph = CommandGraph::new(rx, tx, testing_cfg()).await.unwrap();
         let mut gh = TestGraphHandle { rx_chan: rx_handle };
         graph.run_all_typed("test".to_string()).await.unwrap();
         let events = gh.async_blocking_events().await;

@@ -1,15 +1,19 @@
 use crate::executor::Executor;
 use crate::Command;
 use async_trait::async_trait;
-use dice::UserComputationData;
+use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 use otl_core::OtlErr;
 use otl_data::{CommandOutput, Event};
 use otl_events::{
-    runtime_support::{GetOtlRoot, GetTraceId},
+    runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel},
     to_file,
 };
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+    sync::Arc,
+};
 use tokio::sync::mpsc::Sender;
 
 use bollard::{container::LogOutput, image::ListImagesOptions};
@@ -27,17 +31,20 @@ pub struct DockerExecutor {
     image_name: String,
     /// Default mounts for the docker executor
     /// these should be in the form
-    additional_mounts: BTreeMap<String, String>,
+    additional_mounts: HashMap<String, String>,
 }
 
 impl DockerExecutor {
-    fn new(image_name: String) -> anyhow::Result<Self> {
+    pub fn new(
+        image_name: String,
+        additional_mounts: HashMap<String, String>,
+    ) -> anyhow::Result<Self> {
         let docker_client = Docker::connect_with_socket_defaults()?;
 
         Ok(Self {
             image_name,
             docker_client,
-            additional_mounts: BTreeMap::new(),
+            additional_mounts,
         })
     }
 }
@@ -47,14 +54,14 @@ impl Executor for DockerExecutor {
     async fn execute_commands(
         &self,
         command: Arc<Command>,
-        tx: Sender<Event>,
         dd: &UserComputationData,
+        global_data: &DiceData,
     ) -> anyhow::Result<Event> {
         let shell = "bash";
         let trace_id = dd.get_trace_id();
 
         let docker = Docker::connect_with_local_defaults().unwrap();
-        let root = dd.get_otl_root();
+        let root = global_data.get_otl_root();
         let root_as_str = root
             .to_str()
             .expect("Otl root couldnt be converted to string ")
@@ -124,6 +131,7 @@ impl Executor for DockerExecutor {
         };
 
         let mut output = docker.logs(&container.id, Some(attach_options));
+        let tx = global_data.get_tx_channel();
 
         // Stream the stdout and stderr
         while let Some(message) = output.next().await {
@@ -141,7 +149,11 @@ impl Executor for DockerExecutor {
                             eprintln!("Not handling console output right now: {}", line)
                         }
                     }
-                    LogOutput::StdIn { message } => {}
+                    LogOutput::StdIn { message } => {
+                        if let Ok(line) = String::from_utf8(message.to_vec()) {
+                            eprintln!("Not handling console output right now: {}", line)
+                        }
+                    }
                 },
                 Err(e) => eprintln!("Error: {}", e),
             }

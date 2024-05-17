@@ -13,6 +13,7 @@ mod local;
 
 use anyhow;
 use async_trait::async_trait;
+pub use docker::DockerExecutor;
 pub use local::LocalExecutorBuilder;
 
 #[async_trait]
@@ -20,8 +21,8 @@ pub trait Executor: Send + Sync {
     async fn execute_commands(
         &self,
         command: Arc<Command>,
-        tx: Sender<Event>,
         dice_data: &UserComputationData,
+        global_dice_Data: &DiceData,
     ) -> anyhow::Result<Event>;
 }
 

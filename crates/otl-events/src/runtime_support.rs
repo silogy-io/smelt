@@ -62,16 +62,16 @@ impl GetTraceId for UserComputationData {
 }
 
 struct OtlRootHolder(PathBuf);
-impl SetOtlRoot for UserComputationData {
+
+impl SetOtlRoot for DiceDataBuilder {
     fn set_otl_root(&mut self, pathbuf: PathBuf) {
-        self.data.set(OtlRootHolder(pathbuf))
+        self.set(OtlRootHolder(pathbuf))
     }
 }
 
-impl GetOtlRoot for UserComputationData {
+impl GetOtlRoot for DiceData {
     fn get_otl_root(&self) -> PathBuf {
-        self.data
-            .get::<OtlRootHolder>()
+        self.get::<OtlRootHolder>()
             .expect("Trace id should be set")
             .0
             .clone()

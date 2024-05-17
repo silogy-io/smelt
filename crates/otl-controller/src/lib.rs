@@ -68,7 +68,9 @@ pub fn spawn_otl_with_server(cfg: ConfigureOtl) -> OtlControllerHandle {
             .unwrap();
 
         //todo -- add failure handling here
-        let mut graph = rt.block_on(CommandGraph::new(rx_client, tx_tele)).unwrap();
+        let mut graph = rt
+            .block_on(CommandGraph::new(rx_client, tx_tele, cfg))
+            .unwrap();
         rt.block_on(async move {
             // if either of these futures exit, we should head out
             tokio::select! {
@@ -121,11 +123,7 @@ impl OtlController {
                             return;
                         }
                     }
-
-
                 }
-
-
             }
         }
     }
