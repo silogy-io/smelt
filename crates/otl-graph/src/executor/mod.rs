@@ -5,13 +5,12 @@ use dice::{DiceData, DiceDataBuilder, UserComputationData};
 
 use otl_data::Event;
 
-
 mod common;
 #[cfg(feature = "docker")]
 mod docker;
 mod local;
 
-
+use anyhow;
 use async_trait::async_trait;
 pub use docker::DockerExecutor;
 pub use local::LocalExecutorBuilder;
@@ -22,7 +21,7 @@ pub trait Executor: Send + Sync {
         &self,
         command: Arc<Command>,
         dice_data: &UserComputationData,
-        global_dice_Data: &DiceData,
+        global_dice_data: &DiceData,
     ) -> anyhow::Result<Event>;
 }
 
