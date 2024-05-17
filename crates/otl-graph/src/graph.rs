@@ -104,12 +104,16 @@ impl Key for CommandRef {
         let executor = ctx.global_data().get_executor();
         let _local_tx = tx.clone();
 
-        let output: CommandOutput = executor
-            .execute_commands(self.0.clone(), ctx.per_transaction_data(), ctx.global_data())
+        let output = executor
+            .execute_commands(
+                self.0.clone(),
+                ctx.per_transaction_data(),
+                ctx.global_data(),
+            )
             .await
-            .map(|val| {
-                val.command_output().unwrap()
-            }).expect( "Todo -- handle this, we should only see one command output message -- we should be able to fail more gracefully than this");
+            .map(|val| val.command_output().unwrap());
+
+        let output = output.map_err(|err| Arc::new(OtlErr::ExecutorFailed(err.to_string())))?;
 
         Ok(CommandVal {
             output,
@@ -347,7 +351,7 @@ impl CommandGraph {
 
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
-            let _ = val.send(Event::done(trace)).await;
+            handle_result(_out, val, trace).await;
         });
         Ok(())
     }
@@ -365,10 +369,10 @@ impl CommandGraph {
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
-            let _ = tx.execute_commands(refs).await;
+            let result = tx.execute_commands(refs).await;
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
-            val.send(Event::done(trace)).await
+            handle_result(result, val, trace).await;
         });
         Ok(())
     }
@@ -385,12 +389,31 @@ impl CommandGraph {
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
-            let _ = tx.execute_command(&command).await;
+            let output = tx.execute_command(&command).await;
             let val = tx.global_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
-            val.send(Event::done(trace)).await
+            handle_result(vec![output], val, trace).await;
         });
         Ok(())
+    }
+}
+
+async fn handle_result(
+    compute_result: Vec<Result<CommandOutput, Arc<OtlErr>>>,
+    tx: Sender<Event>,
+    trace: String,
+) {
+    let mut fails = 0;
+    for res in compute_result {
+        if let Err(ref cmd_out) = res {
+            let _ = tx
+                .send(Event::runtime_error(cmd_out.to_string(), trace.clone()))
+                .await;
+            fails += 1;
+        }
+    }
+    if fails == 0 {
+        let _ = tx.send(Event::done(trace)).await;
     }
 }
 
@@ -430,7 +453,6 @@ mod tests {
     }
 
     fn testing_cfg() -> ConfigureOtl {
-        
         ConfigureOtl {
             otl_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
             job_slots: 1,

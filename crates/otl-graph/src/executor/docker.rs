@@ -5,6 +5,7 @@ use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 
 use otl_data::{CommandOutput, Event};
+
 use otl_events::{
     runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel},
 };
