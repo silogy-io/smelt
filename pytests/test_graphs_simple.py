@@ -1,4 +1,4 @@
-from pyotl.pygraph import PyGraph, create_graph
+from pyotl.pygraph import PyGraph, create_graph, create_graph_with_docker
 from pyotl.path_utils import get_git_root
 from pyotl.interfaces import Command
 
@@ -21,7 +21,7 @@ def test_sanity_pygraph_rerun_nofailing():
     """
     test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
     graph = create_graph(test_list)
-    print(graph.retcode_tracker)
+
     orig = graph.retcode_tracker.total_executed()
 
     graph.run_all_tests("test")
@@ -73,3 +73,20 @@ def test_invalid_graph():
         commands = [Command.from_dict(obj) for obj in lod]
         graph = PyGraph.init_commands_only(commands)
         graph.run_all_tests("test")
+
+
+def test_sanity_pygraph_docker():
+    """
+    Tests the case where no re-run is needed
+    """
+    test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
+    image = "debian:bookworm-slim"
+    graph = create_graph_with_docker(test_list, docker_img=image)
+    print(graph.retcode_tracker)
+    orig = graph.retcode_tracker.total_executed()
+
+    graph.run_all_tests("test")
+    graph.rerun()
+
+
+test_sanity_pygraph_docker()

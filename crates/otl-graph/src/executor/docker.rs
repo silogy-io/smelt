@@ -6,16 +6,10 @@ use futures::StreamExt;
 
 use otl_data::{CommandOutput, Event};
 
-use otl_events::{
-    runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel},
-};
-use std::{
-    collections::{HashMap},
-    sync::Arc,
-};
+use otl_events::runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel};
+use std::{collections::HashMap, sync::Arc};
 
-
-use bollard::{container::LogOutput};
+use bollard::container::{InspectContainerOptions, LogOutput};
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
     container::{Config, CreateContainerOptions, StartContainerOptions},
@@ -56,10 +50,10 @@ impl Executor for DockerExecutor {
         dd: &UserComputationData,
         global_data: &DiceData,
     ) -> anyhow::Result<Event> {
-        let _shell = "bash";
+        let shell = "bash";
         let trace_id = dd.get_trace_id();
 
-        let docker = Docker::connect_with_local_defaults().unwrap();
+        let docker = Docker::connect_with_local_defaults()?;
         let root = global_data.get_otl_root();
         let root_as_str = root
             .to_str()
@@ -80,10 +74,11 @@ impl Executor for DockerExecutor {
                 val.push(format!("{}:{}", b.0, b.1));
                 val
             });
-        let cmd = vec![
-            "shell".to_string(),
-            script_file.to_str().unwrap().to_string(),
-        ];
+        let cmd = vec![shell.to_string(), script_file.to_str().unwrap().to_string()];
+
+        // we can derive platform info from inspecting the image, but we don't need to do that
+        // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
+
         let binds = if binds.is_empty() { Some(binds) } else { None };
         // Define the container options
         let container_config: Config<String> = Config {
@@ -99,11 +94,12 @@ impl Executor for DockerExecutor {
         };
 
         #[cfg(target_os = "macos")]
-        let platform = Some("linux/amd64".to_string());
+        let platform = None;
 
         #[cfg(not(target_os = "macos"))]
         let platform = None;
 
+        let _ = docker.remove_container(command.name.as_ref(), None).await;
         // Create the container
         let container = docker
             .create_container(
@@ -113,14 +109,20 @@ impl Executor for DockerExecutor {
                 }),
                 container_config,
             )
-            .await
-            .unwrap();
+            .await?;
+
+        let tx = global_data.get_tx_channel();
+        let _ = tx
+            .send(Event::command_started(
+                command.name.clone(),
+                trace_id.clone(),
+            ))
+            .await;
 
         // Start the container
         docker
             .start_container(&container.id, None::<StartContainerOptions<String>>)
-            .await
-            .unwrap();
+            .await?;
 
         // Attach to the container
         let attach_options: LogsOptions<String> = LogsOptions {
@@ -130,7 +132,6 @@ impl Executor for DockerExecutor {
         };
 
         let mut output = docker.logs(&container.id, Some(attach_options));
-        let tx = global_data.get_tx_channel();
 
         // Stream the stdout and stderr
         while let Some(message) = output.next().await {
@@ -158,10 +159,8 @@ impl Executor for DockerExecutor {
             }
         }
         let dummy_output = CommandOutput { status_code: 0 };
-        Ok(Event::command_finished(
-            command.name.clone(),
-            dd.get_trace_id(),
-            dummy_output,
-        ))
+        let done = Event::command_finished(command.name.clone(), dd.get_trace_id(), dummy_output);
+        let _ = tx.send(done.clone()).await;
+        Ok(done)
     }
 }

@@ -21,7 +21,7 @@ pub enum OtlErr {
     CommandCacheMiss,
     #[error("Invalid target type {0}")]
     BadTargetType(String),
-    #[error("Executor failed to execute")]
+    #[error("Executor failed to execute with error : {0}")]
     ExecutorFailed(String),
 }
 
