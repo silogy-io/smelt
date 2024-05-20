@@ -25,8 +25,6 @@ def test_sanity_pygraph_rerun_nofailing():
     test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
     graph = create_graph(test_list)
 
-    orig = graph.retcode_tracker.total_executed()
-
     graph.run_all_tests("test")
     graph.rerun()
     # we have 3 tests, 0 of which fail -- so we should rerun no tests
@@ -48,7 +46,7 @@ def test_sanity_pygraph_rerun_with_failing():
 
     assert (
         observed_reexec == expected_failing_tests
-    ), f"Expecteted to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
+    ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
 
 
 def test_sanity_pygraph_new_build():
@@ -64,7 +62,7 @@ def test_sanity_pygraph_new_build():
 
     assert (
         observed_reexec == expected_failing_tests
-    ), f"Expecteted to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
+    ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
 
 
 def test_invalid_graph():
@@ -76,3 +74,23 @@ def test_invalid_graph():
         commands = [Command.from_dict(obj) for obj in lod]
         graph = PyGraph.init_commands_only(commands)
         graph.run_all_tests("test")
+
+
+def test_sanity_pygraph_docker():
+    """
+    Tests the case where no re-run is needed
+    """
+    test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
+    image = "debian:bookworm-slim"
+    graph = create_graph_with_docker(test_list, docker_img=image)
+
+    expected_passed = 3
+
+    graph.run_all_tests("test")
+    passed_commands = graph.retcode_tracker.total_passed()
+    assert (
+        passed_commands == expected_passed
+    ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
+
+
+test_sanity_pygraph_docker()

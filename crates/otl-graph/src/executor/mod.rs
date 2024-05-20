@@ -6,10 +6,14 @@ use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use otl_data::Event;
 
 mod common;
+
+#[cfg(feature = "docker")]
+mod docker;
 mod local;
 
-
 use async_trait::async_trait;
+#[cfg(feature = "docker")]
+pub use docker::DockerExecutor;
 pub use local::LocalExecutorBuilder;
 
 #[async_trait]
