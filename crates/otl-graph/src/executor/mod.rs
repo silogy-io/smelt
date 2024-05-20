@@ -8,7 +8,7 @@ use otl_data::Event;
 mod common;
 mod local;
 
-use anyhow;
+
 use async_trait::async_trait;
 pub use local::LocalExecutorBuilder;
 

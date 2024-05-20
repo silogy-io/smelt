@@ -240,7 +240,7 @@ impl CommandGraph {
                         .build()
                         .expect("Could not create executor"),
                 ),
-                configure_otl::InitExecutor::Docker(docker_cfg) => {
+                configure_otl::InitExecutor::Docker(_docker_cfg) => {
                     unimplemented!("Removed from this MR")
                 }
             },
@@ -383,8 +383,6 @@ impl CommandGraph {
             .compute(&LookupCommand(Arc::new(test_name.into())))
             .await?;
 
-        //tx.execute_command(&command).await
-
         let mut tx = self.start_tx().await?;
 
         tokio::task::spawn(async move {
@@ -397,23 +395,25 @@ impl CommandGraph {
     }
 }
 
+/// Handling logic for each command that is executed
+///
+/// We check each command that was executed for a runtime error -- a runtime error is an error that
+/// happens with the otl runtime itself e.g. if a file isn't able to be created, or a process can't
+/// be spawned off that needs to be spawned off, etc
 async fn handle_result(
     compute_result: Vec<Result<CommandOutput, Arc<OtlErr>>>,
     tx: Sender<Event>,
     trace: String,
 ) {
-    let mut fails = 0;
     for res in compute_result {
-        if let Err(ref cmd_out) = res {
+        if let Err(ref rt_err) = res {
             let _ = tx
-                .send(Event::runtime_error(cmd_out.to_string(), trace.clone()))
+                .send(Event::runtime_error(rt_err.to_string(), trace.clone()))
                 .await;
-            fails += 1;
         }
     }
-    if fails == 0 {
-        let _ = tx.send(Event::done(trace)).await;
-    }
+
+    let _ = tx.send(Event::done(trace)).await;
 }
 
 /// Handle for interacting with the OtlGraph
