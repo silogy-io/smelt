@@ -9,7 +9,7 @@ use otl_data::{CommandOutput, Event};
 use otl_events::runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel};
 use std::{collections::HashMap, sync::Arc};
 
-use bollard::container::{InspectContainerOptions, LogOutput};
+use bollard::container::LogOutput;
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
     container::{Config, CreateContainerOptions, StartContainerOptions},
@@ -52,20 +52,25 @@ impl Executor for DockerExecutor {
     ) -> anyhow::Result<Event> {
         let shell = "bash";
         let trace_id = dd.get_trace_id();
-
-        let docker = Docker::connect_with_local_defaults()?;
+        let tx = global_data.get_tx_channel();
+        let docker = &self.docker_client;
         let root = global_data.get_otl_root();
         let root_as_str = root
             .to_str()
             .expect("Otl root couldnt be converted to string ")
             .to_string();
 
+        // "Prepares" the workspace for this command -- creates a directory at path
+        // {OTL_ROOT}/otl-out/{COMMAND_NAME}
         let Workspace {
             script_file,
             mut stdout,
             working_dir: _,
         } = prepare_workspace(&command, root.clone()).await?;
 
+        // The "default" bind mount for all commands is otl root -- in expectation, this should
+        // mount the git root in to the container, at the same path as it has on the host
+        // filesystem
         let base_binds = vec![format!("{}:{}", root_as_str, root_as_str)];
         let binds = self
             .additional_mounts
@@ -93,47 +98,43 @@ impl Executor for DockerExecutor {
             ..Default::default()
         };
 
-        #[cfg(target_os = "macos")]
+        // TODO: we will probably need to inspect the image and set the platform for robust macos support
         let platform = None;
+        let container_name = command.name.clone();
 
-        #[cfg(not(target_os = "macos"))]
-        let platform = None;
-
-        let _ = docker.remove_container(command.name.as_ref(), None).await;
+        let _ = docker.remove_container(container_name.as_ref(), None).await;
         // Create the container
         let container = docker
             .create_container(
                 Some(CreateContainerOptions {
-                    name: command.name.clone(),
+                    name: container_name.as_str(),
                     platform,
                 }),
                 container_config,
             )
             .await?;
 
-        let tx = global_data.get_tx_channel();
+        // Send a message that the command has started, and then start the container
         let _ = tx
             .send(Event::command_started(
                 command.name.clone(),
                 trace_id.clone(),
             ))
             .await;
-
-        // Start the container
         docker
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await?;
 
-        // Attach to the container
+        // attach to docker logs -- this will also pick up any output that was emitted between the
+        // container being started and the "attaching"
         let attach_options: LogsOptions<String> = LogsOptions {
             stdout: true,
             stderr: true,
             ..LogsOptions::default()
         };
-
         let mut output = docker.logs(&container.id, Some(attach_options));
 
-        // Stream the stdout and stderr
+        // Stream the stdout and stderr ouput from the docker container via Event messages
         while let Some(message) = output.next().await {
             match message {
                 Ok(output) => match output {
@@ -144,22 +145,29 @@ impl Executor for DockerExecutor {
                         }
                     }
 
+                    // From looking at the code, console messages are docker telemetry that come
+                    // from decoding messages from the docker socket
                     LogOutput::Console { message } => {
                         if let Ok(line) = String::from_utf8(message.to_vec()) {
                             eprintln!("Not handling console output right now: {}", line)
                         }
                     }
-                    LogOutput::StdIn { message } => {
-                        if let Ok(line) = String::from_utf8(message.to_vec()) {
-                            eprintln!("Not handling console output right now: {}", line)
-                        }
-                    }
+                    LogOutput::StdIn { message: _ } => {}
                 },
                 Err(e) => eprintln!("Error: {}", e),
             }
         }
-        let dummy_output = CommandOutput { status_code: 0 };
-        let done = Event::command_finished(command.name.clone(), dd.get_trace_id(), dummy_output);
+
+        // get status code from the container, which should be exited at this point
+        let status_code = docker
+            .inspect_container(container_name.as_str(), None)
+            .await?
+            .state
+            .and_then(|state| state.exit_code)
+            .unwrap_or(1) as i32;
+
+        let dummy_output = CommandOutput { status_code };
+        let done = Event::command_finished(command.name.clone(), trace_id, dummy_output);
         let _ = tx.send(done.clone()).await;
         Ok(done)
     }

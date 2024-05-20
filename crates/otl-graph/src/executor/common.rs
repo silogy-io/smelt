@@ -1,18 +1,11 @@
-
-use std::{io::Write};
-use std::{path::PathBuf};
+use std::io::Write;
+use std::path::PathBuf;
 
 use crate::Command;
 
+use otl_data::Event;
 
-
-use otl_data::{Event};
-
-use tokio::{
-    fs::File,
-    io::{AsyncWriteExt},
-    sync::mpsc::Sender,
-};
+use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
 
 pub(crate) struct Workspace {
     pub(crate) script_file: PathBuf,
@@ -20,6 +13,10 @@ pub(crate) struct Workspace {
     pub(crate) working_dir: PathBuf,
 }
 
+/// Creates all of the directory scaffolding expected by a command
+///
+/// This function is currently used across all executors, and is always executed in the host
+/// filesystem
 pub(crate) async fn prepare_workspace(
     command: &Command,
     otl_root: PathBuf,
