@@ -3,6 +3,7 @@ from typing import ClassVar, Dict, Optional
 from pathlib import Path
 from pyotl.path_utils import get_git_root
 import toml
+import os
 
 from pprint import pprint
 
@@ -10,6 +11,7 @@ from pprint import pprint
 @dataclass(frozen=True)
 class OtlRC:
 
+    otl_root: str
     otl_default_out: str
     otl_rules_dir: str
     jobs: int
@@ -17,8 +19,16 @@ class OtlRC:
     @classmethod
     def default(cls):
         default_jobs = 8
+        try:
+            otl_root = get_git_root()
+        except:
+            otl_root = os.getcwd()
+
         return cls(
-            otl_default_out="otl-out", otl_rules_dir="otl_rules", jobs=default_jobs
+            otl_root=otl_root,
+            otl_default_out="otl-out",
+            otl_rules_dir="otl_rules",
+            jobs=default_jobs,
         )
 
     @classmethod
@@ -34,6 +44,7 @@ class OtlRC:
         try:
             rc_content = toml.loads(stream)
             return cls(
+                otl_root=rc_content["otl_root"],
                 otl_default_out=rc_content["otl_default_out"],
                 otl_rules_dir=rc_content["otl_rules_dir"],
                 jobs=rc_content["jobs"],
@@ -59,4 +70,8 @@ class OtlRC:
 
 
 class OtlRcHolder:
-    current_rc: ClassVar[OtlRC] = OtlRC.default()
+    _current_rc: ClassVar[OtlRC] = OtlRC.default()
+
+    @property
+    def current_rc(self) -> OtlRC:
+        return self._current_rc

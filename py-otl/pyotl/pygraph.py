@@ -29,12 +29,10 @@ from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
 @memoize
 def default_cfg() -> ConfigureOtl:
     rv = ConfigureOtl()
-    rv.job_slots = 8
-    try:
-        rv.otl_root = get_git_root()
-    except:
-        
-        rv.otl_root = os.getcwd()
+    rc = OtlRcHolder.current_rc
+
+    rv.job_slots = rc.jobs
+    rv.otl_root = rc.otl_root
     rv.local = CfgLocal()
 
     return rv
