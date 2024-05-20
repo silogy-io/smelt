@@ -1,6 +1,6 @@
 use crate::executor::{common::handle_line, Executor};
 use dice::{DiceData, UserComputationData};
-use std::{process::Stdio};
+use std::process::Stdio;
 use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
@@ -91,10 +91,11 @@ async fn execute_local_command(
         script_file,
         mut stdout,
         working_dir,
-    } = prepare_workspace(command, root).await?;
+    } = prepare_workspace(command, root.clone()).await?;
     let mut commandlocal = tokio::process::Command::new(shell);
     commandlocal
         .arg(script_file)
+        .current_dir(root)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;
