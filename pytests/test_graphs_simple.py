@@ -9,6 +9,13 @@ import yaml
 import pytest
 
 
+@pytest.fixture(scope="session")
+def simple_docker_image() -> Generator[str, None, None]:
+    img = "debian:bookworm-slim"
+    subprocess.run(["docker", "pull", img])
+    yield img
+
+
 def test_sanity_pygraph():
     test_list = f"{get_git_root()}/test_data/command_lists/cl1.yaml"
     lod = yaml.safe_load(open(test_list))
@@ -76,13 +83,13 @@ def test_invalid_graph():
         graph.run_all_tests("test")
 
 
-def test_sanity_pygraph_docker():
+def test_sanity_pygraph_docker(simple_docker_image):
     """
     Tests the case where no re-run is needed
     """
     test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
-    image = "debian:bookworm-slim"
-    graph = create_graph_with_docker(test_list, docker_img=image)
+
+    graph = create_graph_with_docker(test_list, docker_img=simple_docker_image)
 
     expected_passed = 3
 
@@ -91,6 +98,3 @@ def test_sanity_pygraph_docker():
     assert (
         passed_commands == expected_passed
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
-
-
-test_sanity_pygraph_docker()
