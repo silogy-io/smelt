@@ -72,6 +72,6 @@ class OtlRC:
 class OtlRcHolder:
     _current_rc: ClassVar[OtlRC] = OtlRC.default()
 
-    @property
-    def current_rc(self) -> OtlRC:
-        return self._current_rc
+    @staticmethod
+    def current_rc() -> OtlRC:
+        return OtlRcHolder._current_rc

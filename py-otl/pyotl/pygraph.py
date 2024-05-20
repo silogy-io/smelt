@@ -29,7 +29,7 @@ from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
 @memoize
 def default_cfg() -> ConfigureOtl:
     rv = ConfigureOtl()
-    rc = OtlRcHolder.current_rc
+    rc = OtlRcHolder.current_rc()
 
     rv.job_slots = rc.jobs
     rv.otl_root = rc.otl_root

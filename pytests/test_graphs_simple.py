@@ -1,6 +1,9 @@
+import subprocess
+from typing import Generator
 from pyotl.pygraph import PyGraph, create_graph, create_graph_with_docker
 from pyotl.path_utils import get_git_root
 from pyotl.interfaces import Command
+
 
 import yaml
 import pytest
