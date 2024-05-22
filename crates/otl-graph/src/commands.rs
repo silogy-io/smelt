@@ -1,7 +1,8 @@
-use serde::{Deserialize, Serialize};
-
 use allocative::Allocative;
 use dupe::Dupe;
+use hex::FromHexError;
+use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 
 use std::{
     fmt,
@@ -17,8 +18,11 @@ pub struct Command {
     pub name: String,
     pub target_type: TargetType,
     pub script: Vec<String>,
+    #[serde(default)]
     pub dependent_files: Vec<PathBuf>,
+    #[serde(default)]
     pub dependencies: Vec<String>,
+    #[serde(default)]
     pub outputs: Vec<String>,
     pub runtime: Runtime,
 }
@@ -42,7 +46,74 @@ pub enum CommandRtStatus {
     },
 }
 
+const DIGEST_LEN: usize = 20;
+pub struct CommandDefDigest([u8; DIGEST_LEN]);
+
+pub struct ExecDigest([u8; DIGEST_LEN]);
+
+trait Digester: Sized {
+    fn get_payload(&self) -> &[u8; DIGEST_LEN];
+    fn new(val: [u8; DIGEST_LEN]) -> Self;
+    fn to_string(&self) -> String {
+        hex::encode(&self.get_payload())
+    }
+    fn from_str(value: impl AsRef<str>) -> Result<Self, DigestError> {
+        let str = value.as_ref();
+        let val = hex::decode(str)?;
+        let rv =
+            val.try_into()
+                .map(|val| Self::new(val))
+                .map_err(|err| DigestError::WrongPayloadSize {
+                    expected: DIGEST_LEN,
+                    observed: err.len(),
+                });
+        rv
+    }
+}
+
+use thiserror::Error;
+#[derive(Error, Debug)]
+pub enum DigestError {
+    #[error("Could not convert hex string to command digest due to str format")]
+    FromHexError(#[from] FromHexError),
+    #[error("Digest wasn't the right size")]
+    WrongPayloadSize { expected: usize, observed: usize },
+}
+
+impl Digester for CommandDefDigest {
+    fn new(val: [u8; DIGEST_LEN]) -> Self {
+        Self(val)
+    }
+    fn get_payload(&self) -> &[u8; DIGEST_LEN] {
+        &self.0
+    }
+}
+
+impl Digester for ExecDigest {
+    fn new(val: [u8; DIGEST_LEN]) -> Self {
+        Self(val)
+    }
+    fn get_payload(&self) -> &[u8; DIGEST_LEN] {
+        &self.0
+    }
+}
+
 impl Command {
+    pub fn def_digest(&self) -> CommandDefDigest {
+        let mut hasher = Sha1::new();
+        hasher.update(&self.name);
+        hasher.update(&self.target_type.to_string());
+        for line in self.script.iter() {
+            hasher.update(line);
+        }
+        for dep in self.dependencies.iter() {
+            hasher.update(dep);
+        }
+
+        let rv: [u8; 20] = hasher.finalize().into();
+        CommandDefDigest(rv)
+    }
+
     pub const fn script_file() -> &'static str {
         "command.sh"
     }
