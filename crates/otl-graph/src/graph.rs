@@ -25,7 +25,7 @@ use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
@@ -240,9 +240,10 @@ impl CommandGraph {
                         .build()
                         .expect("Could not create executor"),
                 ),
-                configure_otl::InitExecutor::Docker(_docker_cfg) => {
-                    unimplemented!("Removed from this MR")
-                }
+                configure_otl::InitExecutor::Docker(docker_cfg) => Arc::new(
+                    DockerExecutor::new(docker_cfg.image_name, docker_cfg.additional_mounts)
+                        .expect("Could not create docker executor"),
+                ),
             },
             None => Arc::new(LocalExecutorBuilder::new().build().unwrap()),
         };
