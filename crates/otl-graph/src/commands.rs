@@ -17,6 +17,7 @@ pub struct Command {
     pub name: String,
     pub target_type: TargetType,
     pub script: Vec<String>,
+    pub dependent_files: Vec<PathBuf>,
     pub dependencies: Vec<String>,
     pub outputs: Vec<String>,
     pub runtime: Runtime,
