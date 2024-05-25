@@ -61,21 +61,6 @@ mod helpers {
 
 pub type ClientCommandResp = Result<(), String>;
 
-/// The "sink" used to communicate synchronously between a client and the otl runtime
-/// this message will tell us if a "ClientCommand" is done
-///
-/// Wrapping this in our own type because it is likely we'll want to make the SyncSink to be
-/// optional
-pub struct SyncSink<T>(oneshot::Sender<T>);
-
-impl<T> SyncSink<T> {
-    fn send(self, message: T) -> Result<(), T> {
-        self.0.send(message)
-    }
-}
-
-pub struct EventSink<T>(mpsc::Sender<T>);
-
 pub struct ClientCommandBundle {
     pub message: ClientCommand,
     pub oneshot_confirmer: oneshot::Sender<ClientCommandResp>,

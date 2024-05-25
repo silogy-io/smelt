@@ -1,6 +1,6 @@
 use allocative::Allocative;
 use otl_data::client_commands::{client_command::ClientCommands, *};
-use static_interner::Intern;
+
 
 use derive_more::Display;
 use dice::{
@@ -19,10 +19,10 @@ use otl_events::{
     ClientCommandBundle, Event,
 };
 
-use dice::InjectedKey;
+
 use futures::FutureExt;
-use std::{fmt::Display, path::PathBuf, str::FromStr, sync::Arc};
-use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
@@ -84,14 +84,14 @@ impl Key for LookupCommand {
     type Value = Result<CommandRef, LookupCommand>;
     async fn compute(
         &self,
-        ctx: &mut DiceComputations,
+        _ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         Err(self.clone())
     }
 
     //TODO: set this
-    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+    fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
         false
     }
 }
@@ -102,13 +102,13 @@ impl Key for LookupFileMaker {
 
     async fn compute(
         &self,
-        ctx: &mut DiceComputations,
+        _ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         Err(self.clone())
     }
 
-    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+    fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
         false
     }
 }
@@ -194,7 +194,7 @@ async fn get_command_deps(
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupCommand::from_str_ref(val);
-                ctx.compute(&val).map(|val| flatten_res(val)).boxed()
+                ctx.compute(&val).map(flatten_res).boxed()
             },
         )
     }));
@@ -205,7 +205,7 @@ async fn get_command_deps(
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupFileMaker::from_str_ref(val);
-                ctx.compute(&val).map(|res| flatten_res(res)).boxed()
+                ctx.compute(&val).map(flatten_res).boxed()
             },
         )
     }));
@@ -366,7 +366,7 @@ impl CommandGraph {
         match command {
             ClientCommands::Setter(SetCommands { command_content }) => {
                 let script = serde_yaml::from_str(&command_content)?;
-                let res = self.set_commands(script).await?;
+                self.set_commands(script).await?;
             }
             ClientCommands::Runone(RunOne { command_name }) => {
                 self.run_one_test(command_name, event_streamer).await?;
@@ -494,7 +494,7 @@ impl CommandGraph {
             }
         }
 
-        if err_vec.len() != 0 {
+        if !err_vec.is_empty() {
             let txchan = tx.per_transaction_data().get_tx_channel();
             for err in err_vec.iter() {
                 txchan

@@ -34,7 +34,7 @@ impl<Kind> CasDigest<Kind> {
     pub fn new(payload: [u8; DIGEST_LEN]) -> Self {
         Self {
             payload,
-            kind: PhantomData::default(),
+            kind: PhantomData,
         }
     }
     pub fn get_payload(&self) -> &[u8; DIGEST_LEN] {
@@ -44,14 +44,13 @@ impl<Kind> CasDigest<Kind> {
     fn from_str(value: impl AsRef<str>) -> Result<Self, DigestError> {
         let str = value.as_ref();
         let val = hex::decode(str)?;
-        let rv =
-            val.try_into()
+        
+        val.try_into()
                 .map(|val| Self::new(val))
                 .map_err(|err| DigestError::WrongPayloadSize {
                     expected: DIGEST_LEN,
                     observed: err.len(),
-                });
-        rv
+                })
     }
 }
 
