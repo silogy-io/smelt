@@ -29,15 +29,16 @@ pub trait GetOtlRoot {
     fn get_otl_root(&self) -> PathBuf;
 }
 
-impl SetTxChannel for DiceDataBuilder {
+impl SetTxChannel for UserComputationData {
     fn set_tx_channel(&mut self, tx_channel: Sender<Event>) {
-        self.set(tx_channel);
+        self.data.set(tx_channel);
     }
 }
 
-impl GetTxChannel for DiceData {
+impl GetTxChannel for UserComputationData {
     fn get_tx_channel(&self) -> Sender<Event> {
-        self.get::<Sender<Event>>()
+        self.data
+            .get::<Sender<Event>>()
             .expect("Channel should be set")
             .clone()
     }

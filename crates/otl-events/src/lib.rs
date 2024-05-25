@@ -5,7 +5,7 @@ pub use otl_data::{client_commands::ClientCommand, Event};
 use tokio::{
     fs::File,
     io::AsyncWriteExt,
-    sync::oneshot::{Receiver, Sender},
+    sync::{mpsc, oneshot},
 };
 
 pub use helpers::*;
@@ -61,20 +61,46 @@ mod helpers {
 
 pub type ClientCommandResp = Result<(), String>;
 
+/// The "sink" used to communicate synchronously between a client and the otl runtime
+/// this message will tell us if a "ClientCommand" is done
+///
+/// Wrapping this in our own type because it is likely we'll want to make the SyncSink to be
+/// optional
+pub struct SyncSink<T>(oneshot::Sender<T>);
+
+impl<T> SyncSink<T> {
+    fn send(self, message: T) -> Result<(), T> {
+        self.0.send(message)
+    }
+}
+
+pub struct EventSink<T>(mpsc::Sender<T>);
+
 pub struct ClientCommandBundle {
     pub message: ClientCommand,
-    pub oneshot_confirmer: Sender<ClientCommandResp>,
+    pub oneshot_confirmer: oneshot::Sender<ClientCommandResp>,
+    pub event_streamer: mpsc::Sender<Event>,
+}
+
+pub struct EventStreams {
+    pub sync_chan: oneshot::Receiver<ClientCommandResp>,
+    pub event_stream: mpsc::Receiver<Event>,
 }
 
 impl ClientCommandBundle {
-    pub fn from_message(message: ClientCommand) -> (Self, Receiver<ClientCommandResp>) {
-        let (oneshot_confirmer, rcv) = tokio::sync::oneshot::channel();
+    pub fn from_message(message: ClientCommand) -> (Self, EventStreams) {
+        let (oneshot_confirmer, sync_chan) = tokio::sync::oneshot::channel();
+        let (event_streamer, event_stream) = mpsc::channel(100);
         (
             Self {
                 message,
                 oneshot_confirmer,
+                event_streamer,
             },
-            rcv,
+            EventStreams {
+                sync_chan,
+                event_stream,
+            },
         )
     }
 }

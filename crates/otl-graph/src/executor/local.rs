@@ -46,7 +46,7 @@ impl Executor for LocalExecutor {
         dd: &UserComputationData,
         global_data: &DiceData,
     ) -> anyhow::Result<Event> {
-        let tx = global_data.get_tx_channel();
+        let tx = dd.get_tx_channel();
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let root = global_data.get_otl_root();

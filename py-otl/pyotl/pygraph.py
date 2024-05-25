@@ -104,17 +104,17 @@ class PyGraph:
     holds all of the commands that are live in the graph -- some of these may not map back to an otl target
     """
     controller: PyController
-    listener: PySubscriber
+    
     done_tracker : IsDoneSubscriber
     retcode_tracker : RetcodeTracker
 
-    def runloop(self):
+    def runloop(self, listener: PySubscriber):
         errhandler = OtlErrorHandler()
         with OutputConsole() as console:
             while not self.done_tracker.is_done:
                 # tbh, this could be async
                 # but async interopt with rust is kind of experimental and i dont want to do it yet
-                message = maybe_get_message(self.listener, blocking=False)
+                message = maybe_get_message(listener, blocking=False)
                 if message:
                     self.done_tracker.process_message(message)
                     self.retcode_tracker.process_message(message)
@@ -125,7 +125,7 @@ class PyGraph:
                     time.sleep(0.01)
 
     def console_runloop(
-        self, test_name: str, sink: StdoutSink
+            self, test_name: str, listener: PySubscriber, sink: StdoutSink
     ) -> Generator[bool, None, None]:
         """
         Generator that will try to consume as many `Event` messages as possible
@@ -139,7 +139,7 @@ class PyGraph:
         while True:
             # tbh, this could be async
             # but async interopt with rust is kind of experimental and i dont want to do it yet
-            message = maybe_get_message(self.listener, blocking=False)
+            message = maybe_get_message(listener, blocking=False)
             if message:
                 self.done_tracker.process_message(message)
                 self.retcode_tracker.process_message(message)
@@ -158,8 +158,8 @@ class PyGraph:
         Runs a single test, with a "sink" handle to process all of the stdout for that specific command
         """
         self.reset()
-        self.controller.run_one_test(name)
-        for is_done in self.console_runloop(name, sink):
+        listener = self.controller.run_one_test(name)
+        for is_done in self.console_runloop(name, listener, sink):
             if is_done:
                 return
             time.sleep(0.1)
@@ -167,13 +167,13 @@ class PyGraph:
     def run_specific_commands(self, commands: List[Command]):
         self.reset()
         test_names = [command.name for command in commands]
-        self.controller.run_many_tests(test_names)
-        self.runloop()
+        listener = self.controller.run_many_tests(test_names)
+        self.runloop(listener)
 
     def run_all_tests(self, maybe_type: str):
         self.reset()
-        self.controller.run_all_tests(maybe_type)
-        self.runloop()
+        listener = self.controller.run_all_tests(maybe_type)
+        self.runloop(listener)
 
     
 
@@ -248,9 +248,9 @@ class PyGraph:
     def init(cls, otl_targets: Dict[str, Target], commands: List[Command], cfg : ConfigureOtl = default_cfg()):
         cfg_bytes = bytes(cfg)
         graph = PyController(cfg_bytes)
-        listener = graph.add_py_listener()
+        
         rv = cls(
-            otl_targets=otl_targets, commands=[], controller=graph, listener=listener, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
+            otl_targets=otl_targets, commands=[], controller=graph, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
         )
         rv.add_commands(commands)
         return rv

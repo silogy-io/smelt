@@ -113,9 +113,6 @@ default-features = false
 path = "crates/otl-client"
 default-features = false
 
-[workspace.dependencies.otl-controller]
-path = "crates/otl-controller"
-default-features = false
 
 [workspace.dependencies.py-otl]
 path = "py-otl"
