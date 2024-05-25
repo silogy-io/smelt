@@ -3,7 +3,7 @@ from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
 from pyotl.otl_muncher import lower_targets_to_commands, parse_otl
 from pyotl.path_utils import get_git_root, memoize
-from pyotl.pyotl import PyController, PySubscriber
+from pyotl.pyotl import PyController, PyEventStream
 from pyotl.rc import OtlRcHolder
 from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
@@ -55,7 +55,7 @@ def default_target_rerun_callback(
 
 
 def maybe_get_message(
-    listener: PySubscriber, blocking: bool = False
+    listener: PyEventStream, blocking: bool = False
 ) -> Optional[Event]:
     if blocking:
         message = listener.pop_message_blocking()
@@ -70,7 +70,7 @@ def maybe_get_message(
 
 
 def spin_for_message(
-    listener: PySubscriber, backoff: float = 0.2, time_out: int = 10):
+    listener: PyEventStream, backoff: float = 0.2, time_out: int = 10):
     """
     Utility for spinning for a message 
     """
@@ -104,17 +104,17 @@ class PyGraph:
     holds all of the commands that are live in the graph -- some of these may not map back to an otl target
     """
     controller: PyController
-    listener: PySubscriber
+    
     done_tracker : IsDoneSubscriber
     retcode_tracker : RetcodeTracker
 
-    def runloop(self):
+    def runloop(self, listener: PyEventStream):
         errhandler = OtlErrorHandler()
         with OutputConsole() as console:
             while not self.done_tracker.is_done:
                 # tbh, this could be async
                 # but async interopt with rust is kind of experimental and i dont want to do it yet
-                message = maybe_get_message(self.listener, blocking=False)
+                message = maybe_get_message(listener, blocking=False)
                 if message:
                     self.done_tracker.process_message(message)
                     self.retcode_tracker.process_message(message)
@@ -125,7 +125,7 @@ class PyGraph:
                     time.sleep(0.01)
 
     def console_runloop(
-        self, test_name: str, sink: StdoutSink
+            self, test_name: str, listener: PyEventStream, sink: StdoutSink
     ) -> Generator[bool, None, None]:
         """
         Generator that will try to consume as many `Event` messages as possible
@@ -139,7 +139,7 @@ class PyGraph:
         while True:
             # tbh, this could be async
             # but async interopt with rust is kind of experimental and i dont want to do it yet
-            message = maybe_get_message(self.listener, blocking=False)
+            message = maybe_get_message(listener, blocking=False)
             if message:
                 self.done_tracker.process_message(message)
                 self.retcode_tracker.process_message(message)
@@ -158,8 +158,8 @@ class PyGraph:
         Runs a single test, with a "sink" handle to process all of the stdout for that specific command
         """
         self.reset()
-        self.controller.run_one_test(name)
-        for is_done in self.console_runloop(name, sink):
+        listener = self.controller.run_one_test(name)
+        for is_done in self.console_runloop(name, listener, sink):
             if is_done:
                 return
             time.sleep(0.1)
@@ -167,13 +167,13 @@ class PyGraph:
     def run_specific_commands(self, commands: List[Command]):
         self.reset()
         test_names = [command.name for command in commands]
-        self.controller.run_many_tests(test_names)
-        self.runloop()
+        listener = self.controller.run_many_tests(test_names)
+        self.runloop(listener)
 
     def run_all_tests(self, maybe_type: str):
         self.reset()
-        self.controller.run_all_tests(maybe_type)
-        self.runloop()
+        listener = self.controller.run_all_tests(maybe_type)
+        self.runloop(listener)
 
     
 
@@ -248,9 +248,9 @@ class PyGraph:
     def init(cls, otl_targets: Dict[str, Target], commands: List[Command], cfg : ConfigureOtl = default_cfg()):
         cfg_bytes = bytes(cfg)
         graph = PyController(cfg_bytes)
-        listener = graph.add_py_listener()
+        
         rv = cls(
-            otl_targets=otl_targets, commands=[], controller=graph, listener=listener, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
+            otl_targets=otl_targets, commands=[], controller=graph, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
         )
         rv.add_commands(commands)
         return rv

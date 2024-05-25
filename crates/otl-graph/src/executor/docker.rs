@@ -52,7 +52,7 @@ impl Executor for DockerExecutor {
     ) -> anyhow::Result<Event> {
         let shell = "bash";
         let trace_id = dd.get_trace_id();
-        let tx = global_data.get_tx_channel();
+        let tx = dd.get_tx_channel();
         let docker = &self.docker_client;
         let root = global_data.get_otl_root();
         let root_as_str = root

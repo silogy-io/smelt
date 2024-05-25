@@ -17,8 +17,9 @@ otl-core = { workspace = true }
 otl-graph = { workspace = true, features = ["docker"] }
 otl-events = { workspace = true }
 otl-data = { workspace = true }
-otl-controller = { workspace = true }
 
+
+anyhow = { workspace = true }
 
 dice = { workspace = true }
 allocative = { workspace = true }
@@ -35,5 +36,3 @@ fuzzy-matcher = { workspace = true }
 pythonize = { workspace = true }
 pyo3 = { workspace = true }
 prost = { workspace = true }
-otl-client.workspace = true
-anyhow.workspace = true

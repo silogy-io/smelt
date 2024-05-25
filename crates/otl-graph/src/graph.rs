@@ -1,6 +1,5 @@
 use allocative::Allocative;
 use otl_data::client_commands::{client_command::ClientCommands, *};
-use static_interner::Intern;
 
 use derive_more::Display;
 use dice::{
@@ -10,7 +9,7 @@ use dice::{
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
-    Future, TryFutureExt,
+    Future,
 };
 
 use otl_events::{
@@ -19,14 +18,13 @@ use otl_events::{
     ClientCommandBundle, Event,
 };
 
-use dice::InjectedKey;
 use futures::FutureExt;
-use std::{fmt::Display, path::PathBuf, str::FromStr, sync::Arc};
-use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
@@ -84,14 +82,14 @@ impl Key for LookupCommand {
     type Value = Result<CommandRef, LookupCommand>;
     async fn compute(
         &self,
-        ctx: &mut DiceComputations,
+        _ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         Err(self.clone())
     }
 
     //TODO: set this
-    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+    fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
         false
     }
 }
@@ -102,13 +100,13 @@ impl Key for LookupFileMaker {
 
     async fn compute(
         &self,
-        ctx: &mut DiceComputations,
+        _ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         Err(self.clone())
     }
 
-    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+    fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
         false
     }
 }
@@ -146,7 +144,7 @@ impl Key for CommandRef {
         let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        let tx = ctx.global_data().get_tx_channel();
+        let tx = ctx.per_transaction_data().get_tx_channel();
 
         let executor = ctx.global_data().get_executor();
         let _local_tx = tx.clone();
@@ -194,7 +192,7 @@ async fn get_command_deps(
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupCommand::from_str_ref(val);
-                ctx.compute(&val).map(|val| flatten_res(val)).boxed()
+                ctx.compute(&val).map(flatten_res).boxed()
             },
         )
     }));
@@ -205,7 +203,7 @@ async fn get_command_deps(
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupFileMaker::from_str_ref(val);
-                ctx.compute(&val).map(|res| flatten_res(res)).boxed()
+                ctx.compute(&val).map(flatten_res).boxed()
             },
         )
     }));
@@ -300,34 +298,27 @@ pub struct CommandGraph {
     pub(crate) all_commands: Vec<CommandRef>,
     /// The receiver for all ClientCommands -- these kick off executions of the dice graph
     rx_chan: UnboundedReceiver<ClientCommandBundle>,
-    tx_chan: Sender<Event>,
 }
 
 impl CommandGraph {
     pub async fn new(
         rx_chan: UnboundedReceiver<ClientCommandBundle>,
-        tx_chan: Sender<Event>,
         cfg: ConfigureOtl,
     ) -> Result<Self, OtlErr> {
         let executor: Arc<dyn Executor> = match cfg.init_executor {
             Some(exec_val) => match exec_val {
-                configure_otl::InitExecutor::Local(_) => Arc::new(
-                    LocalExecutorBuilder::new()
-                        .build()
-                        .expect("Could not create executor"),
-                ),
+                configure_otl::InitExecutor::Local(_) => Arc::new(LocalExecutor {}),
                 configure_otl::InitExecutor::Docker(docker_cfg) => Arc::new(
                     DockerExecutor::new(docker_cfg.image_name, docker_cfg.additional_mounts)
                         .expect("Could not create docker executor"),
                 ),
             },
-            None => Arc::new(LocalExecutorBuilder::new().build().unwrap()),
+            None => Arc::new(LocalExecutor {}),
         };
 
         let mut dice_builder = Dice::builder();
         dice_builder.set_otl_root(PathBuf::from(cfg.otl_root));
         dice_builder.set_executor(executor);
-        dice_builder.set_tx_channel(tx_chan.clone());
 
         let dice = dice_builder.build(DetectCycles::Enabled);
 
@@ -335,7 +326,6 @@ impl CommandGraph {
             dice,
             rx_chan,
             all_commands: vec![],
-            tx_chan,
         };
 
         Ok(graph)
@@ -350,31 +340,36 @@ impl CommandGraph {
                         client_commands: Some(command),
                     },
                 oneshot_confirmer,
+                event_streamer,
             }) = self.rx_chan.recv().await
             {
                 let rv = self
-                    .eat_command(command)
+                    .eat_command(command, event_streamer)
                     .await
                     .map_err(|err| err.to_string());
-                oneshot_confirmer.send(rv);
+                let _ = oneshot_confirmer.send(rv);
             }
         }
     }
 
-    async fn eat_command(&mut self, command: ClientCommands) -> Result<(), OtlErr> {
+    async fn eat_command(
+        &mut self,
+        command: ClientCommands,
+        event_streamer: Sender<Event>,
+    ) -> Result<(), OtlErr> {
         match command {
             ClientCommands::Setter(SetCommands { command_content }) => {
                 let script = serde_yaml::from_str(&command_content)?;
-                let res = self.set_commands(script).await?;
+                self.set_commands(script).await?;
             }
             ClientCommands::Runone(RunOne { command_name }) => {
-                self.run_one_test(command_name).await?;
+                self.run_one_test(command_name, event_streamer).await?;
             }
             ClientCommands::Runtype(RunType { typeinfo }) => {
-                self.run_all_typed(typeinfo).await?;
+                self.run_all_typed(typeinfo, event_streamer).await?;
             }
             ClientCommands::Runmany(RunMany { command_names }) => {
-                self.run_many_tests(command_names).await?;
+                self.run_many_tests(command_names, event_streamer).await?;
             }
         }
         Ok(())
@@ -397,13 +392,14 @@ impl CommandGraph {
         Ok(())
     }
 
-    async fn start_tx(&self) -> Result<DiceTransaction, OtlErr> {
+    async fn start_tx(&self, tx: Sender<Event>) -> Result<DiceTransaction, OtlErr> {
         let ctx = self.dice.updater();
         let mut data = UserComputationData::new();
 
         data.init_trace_id();
+        data.set_tx_channel(tx);
         let tx = ctx.commit_with_data(data).await;
-        let val = tx.global_data().get_tx_channel();
+        let val = tx.per_transaction_data().get_tx_channel();
         // todo -- handle err
         let _ = val
             .send(invoke_start_message(
@@ -414,8 +410,13 @@ impl CommandGraph {
         Ok(tx)
     }
 
-    pub async fn run_all_typed(&self, maybe_type: String) -> Result<(), OtlErr> {
+    pub async fn run_all_typed(
+        &self,
+        maybe_type: String,
+        event_streamer: Sender<Event>,
+    ) -> Result<(), OtlErr> {
         let tt = TargetType::from_str(maybe_type.as_str())?;
+        let tx = self.start_tx(event_streamer).await?;
         let refs = self
             .all_commands
             .iter()
@@ -423,52 +424,47 @@ impl CommandGraph {
             .cloned()
             .collect();
 
-        let mut tx = self.start_tx().await?;
+        self.run_tests(refs, tx).await
+    }
 
+    async fn run_tests(
+        &self,
+        refs: Vec<CommandRef>,
+        mut tx: DiceTransaction,
+    ) -> Result<(), OtlErr> {
         tokio::task::spawn(async move {
             let _out = tx.execute_commands(refs).await;
-
-            let val = tx.global_data().get_tx_channel();
+            let val = tx.per_transaction_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
             handle_result(_out, val, trace).await;
         });
         Ok(())
     }
-
-    pub async fn run_many_tests(&self, test_names: Vec<String>) -> Result<(), OtlErr> {
-        let ctx = self.dice.updater();
-        let mut tx = ctx.commit().await;
+    pub async fn run_many_tests(
+        &self,
+        test_names: Vec<String>,
+        event_streamer: Sender<Event>,
+    ) -> Result<(), OtlErr> {
+        let mut tx = self.start_tx(event_streamer).await?;
         let mut refs = Vec::new();
 
         for test_name in test_names {
             let val = tx.compute(&LookupCommand(Arc::new(test_name))).await??;
             refs.push(val);
         }
-
-        let mut tx = self.start_tx().await?;
-
-        tokio::task::spawn(async move {
-            let result = tx.execute_commands(refs).await;
-            let val = tx.global_data().get_tx_channel();
-            let trace = tx.per_transaction_data().get_trace_id();
-            handle_result(result, val, trace).await;
-        });
-        Ok(())
+        self.run_tests(refs, tx).await
     }
 
-    pub async fn run_one_test(&self, test_name: impl Into<String>) -> Result<(), OtlErr> {
-        let mut tx = self.start_tx().await?;
+    pub async fn run_one_test(
+        &self,
+        test_name: impl Into<String>,
+        event_streamer: Sender<Event>,
+    ) -> Result<(), OtlErr> {
+        let mut tx = self.start_tx(event_streamer).await?;
         let command = tx
             .compute(&LookupCommand(Arc::new(test_name.into())))
             .await??;
-
-        tokio::task::spawn(async move {
-            let output = tx.execute_command(&command).await;
-            let val = tx.global_data().get_tx_channel();
-            let trace = tx.per_transaction_data().get_trace_id();
-            handle_result(vec![output], val, trace).await;
-        });
-        Ok(())
+        self.run_tests(vec![command], tx).await
     }
 
     async fn validate_graph(&self, tx: &mut DiceTransaction) -> Result<(), Vec<OtlErr>> {
@@ -492,10 +488,10 @@ impl CommandGraph {
             }
         }
 
-        if err_vec.len() != 0 {
-            let txchan = tx.global_data().get_tx_channel();
+        if !err_vec.is_empty() {
+            let txchan = tx.per_transaction_data().get_tx_channel();
             for err in err_vec.iter() {
-                txchan
+                let _ = txchan
                     .send(Event::graph_validate_error(err.to_string()))
                     .await;
             }
@@ -532,15 +528,37 @@ async fn handle_result(
 pub struct OtlServerHandle {
     /// Channel for sending client commands -- covers stuff like running tests
     pub tx_client: UnboundedSender<ClientCommandBundle>,
-    /// Channel for receiving telemetry events from an execution
-    ///
-    /// Events include information like when each command starts, ends, is cancelled, etc
-    pub rx_tele: Receiver<Event>,
+}
+
+pub fn spawn_graph_server(cfg: ConfigureOtl) -> OtlServerHandle {
+    let (tx_client, rx_client) = tokio::sync::mpsc::unbounded_channel();
+
+    let server_handle = OtlServerHandle { tx_client };
+
+    use tokio::runtime::Builder;
+
+    std::thread::spawn(move || {
+        let rt = Builder::new_multi_thread()
+            .worker_threads(4) // specify the number of threads here
+            .enable_all()
+            .build()
+            .unwrap();
+
+        //todo -- add failure handling here
+        let mut graph = rt.block_on(CommandGraph::new(rx_client, cfg)).unwrap();
+        rt.block_on(async move {
+            // if either of these futures exit, we should head out
+            tokio::select! {
+                _graph = graph.eat_commands() => {}
+            }
+        });
+    });
+    server_handle
 }
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::mpsc::{channel, unbounded_channel};
+    use tokio::sync::mpsc::{channel, unbounded_channel, Receiver};
 
     use super::*;
 
@@ -578,9 +596,12 @@ mod tests {
         let (_tx, rx) = unbounded_channel();
         let (tx, rx_handle) = channel(100);
 
-        let graph = CommandGraph::new(rx, tx, testing_cfg()).await.unwrap();
+        let graph = CommandGraph::new(rx, testing_cfg()).await.unwrap();
         let mut gh = TestGraphHandle { rx_chan: rx_handle };
-        graph.run_all_typed("test".to_string()).await.unwrap();
+        graph
+            .run_all_typed("test".to_string(), tx.clone())
+            .await
+            .unwrap();
         let events = gh.async_blocking_events().await;
         for event in events {
             if let otl_data::event::Et::Command(val) = event.et.unwrap() {

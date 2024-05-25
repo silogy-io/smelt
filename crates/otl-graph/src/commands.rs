@@ -1,7 +1,7 @@
 use allocative::Allocative;
 use dupe::Dupe;
-use futures::future;
-use hex::FromHexError;
+
+
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
@@ -15,7 +15,7 @@ use std::{
 use otl_core::OtlErr;
 pub use otl_data::CommandOutput;
 
-use crate::digest::{CommandDefDigest, CommandInstDigest};
+use crate::digest::{CommandDefDigest};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
