@@ -29,29 +29,29 @@ mod serialize_timestamp {
     }
 }
 
-mod serialize_bytes {
-    use serde::Deserialize;
-    use serde::Deserializer;
-    use serde::Serialize;
-    use serde::Serializer;
-
-    pub fn serialize<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let d = hex::encode(value);
-        d.serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let d = String::deserialize(deserializer)?;
-        let d = hex::decode(d).map_err(serde::de::Error::custom)?;
-        Ok(d)
-    }
-}
+//mod serialize_bytes {
+//    use serde::Deserialize;
+//    use serde::Deserializer;
+//    use serde::Serialize;
+//    use serde::Serializer;
+//
+//    pub fn serialize<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+//    where
+//        S: Serializer,
+//    {
+//        let d = hex::encode(value);
+//        d.serialize(serializer)
+//    }
+//
+//    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+//    where
+//        D: Deserializer<'de>,
+//    {
+//        let d = String::deserialize(deserializer)?;
+//        let d = hex::decode(d).map_err(serde::de::Error::custom)?;
+//        Ok(d)
+//    }
+//}
 
 pub mod client_commands;
 

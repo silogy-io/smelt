@@ -1,7 +1,6 @@
 use allocative::Allocative;
 use otl_data::client_commands::{client_command::ClientCommands, *};
 
-
 use derive_more::Display;
 use dice::{
     CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
@@ -10,7 +9,7 @@ use dice::{
 use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
-    Future, TryFutureExt,
+    Future,
 };
 
 use otl_events::{
@@ -19,14 +18,13 @@ use otl_events::{
     ClientCommandBundle, Event,
 };
 
-
 use futures::FutureExt;
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutorBuilder, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
@@ -309,17 +307,13 @@ impl CommandGraph {
     ) -> Result<Self, OtlErr> {
         let executor: Arc<dyn Executor> = match cfg.init_executor {
             Some(exec_val) => match exec_val {
-                configure_otl::InitExecutor::Local(_) => Arc::new(
-                    LocalExecutorBuilder::new()
-                        .build()
-                        .expect("Could not create executor"),
-                ),
+                configure_otl::InitExecutor::Local(_) => Arc::new(LocalExecutor {}),
                 configure_otl::InitExecutor::Docker(docker_cfg) => Arc::new(
                     DockerExecutor::new(docker_cfg.image_name, docker_cfg.additional_mounts)
                         .expect("Could not create docker executor"),
                 ),
             },
-            None => Arc::new(LocalExecutorBuilder::new().build().unwrap()),
+            None => Arc::new(LocalExecutor {}),
         };
 
         let mut dice_builder = Dice::builder();
@@ -353,7 +347,7 @@ impl CommandGraph {
                     .eat_command(command, event_streamer)
                     .await
                     .map_err(|err| err.to_string());
-                oneshot_confirmer.send(rv);
+                let _ = oneshot_confirmer.send(rv);
             }
         }
     }
@@ -497,7 +491,7 @@ impl CommandGraph {
         if !err_vec.is_empty() {
             let txchan = tx.per_transaction_data().get_tx_channel();
             for err in err_vec.iter() {
-                txchan
+                let _ = txchan
                     .send(Event::graph_validate_error(err.to_string()))
                     .await;
             }
@@ -564,7 +558,7 @@ pub fn spawn_graph_server(cfg: ConfigureOtl) -> OtlServerHandle {
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::mpsc::{channel, unbounded_channel};
+    use tokio::sync::mpsc::{channel, unbounded_channel, Receiver};
 
     use super::*;
 

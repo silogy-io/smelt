@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::Command;
 use async_trait::async_trait;
-use otl_core::OtlErr;
+
 use otl_data::{CommandOutput, Event};
 use otl_events::{
     runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel},
@@ -17,24 +17,6 @@ use tokio::{
 };
 
 use super::common::{prepare_workspace, Workspace};
-
-pub struct LocalExecutorBuilder {
-    threads: usize,
-}
-
-impl LocalExecutorBuilder {
-    pub fn new() -> Self {
-        Self { threads: 4 }
-    }
-    pub fn threads(mut self, threads: usize) -> Self {
-        self.threads = threads;
-        self
-    }
-
-    pub fn build(self) -> Result<LocalExecutor, OtlErr> {
-        Ok(LocalExecutor {})
-    }
-}
 
 pub struct LocalExecutor {}
 

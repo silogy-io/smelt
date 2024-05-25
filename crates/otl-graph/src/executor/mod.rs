@@ -14,7 +14,7 @@ mod local;
 use async_trait::async_trait;
 #[cfg(feature = "docker")]
 pub use docker::DockerExecutor;
-pub use local::LocalExecutorBuilder;
+pub use local::LocalExecutor;
 
 #[async_trait]
 pub trait Executor: Send + Sync {

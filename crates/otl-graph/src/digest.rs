@@ -44,18 +44,14 @@ impl<Kind> CasDigest<Kind> {
     fn from_str(value: impl AsRef<str>) -> Result<Self, DigestError> {
         let str = value.as_ref();
         let val = hex::decode(str)?;
-        
-        val.try_into()
-                .map(|val| Self::new(val))
-                .map_err(|err| DigestError::WrongPayloadSize {
-                    expected: DIGEST_LEN,
-                    observed: err.len(),
-                })
-    }
-}
 
-pub struct CommandInstDigestKind {
-    _private: (),
+        val.try_into()
+            .map(|val| Self::new(val))
+            .map_err(|err| DigestError::WrongPayloadSize {
+                expected: DIGEST_LEN,
+                observed: err.len(),
+            })
+    }
 }
 
 pub struct CommandDefDigestKind {
@@ -63,5 +59,3 @@ pub struct CommandDefDigestKind {
 }
 
 pub type CommandDefDigest = CasDigest<CommandDefDigestKind>;
-
-pub type CommandInstDigest = CasDigest<CommandInstDigestKind>;
