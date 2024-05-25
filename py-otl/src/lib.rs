@@ -1,6 +1,3 @@
-use anyhow::anyhow;
-use otl_client::Subscriber;
-
 use otl_core::OtlErr;
 use otl_data::client_commands::ClientCommand;
 use otl_data::{client_commands::ConfigureOtl, Event};
@@ -15,7 +12,7 @@ use pyo3::{
 };
 
 use std::sync::Arc;
-use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedSender};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
     let otl_string = otl_err.to_string();
