@@ -109,6 +109,10 @@ impl Event {
         Self::new(Et::done(), trace_id)
     }
 
+    pub fn set_graph() -> Self {
+        Self::new(Et::set_graph(), "".to_string())
+    }
+
     pub fn command_output(&self) -> Option<CommandOutput> {
         self.et
             .as_ref()
@@ -137,6 +141,10 @@ impl Event {
             error_payload: payload,
         });
         Event::new(et, trace_id)
+    }
+
+    pub fn graph_validate_error(payload: String) -> Event {
+        Self::runtime_error(payload, "VALIDATE_ERROR".to_string())
     }
 }
 
@@ -173,6 +181,12 @@ impl Et {
     pub fn done() -> Self {
         crate::event::Et::Invoke(InvokeEvent {
             invoke_variant: Some(invoke_event::InvokeVariant::Done(AllCommandsDone {})),
+        })
+    }
+
+    pub fn set_graph() -> Self {
+        crate::event::Et::Invoke(InvokeEvent {
+            invoke_variant: Some(invoke_event::InvokeVariant::Set(SetGraph {})),
         })
     }
 }

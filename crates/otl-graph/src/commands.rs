@@ -1,5 +1,6 @@
 use allocative::Allocative;
 use dupe::Dupe;
+use futures::future;
 use hex::FromHexError;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
@@ -13,13 +14,15 @@ use std::{
 
 use otl_core::OtlErr;
 pub use otl_data::CommandOutput;
+
+use crate::digest::{CommandDefDigest, CommandInstDigest};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
     pub target_type: TargetType,
     pub script: Vec<String>,
     #[serde(default)]
-    pub dependent_files: Vec<PathBuf>,
+    pub dependent_files: Vec<String>,
     #[serde(default)]
     pub dependencies: Vec<String>,
     #[serde(default)]
@@ -46,58 +49,6 @@ pub enum CommandRtStatus {
     },
 }
 
-const DIGEST_LEN: usize = 20;
-pub struct CommandDefDigest([u8; DIGEST_LEN]);
-
-pub struct ExecDigest([u8; DIGEST_LEN]);
-
-trait Digester: Sized {
-    fn get_payload(&self) -> &[u8; DIGEST_LEN];
-    fn new(val: [u8; DIGEST_LEN]) -> Self;
-    fn to_string(&self) -> String {
-        hex::encode(&self.get_payload())
-    }
-    fn from_str(value: impl AsRef<str>) -> Result<Self, DigestError> {
-        let str = value.as_ref();
-        let val = hex::decode(str)?;
-        let rv =
-            val.try_into()
-                .map(|val| Self::new(val))
-                .map_err(|err| DigestError::WrongPayloadSize {
-                    expected: DIGEST_LEN,
-                    observed: err.len(),
-                });
-        rv
-    }
-}
-
-use thiserror::Error;
-#[derive(Error, Debug)]
-pub enum DigestError {
-    #[error("Could not convert hex string to command digest due to str format")]
-    FromHexError(#[from] FromHexError),
-    #[error("Digest wasn't the right size")]
-    WrongPayloadSize { expected: usize, observed: usize },
-}
-
-impl Digester for CommandDefDigest {
-    fn new(val: [u8; DIGEST_LEN]) -> Self {
-        Self(val)
-    }
-    fn get_payload(&self) -> &[u8; DIGEST_LEN] {
-        &self.0
-    }
-}
-
-impl Digester for ExecDigest {
-    fn new(val: [u8; DIGEST_LEN]) -> Self {
-        Self(val)
-    }
-    fn get_payload(&self) -> &[u8; DIGEST_LEN] {
-        &self.0
-    }
-}
-
 impl Command {
     pub fn def_digest(&self) -> CommandDefDigest {
         let mut hasher = Sha1::new();
@@ -111,8 +62,31 @@ impl Command {
         }
 
         let rv: [u8; 20] = hasher.finalize().into();
-        CommandDefDigest(rv)
+        CommandDefDigest::new(rv)
     }
+
+    //pub async fn inst_hash(&self) -> Option<CommandInstDigest> {
+    //    let file_digests = future::join_all(
+    //        self.dependent_files
+    //            .iter()
+    //            .cloned()
+    //            .map(|path| FileDigest::from_file(PathBuf::from(path))),
+    //    )
+    //    .await;
+
+    //    let mut swallower = Sha1::new();
+    //    for digest in file_digests {
+    //        match digest {
+    //            Ok(digest) => swallower.update(digest.get_payload()),
+    //            Err(err) => {
+    //                dbg!("Failed to get the digest of one of the files: {err}");
+    //                return None;
+    //            }
+    //        }
+    //    }
+
+    //    None
+    //}
 
     pub const fn script_file() -> &'static str {
         "command.sh"

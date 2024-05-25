@@ -23,6 +23,7 @@ derive_more = { workspace = true }
 async-trait = { workspace = true }
 fuzzy-matcher = { workspace = true }
 pythonize = { workspace = true }
+static_interner = { workspace = true }
 
 serde_json = { workspace = true }
 tokio-stream = "0.1.15"

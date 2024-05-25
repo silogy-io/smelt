@@ -40,6 +40,7 @@ message InvokeEvent {
   oneof InvokeVariant {
     ExecutionStart start = 5;
     AllCommandsDone done = 6;
+    SetGraph set = 7;
   }
 }
 
@@ -49,6 +50,7 @@ message ExecutionStart {
   string hostname = 3;
 }
 message AllCommandsDone {}
+message SetGraph {}
 
 enum OtlErrorType {
   // Client caused error

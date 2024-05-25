@@ -69,6 +69,24 @@ def maybe_get_message(
     return event
 
 
+def spin_for_message(
+    listener: PySubscriber, backoff: float = 0.2, time_out: int = 10):
+    """
+    Utility for spinning for a message 
+    """
+    time_passed = 0 
+    while time_passed < time_out:
+        message = maybe_get_message(listener, blocking=False)
+        if message:
+            return message
+        else:
+            time.sleep(backoff) 
+            time_passed += backoff
+
+    raise RuntimeError(f"Before timeout of {time_out} expired!")
+
+
+
 @dataclass
 class PyGraph:
     """
@@ -157,6 +175,8 @@ class PyGraph:
         self.controller.run_all_tests(maybe_type)
         self.runloop()
 
+    
+
     def rerun(
         self,
         rerun_callback: RerunCallback = default_target_rerun_callback,
@@ -223,6 +243,8 @@ class PyGraph:
         self.commands += commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
+        message = spin_for_message(self.listener)
+        OtlErrorHandler().process_message(message)
 
     @classmethod
     def init(cls, otl_targets: Dict[str, Target], commands: List[Command], cfg : ConfigureOtl = default_cfg()):

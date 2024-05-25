@@ -210,6 +210,7 @@ impl InvocationState {
         match invoke {
             InvokeVariant::Start(started) => self.to_start(started.clone()),
             InvokeVariant::Done(_) => self.to_completed(),
+            InvokeVariant::Set(_) => todo!(),
         }
     }
 
