@@ -243,8 +243,6 @@ class PyGraph:
         self.commands += commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
-        message = spin_for_message(self.listener)
-        OtlErrorHandler().process_message(message)
 
     @classmethod
     def init(cls, otl_targets: Dict[str, Target], commands: List[Command], cfg : ConfigureOtl = default_cfg()):

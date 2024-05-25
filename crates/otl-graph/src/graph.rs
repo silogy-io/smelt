@@ -16,7 +16,7 @@ use futures::{
 use otl_events::{
     self,
     runtime_support::{GetTraceId, GetTxChannel, SetOtlRoot, SetTraceId, SetTxChannel},
-    Event,
+    ClientCommandBundle, Event,
 };
 
 use dice::InjectedKey;
@@ -299,13 +299,13 @@ pub struct CommandGraph {
     /// regarding dependencies, etc
     pub(crate) all_commands: Vec<CommandRef>,
     /// The receiver for all ClientCommands -- these kick off executions of the dice graph
-    rx_chan: UnboundedReceiver<ClientCommand>,
+    rx_chan: UnboundedReceiver<ClientCommandBundle>,
     tx_chan: Sender<Event>,
 }
 
 impl CommandGraph {
     pub async fn new(
-        rx_chan: UnboundedReceiver<ClientCommand>,
+        rx_chan: UnboundedReceiver<ClientCommandBundle>,
         tx_chan: Sender<Event>,
         cfg: ConfigureOtl,
     ) -> Result<Self, OtlErr> {
@@ -344,17 +344,19 @@ impl CommandGraph {
     // This should hopefully never return
     pub async fn eat_commands(&mut self) {
         loop {
-            if let Some(ClientCommand {
-                client_commands: Some(command),
+            if let Some(ClientCommandBundle {
+                message:
+                    ClientCommand {
+                        client_commands: Some(command),
+                    },
+                oneshot_confirmer,
             }) = self.rx_chan.recv().await
             {
-                let rv = self.eat_command(command).await;
-                if let Err(_err) = rv {
-                    let _handleme = self
-                        .tx_chan
-                        .send(Event::client_error(_err.to_string()))
-                        .await;
-                }
+                let rv = self
+                    .eat_command(command)
+                    .await
+                    .map_err(|err| err.to_string());
+                oneshot_confirmer.send(rv);
             }
         }
     }
@@ -363,8 +365,7 @@ impl CommandGraph {
         match command {
             ClientCommands::Setter(SetCommands { command_content }) => {
                 let script = serde_yaml::from_str(&command_content)?;
-                self.set_commands(script).await?;
-                let _hdle = self.tx_chan.send(Event::set_graph()).await;
+                let res = self.set_commands(script).await?;
             }
             ClientCommands::Runone(RunOne { command_name }) => {
                 self.run_one_test(command_name).await?;
@@ -530,7 +531,7 @@ async fn handle_result(
 /// Handle for interacting with the OtlGraph
 pub struct OtlServerHandle {
     /// Channel for sending client commands -- covers stuff like running tests
-    pub tx_client: UnboundedSender<ClientCommand>,
+    pub tx_client: UnboundedSender<ClientCommandBundle>,
     /// Channel for receiving telemetry events from an execution
     ///
     /// Events include information like when each command starts, ends, is cancelled, etc

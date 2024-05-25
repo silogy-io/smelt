@@ -1,8 +1,12 @@
 pub mod runtime_support;
 
-pub use otl_data::Event;
+pub use otl_data::{client_commands::ClientCommand, Event};
 
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::{
+    fs::File,
+    io::AsyncWriteExt,
+    sync::oneshot::{Receiver, Sender},
+};
 
 pub use helpers::*;
 mod helpers {
@@ -52,5 +56,25 @@ mod helpers {
             .write_all(serde_json::to_vec(out)?.as_slice())
             .await?;
         Ok(())
+    }
+}
+
+pub type ClientCommandResp = Result<(), String>;
+
+pub struct ClientCommandBundle {
+    pub message: ClientCommand,
+    pub oneshot_confirmer: Sender<ClientCommandResp>,
+}
+
+impl ClientCommandBundle {
+    pub fn from_message(message: ClientCommand) -> (Self, Receiver<ClientCommandResp>) {
+        let (oneshot_confirmer, rcv) = tokio::sync::oneshot::channel();
+        (
+            Self {
+                message,
+                oneshot_confirmer,
+            },
+            rcv,
+        )
     }
 }

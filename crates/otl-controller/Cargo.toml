@@ -11,6 +11,7 @@ edition.workspace = true
 otl-graph = { workspace = true }
 otl-client = { workspace = true }
 otl-data = { workspace = true }
+otl-events = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }

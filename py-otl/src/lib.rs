@@ -5,6 +5,7 @@ use otl_core::OtlErr;
 use otl_data::client_commands::ClientCommand;
 use otl_data::{client_commands::ConfigureOtl, Event};
 
+use otl_events::{ClientCommandBundle, ClientCommandResp};
 use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
@@ -12,7 +13,7 @@ use pyo3::{
     types::{PyBytes, PyType},
 };
 
-use std::{sync::Arc};
+use std::sync::Arc;
 use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
 
 pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
@@ -36,7 +37,7 @@ pub struct PyController {
 #[pyclass]
 pub struct PySubscriber {
     recv_chan: UnboundedReceiver<Arc<Event>>,
-    client_handle: UnboundedSender<ClientCommand>,
+    client_handle: UnboundedSender<ClientCommandBundle>,
 }
 
 struct PySubscriberFwd {
@@ -45,7 +46,7 @@ struct PySubscriberFwd {
 
 impl PySubscriber {
     pub(crate) fn create_subscriber(
-        client_handle: UnboundedSender<ClientCommand>,
+        client_handle: UnboundedSender<ClientCommandBundle>,
     ) -> (PySubscriber, Box<PySubscriberFwd>) {
         let (send_chan, recv_chan) = tokio::sync::mpsc::unbounded_channel();
         (
@@ -69,6 +70,26 @@ fn client_channel_err(_in_err: impl std::error::Error) -> PyErr {
     PyRuntimeError::new_err("Channel error trying to send a command to the client")
 }
 
+fn handle_client_resp(resp: Result<ClientCommandResp, impl std::error::Error>) -> PyResult<()> {
+    match resp {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(str)) => Err(PyRuntimeError::new_err(format!(
+            "Client command failed with error {str}"
+        ))),
+        Err(err) => Err(PyRuntimeError::new_err(err.to_string())),
+    }
+}
+
+fn submit_message(
+    tx_client: &UnboundedSender<ClientCommandBundle>,
+    message: ClientCommand,
+) -> Result<tokio::sync::oneshot::Receiver<ClientCommandResp>, PyErr> {
+    let (bundle, recv) = ClientCommandBundle::from_message(message);
+
+    tx_client.send(bundle).map_err(client_channel_err)?;
+    Ok(recv)
+}
+
 #[pymethods]
 impl PyController {
     #[new]
@@ -82,33 +103,26 @@ impl PyController {
     }
 
     pub fn set_graph(&self, graph: String) -> PyResult<()> {
-        self.handle
-            .tx_client
-            .send(ClientCommand::send_graph(graph))
-            .map_err(client_channel_err)?;
-        Ok(())
+        let recv = submit_message(&self.handle.tx_client, ClientCommand::send_graph(graph))?;
+
+        let resp = recv.blocking_recv();
+        handle_client_resp(resp)
     }
 
     pub fn run_all_tests(&self, tt: String) -> PyResult<()> {
-        self.handle
-            .tx_client
-            .send(ClientCommand::execute_type(tt))
+        submit_message(&self.handle.tx_client, ClientCommand::execute_type(tt))
             .map_err(client_channel_err)?;
         Ok(())
     }
 
     pub fn run_one_test(&self, test: String) -> PyResult<()> {
-        self.handle
-            .tx_client
-            .send(ClientCommand::execute_command(test))
+        submit_message(&self.handle.tx_client, ClientCommand::execute_command(test))
             .map_err(client_channel_err)?;
         Ok(())
     }
 
     pub fn run_many_tests(&self, tests: Vec<String>) -> PyResult<()> {
-        self.handle
-            .tx_client
-            .send(ClientCommand::execute_many(tests))
+        submit_message(&self.handle.tx_client, ClientCommand::execute_many(tests))
             .map_err(client_channel_err)?;
         Ok(())
     }
@@ -150,12 +164,5 @@ impl PySubscriber {
             Err(TryRecvError::Empty) => Ok(None),
             Err(_) => Err(PyRuntimeError::new_err("Event channel closed unexpectedly")),
         }
-    }
-
-    pub fn send_client_message(&mut self, client_message: Bound<'_, PyBytes>) -> Result<(), PyErr> {
-        let val = ClientCommand::decode(client_message.as_bytes())
-            .map_err(|_| PyRuntimeError::new_err("Could not deserialize client message"))?;
-        self.client_handle.send(val).map_err(client_channel_err)?;
-        Ok(())
     }
 }
