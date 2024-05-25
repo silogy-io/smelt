@@ -1,5 +1,6 @@
 use futures::{stream::FuturesUnordered, StreamExt};
 use otl_data::client_commands::{ClientCommand, ConfigureOtl};
+use otl_events::ClientCommandBundle;
 use std::{future::Future, sync::Arc};
 
 use otl_client::Subscriber;
@@ -38,7 +39,7 @@ pub struct OtlControllerHandle {
     pub send_chan: Sender<Box<dyn Subscriber>>,
     /// Used to kick off actual client commands like running many tests
     /// ClientCommand is the thin interface
-    pub tx_client: UnboundedSender<ClientCommand>,
+    pub tx_client: UnboundedSender<ClientCommandBundle>,
 }
 
 /// Top level struct that contains all state on the "server side"

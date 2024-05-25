@@ -4,7 +4,6 @@
     - echo "hello world"
   dependencies: []
   # if glob empty, also fail
-  outputs: ["simulator"]
   runtime:
     num_cpus: 1
     max_memory_mb: 1024
@@ -26,8 +25,7 @@
   script:
     - echo "hello world 3"
     - cat myout
-  dependencies: [stim]
-  require_files: ["simulator"]
+  dependencies: ["this_dep_doesnt_exist"]
   outputs: []
   runtime:
     num_cpus: 1

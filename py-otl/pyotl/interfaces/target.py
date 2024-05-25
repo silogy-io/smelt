@@ -57,4 +57,15 @@ class Target(ABC):
         return RuntimeRequirements.default(self.runtime_env_vars())
 
     def get_dependencies(self) -> List[TargetRef]:
+        """
+        Returns the targets that this target depends on
+        """
+        return []
+
+    def get_dependent_files(self) -> List[str]:
+        """
+        Returns the files that this target depends on
+
+        If any of these files change across invocations, the target will be re-executed
+        """
         return []

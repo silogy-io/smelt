@@ -22,6 +22,8 @@ class Command:
     A list of bash commands that will be executed in sequence
     """
     dependencies: List[CommandRef]
+    dependent_files: List[str]
+
     """
     Paths to files this command creates
     """
@@ -35,6 +37,7 @@ class Command:
         script = target.gen_script()
         runtime = target.runtime_requirements()
         dependencies = target.get_dependencies()
+        dependent_files = target.get_dependent_files()
         default_env = target.required_runtime_env_vars(default_root)
         runtime.env.update(default_env)
 
@@ -46,6 +49,7 @@ class Command:
             script=script,
             runtime=runtime,
             dependencies=dependencies,
+            dependent_files=dependent_files,
             outputs=outputs,
         )
 
@@ -54,14 +58,16 @@ class Command:
         name = data["name"]
         target_type = data["target_type"]
         script = data["script"]
-        dependencies = data["dependencies"]
-        outputs = data["outputs"]
+        dependencies = data["dependencies"] if "dependencies" in data else []
+        dependent_files = data["dependent_files"] if "dependent_files" in data else []
+        outputs = data["outputs"] if "outputs" in data else []
         runtime = RuntimeRequirements.from_dict(data["runtime"])
 
         return cls(
             name=name,
             target_type=target_type,
             script=script,
+            dependent_files=dependent_files,
             dependencies=dependencies,
             outputs=outputs,
             runtime=runtime,

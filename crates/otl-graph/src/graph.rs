@@ -1,9 +1,10 @@
 use allocative::Allocative;
 use otl_data::client_commands::{client_command::ClientCommands, *};
+use static_interner::Intern;
 
 use derive_more::Display;
 use dice::{
-    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
@@ -15,12 +16,12 @@ use futures::{
 use otl_events::{
     self,
     runtime_support::{GetTraceId, GetTxChannel, SetOtlRoot, SetTraceId, SetTxChannel},
-    Event,
+    ClientCommandBundle, Event,
 };
 
 use dice::InjectedKey;
 use futures::FutureExt;
-use std::{path::PathBuf, str::FromStr, sync::Arc};
+use std::{fmt::Display, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
@@ -47,17 +48,8 @@ pub struct QueryCommandRef(Arc<Command>);
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct LookupCommand(Arc<String>);
 
-impl From<QueryCommandRef> for CommandRef {
-    fn from(value: QueryCommandRef) -> Self {
-        Self(value.0)
-    }
-}
-
-impl From<CommandRef> for QueryCommandRef {
-    fn from(value: CommandRef) -> Self {
-        Self(value.0)
-    }
-}
+#[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Display, Allocative)]
+pub struct LookupFileMaker(Arc<String>);
 
 impl LookupCommand {
     fn from_str_ref(strref: &str) -> Self {
@@ -65,10 +57,59 @@ impl LookupCommand {
     }
 }
 
-impl InjectedKey for LookupCommand {
-    type Value = CommandRef;
+impl LookupFileMaker {
+    fn from_str_ref(strref: &str) -> Self {
+        Self(Arc::new(strref.to_string()))
+    }
+}
+
+impl From<LookupCommand> for OtlErr {
+    fn from(lup: LookupCommand) -> OtlErr {
+        OtlErr::MissingCommandDependency {
+            missing_dep_name: lup.0.to_string(),
+        }
+    }
+}
+
+impl From<LookupFileMaker> for OtlErr {
+    fn from(lup: LookupFileMaker) -> OtlErr {
+        OtlErr::MissingFileDependency {
+            missing_file_name: lup.0.to_string(),
+        }
+    }
+}
+
+#[async_trait]
+impl Key for LookupCommand {
+    type Value = Result<CommandRef, LookupCommand>;
+    async fn compute(
+        &self,
+        ctx: &mut DiceComputations,
+        _cancellations: &CancellationContext,
+    ) -> Self::Value {
+        Err(self.clone())
+    }
+
+    //TODO: set this
     fn equality(x: &Self::Value, y: &Self::Value) -> bool {
-        x == y
+        false
+    }
+}
+
+#[async_trait]
+impl Key for LookupFileMaker {
+    type Value = Result<CommandRef, LookupFileMaker>;
+
+    async fn compute(
+        &self,
+        ctx: &mut DiceComputations,
+        _cancellations: &CancellationContext,
+    ) -> Self::Value {
+        Err(self.clone())
+    }
+
+    fn equality(x: &Self::Value, y: &Self::Value) -> bool {
+        false
     }
 }
 
@@ -81,9 +122,15 @@ impl Key for CommandRef {
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         let deps = self.0.dependencies.as_slice();
-        let command_deps = get_command_deps(ctx, deps).await?;
+        let req_files = self.0.dependent_files.as_slice();
+        let (command_deps, file_command_deps) = get_command_deps(ctx, deps, req_files).await;
 
-        let futs = ctx.compute_many(command_deps.into_iter().map(|val| {
+        let all_deps: Vec<CommandRef> = command_deps
+            .into_iter()
+            .chain(file_command_deps.into_iter())
+            .collect::<Result<Vec<CommandRef>, OtlErr>>()?;
+
+        let futs = ctx.compute_many(all_deps.into_iter().map(|val| {
             DiceComputations::declare_closure(
                 move |ctx: &mut DiceComputations| -> BoxFuture<Self::Value> {
                     ctx.compute(&val)
@@ -111,7 +158,7 @@ impl Key for CommandRef {
                 ctx.global_data(),
             )
             .await
-            .map(|val| val.command_output().unwrap());
+            .map(|val| val.command_output().expect("We couldnt execute"));
 
         let output = output.map_err(|err| Arc::new(OtlErr::ExecutorFailed(err.to_string())))?;
 
@@ -128,18 +175,44 @@ impl Key for CommandRef {
 
 async fn get_command_deps(
     ctx: &mut DiceComputations<'_>,
-    var: &[String],
-) -> Result<Vec<CommandRef>, OtlErr> {
-    let futs = ctx.compute_many(var.iter().map(|val| {
+    dep_target_names: &[String],
+    dep_file_names: &[String],
+) -> (
+    Vec<Result<CommandRef, OtlErr>>,
+    Vec<Result<CommandRef, OtlErr>>,
+) {
+    fn flatten_res<S: Into<OtlErr>>(
+        res: Result<Result<CommandRef, S>, DiceError>,
+    ) -> Result<CommandRef, OtlErr> {
+        match res {
+            Ok(Ok(val)) => Ok(val),
+            Ok(Err(err)) => Err(err.into()),
+            Err(dice_err) => Err(OtlErr::DiceFail(dice_err)),
+        }
+    }
+    let target_deps = ctx.compute_many(dep_target_names.iter().map(|val| {
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
                 let val = LookupCommand::from_str_ref(val);
-                ctx.compute(&val).map_err(OtlErr::DiceFail).boxed()
+                ctx.compute(&val).map(|val| flatten_res(val)).boxed()
             },
         )
     }));
 
-    future::join_all(futs).await.into_iter().collect()
+    let comm_deps = future::join_all(target_deps).await;
+
+    let filedeps = ctx.compute_many(dep_file_names.iter().map(|val| {
+        DiceComputations::declare_closure(
+            move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
+                let val = LookupFileMaker::from_str_ref(val);
+                ctx.compute(&val).map(|res| flatten_res(res)).boxed()
+            },
+        )
+    }));
+
+    let file_deps = future::join_all(filedeps).await;
+
+    (comm_deps, file_deps)
 }
 
 pub trait CommandSetter {
@@ -199,8 +272,11 @@ impl CommandExecutor for DiceComputations<'_> {
 impl CommandSetter for DiceTransactionUpdater {
     fn add_command(&mut self, command: CommandRef) -> Result<(), OtlErr> {
         let lookup = LookupCommand::from_str_ref(&command.0.name);
-
-        self.changed_to(vec![(lookup, command)])?;
+        for file in command.0.outputs.iter() {
+            let file_maker = LookupFileMaker(Arc::new(file.clone()));
+            self.changed_to(vec![(file_maker, Ok(command.clone()))])?;
+        }
+        self.changed_to(vec![(lookup, Ok(command))])?;
         Ok(())
     }
 
@@ -223,13 +299,13 @@ pub struct CommandGraph {
     /// regarding dependencies, etc
     pub(crate) all_commands: Vec<CommandRef>,
     /// The receiver for all ClientCommands -- these kick off executions of the dice graph
-    rx_chan: UnboundedReceiver<ClientCommand>,
+    rx_chan: UnboundedReceiver<ClientCommandBundle>,
     tx_chan: Sender<Event>,
 }
 
 impl CommandGraph {
     pub async fn new(
-        rx_chan: UnboundedReceiver<ClientCommand>,
+        rx_chan: UnboundedReceiver<ClientCommandBundle>,
         tx_chan: Sender<Event>,
         cfg: ConfigureOtl,
     ) -> Result<Self, OtlErr> {
@@ -268,17 +344,19 @@ impl CommandGraph {
     // This should hopefully never return
     pub async fn eat_commands(&mut self) {
         loop {
-            if let Some(ClientCommand {
-                client_commands: Some(command),
+            if let Some(ClientCommandBundle {
+                message:
+                    ClientCommand {
+                        client_commands: Some(command),
+                    },
+                oneshot_confirmer,
             }) = self.rx_chan.recv().await
             {
-                let rv = self.eat_command(command).await;
-                if let Err(_err) = rv {
-                    let _handleme = self
-                        .tx_chan
-                        .send(Event::client_error(_err.to_string()))
-                        .await;
-                }
+                let rv = self
+                    .eat_command(command)
+                    .await
+                    .map_err(|err| err.to_string());
+                oneshot_confirmer.send(rv);
             }
         }
     }
@@ -287,7 +365,7 @@ impl CommandGraph {
         match command {
             ClientCommands::Setter(SetCommands { command_content }) => {
                 let script = serde_yaml::from_str(&command_content)?;
-                self.set_commands(script).await?;
+                let res = self.set_commands(script).await?;
             }
             ClientCommands::Runone(RunOne { command_name }) => {
                 self.run_one_test(command_name).await?;
@@ -310,7 +388,12 @@ impl CommandGraph {
             .collect();
         ctx.add_commands(commands.iter().cloned())?;
         self.all_commands = commands;
-        let _ctx = ctx.commit().await;
+        let mut ctx = ctx.commit().await;
+        self.validate_graph(&mut ctx)
+            .await
+            .map_err(|vals| OtlErr::CommandSettingFailed {
+                reason: format!("{} invalid dependencies found", vals.len()),
+            })?;
         Ok(())
     }
 
@@ -358,7 +441,7 @@ impl CommandGraph {
         let mut refs = Vec::new();
 
         for test_name in test_names {
-            let val = tx.compute(&LookupCommand(Arc::new(test_name))).await?;
+            let val = tx.compute(&LookupCommand(Arc::new(test_name))).await??;
             refs.push(val);
         }
 
@@ -374,13 +457,10 @@ impl CommandGraph {
     }
 
     pub async fn run_one_test(&self, test_name: impl Into<String>) -> Result<(), OtlErr> {
-        let ctx = self.dice.updater();
-        let mut tx = ctx.commit().await;
+        let mut tx = self.start_tx().await?;
         let command = tx
             .compute(&LookupCommand(Arc::new(test_name.into())))
-            .await?;
-
-        let mut tx = self.start_tx().await?;
+            .await??;
 
         tokio::task::spawn(async move {
             let output = tx.execute_command(&command).await;
@@ -389,6 +469,41 @@ impl CommandGraph {
             handle_result(vec![output], val, trace).await;
         });
         Ok(())
+    }
+
+    async fn validate_graph(&self, tx: &mut DiceTransaction) -> Result<(), Vec<OtlErr>> {
+        let futs = tx.compute_many(self.all_commands.iter().map(|val| {
+            DiceComputations::declare_closure(move |ctx: &mut DiceComputations| {
+                get_command_deps(
+                    ctx,
+                    val.0.dependencies.as_slice(),
+                    val.0.dependent_files.as_slice(),
+                )
+                .boxed()
+            })
+        }));
+        let mut err_vec = vec![];
+        let all_deps: Vec<_> = future::join_all(futs).await.into_iter().collect();
+        for (command_deps, file_deps) in all_deps {
+            for dep in command_deps.into_iter().chain(file_deps) {
+                if let Err(err) = dep {
+                    err_vec.push(err)
+                }
+            }
+        }
+
+        if err_vec.len() != 0 {
+            let txchan = tx.global_data().get_tx_channel();
+            for err in err_vec.iter() {
+                txchan
+                    .send(Event::graph_validate_error(err.to_string()))
+                    .await;
+            }
+
+            Err(err_vec)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -416,7 +531,7 @@ async fn handle_result(
 /// Handle for interacting with the OtlGraph
 pub struct OtlServerHandle {
     /// Channel for sending client commands -- covers stuff like running tests
-    pub tx_client: UnboundedSender<ClientCommand>,
+    pub tx_client: UnboundedSender<ClientCommandBundle>,
     /// Channel for receiving telemetry events from an execution
     ///
     /// Events include information like when each command starts, ends, is cancelled, etc

@@ -23,6 +23,12 @@ pub enum OtlErr {
     BadTargetType(String),
     #[error("Executor failed to execute with error : {0}")]
     ExecutorFailed(String),
+    #[error("Dependency for a command named {missing_dep_name} was found, but no such command was declared")]
+    MissingCommandDependency { missing_dep_name: String },
+    #[error("Dependency for a command named {missing_file_name} was found, but no such command was declared")]
+    MissingFileDependency { missing_file_name: String },
+    #[error("Setting commands failed; reason is {reason}")]
+    CommandSettingFailed { reason: String },
 }
 
 impl Allocative for OtlErr {

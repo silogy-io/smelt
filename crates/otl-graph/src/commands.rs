@@ -1,7 +1,9 @@
-use serde::{Deserialize, Serialize};
-
 use allocative::Allocative;
 use dupe::Dupe;
+use futures::future;
+use hex::FromHexError;
+use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 
 use std::{
     fmt,
@@ -12,12 +14,18 @@ use std::{
 
 use otl_core::OtlErr;
 pub use otl_data::CommandOutput;
+
+use crate::digest::{CommandDefDigest, CommandInstDigest};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
     pub target_type: TargetType,
     pub script: Vec<String>,
+    #[serde(default)]
+    pub dependent_files: Vec<String>,
+    #[serde(default)]
     pub dependencies: Vec<String>,
+    #[serde(default)]
     pub outputs: Vec<String>,
     pub runtime: Runtime,
 }
@@ -42,6 +50,44 @@ pub enum CommandRtStatus {
 }
 
 impl Command {
+    pub fn def_digest(&self) -> CommandDefDigest {
+        let mut hasher = Sha1::new();
+        hasher.update(&self.name);
+        hasher.update(&self.target_type.to_string());
+        for line in self.script.iter() {
+            hasher.update(line);
+        }
+        for dep in self.dependencies.iter() {
+            hasher.update(dep);
+        }
+
+        let rv: [u8; 20] = hasher.finalize().into();
+        CommandDefDigest::new(rv)
+    }
+
+    //pub async fn inst_hash(&self) -> Option<CommandInstDigest> {
+    //    let file_digests = future::join_all(
+    //        self.dependent_files
+    //            .iter()
+    //            .cloned()
+    //            .map(|path| FileDigest::from_file(PathBuf::from(path))),
+    //    )
+    //    .await;
+
+    //    let mut swallower = Sha1::new();
+    //    for digest in file_digests {
+    //        match digest {
+    //            Ok(digest) => swallower.update(digest.get_payload()),
+    //            Err(err) => {
+    //                dbg!("Failed to get the digest of one of the files: {err}");
+    //                return None;
+    //            }
+    //        }
+    //    }
+
+    //    None
+    //}
+
     pub const fn script_file() -> &'static str {
         "command.sh"
     }

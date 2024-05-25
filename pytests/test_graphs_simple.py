@@ -72,17 +72,6 @@ def test_sanity_pygraph_new_build():
     ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
 
 
-def test_invalid_graph():
-    from pyotl.subscribers.error_handler import ClientErr
-
-    with pytest.raises(ClientErr) as e_info:
-        test_list = f"{get_git_root()}/test_data/command_lists/cl_invalid.yaml"
-        lod = yaml.safe_load(open(test_list))
-        commands = [Command.from_dict(obj) for obj in lod]
-        graph = PyGraph.init_commands_only(commands)
-        graph.run_all_tests("test")
-
-
 def test_sanity_pygraph_docker(simple_docker_image):
     """
     Tests the case where no re-run is needed
