@@ -76,6 +76,7 @@ class InvokeEvent(betterproto.Message):
 
     start: "ExecutionStart" = betterproto.message_field(5, group="InvokeVariant")
     done: "AllCommandsDone" = betterproto.message_field(6, group="InvokeVariant")
+    set: "SetGraph" = betterproto.message_field(7, group="InvokeVariant")
 
 
 @dataclass
@@ -87,6 +88,11 @@ class ExecutionStart(betterproto.Message):
 
 @dataclass
 class AllCommandsDone(betterproto.Message):
+    pass
+
+
+@dataclass
+class SetGraph(betterproto.Message):
     pass
 
 
