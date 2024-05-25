@@ -23,7 +23,7 @@ pub fn arc_err_to_py(otl_err: Arc<OtlErr>) -> PyErr {
 #[pymodule]
 fn pyotl(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyController>()?;
-    m.add_class::<PySubscriber>()?;
+    m.add_class::<PyEventStream>()?;
     Ok(())
 }
 
@@ -33,11 +33,11 @@ pub struct PyController {
 }
 
 #[pyclass]
-pub struct PySubscriber {
+pub struct PyEventStream {
     recv_chan: Receiver<Event>,
 }
 
-impl PySubscriber {
+impl PyEventStream {
     pub(crate) fn create_subscriber(recv_chan: Receiver<Event>) -> Self {
         Self { recv_chan }
     }
@@ -87,28 +87,28 @@ impl PyController {
         handle_client_resp(resp)
     }
 
-    pub fn run_all_tests(&self, tt: String) -> PyResult<PySubscriber> {
+    pub fn run_all_tests(&self, tt: String) -> PyResult<PyEventStream> {
         self.run_tests(ClientCommand::execute_type(tt))
     }
 
-    pub fn run_one_test(&self, test: String) -> PyResult<PySubscriber> {
+    pub fn run_one_test(&self, test: String) -> PyResult<PyEventStream> {
         self.run_tests(ClientCommand::execute_command(test))
     }
 
-    pub fn run_many_tests(&self, tests: Vec<String>) -> PyResult<PySubscriber> {
+    pub fn run_many_tests(&self, tests: Vec<String>) -> PyResult<PyEventStream> {
         self.run_tests(ClientCommand::execute_many(tests))
     }
 }
 
 impl PyController {
-    fn run_tests(&self, command: ClientCommand) -> PyResult<PySubscriber> {
+    fn run_tests(&self, command: ClientCommand) -> PyResult<PyEventStream> {
         let EventStreams { event_stream, .. } =
             submit_message(&self.handle.tx_client, command).map_err(client_channel_err)?;
-        Ok(PySubscriber::create_subscriber(event_stream))
+        Ok(PyEventStream::create_subscriber(event_stream))
     }
 }
 #[pymethods]
-impl PySubscriber {
+impl PyEventStream {
     pub fn pop_message_blocking<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let val = self
             .recv_chan

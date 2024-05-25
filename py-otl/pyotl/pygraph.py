@@ -3,7 +3,7 @@ from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
 from pyotl.otl_muncher import lower_targets_to_commands, parse_otl
 from pyotl.path_utils import get_git_root, memoize
-from pyotl.pyotl import PyController, PySubscriber
+from pyotl.pyotl import PyController, PyEventStream
 from pyotl.rc import OtlRcHolder
 from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
@@ -55,7 +55,7 @@ def default_target_rerun_callback(
 
 
 def maybe_get_message(
-    listener: PySubscriber, blocking: bool = False
+    listener: PyEventStream, blocking: bool = False
 ) -> Optional[Event]:
     if blocking:
         message = listener.pop_message_blocking()
@@ -70,7 +70,7 @@ def maybe_get_message(
 
 
 def spin_for_message(
-    listener: PySubscriber, backoff: float = 0.2, time_out: int = 10):
+    listener: PyEventStream, backoff: float = 0.2, time_out: int = 10):
     """
     Utility for spinning for a message 
     """
@@ -108,7 +108,7 @@ class PyGraph:
     done_tracker : IsDoneSubscriber
     retcode_tracker : RetcodeTracker
 
-    def runloop(self, listener: PySubscriber):
+    def runloop(self, listener: PyEventStream):
         errhandler = OtlErrorHandler()
         with OutputConsole() as console:
             while not self.done_tracker.is_done:
@@ -125,7 +125,7 @@ class PyGraph:
                     time.sleep(0.01)
 
     def console_runloop(
-            self, test_name: str, listener: PySubscriber, sink: StdoutSink
+            self, test_name: str, listener: PyEventStream, sink: StdoutSink
     ) -> Generator[bool, None, None]:
         """
         Generator that will try to consume as many `Event` messages as possible
