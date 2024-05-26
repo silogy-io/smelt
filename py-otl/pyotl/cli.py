@@ -8,7 +8,7 @@ from pyotl.interfaces import OtlTargetType
 from pyotl.otl_muncher import parse_otl
 from pyotl.pygraph import create_graph
 from pyotl.serde import SafeDataclassDumper
-from pyotl.pyotlexec.naive import execute_command_list
+
 from typing import Optional
 from typer import Typer, Argument, Exit
 
