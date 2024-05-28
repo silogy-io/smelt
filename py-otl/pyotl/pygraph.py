@@ -1,14 +1,14 @@
 from typing import Dict, Generator, List, Optional, Tuple, cast
 from pyotl.interfaces import Command, OtlTargetType, Target
 from dataclasses import dataclass
-from pyotl.otl_muncher import lower_targets_to_commands, parse_otl
-from pyotl.path_utils import get_git_root, memoize
+from pyotl.interfaces.paths import OtlPath
+from pyotl.otl_muncher import parse_otl
+from pyotl.path_utils import relatavize_inp_path
 from pyotl.pyotl import PyController, PyEventStream
 from pyotl.rc import OtlRcHolder
 from pyotl.rerun import DerivedTarget, RerunCallback
 import yaml
 import time
-import os
 
 
 
@@ -26,14 +26,16 @@ from copy import deepcopy
 from pyotl.subscribers.stdout import StdoutPrinter, StdoutSink
 
 
-@memoize
-def default_cfg() -> ConfigureOtl:
+
+def default_cfg(cmd_path: OtlPath) -> ConfigureOtl:
     rv = ConfigureOtl()
     rc = OtlRcHolder.current_rc()
 
     rv.job_slots = rc.jobs
     rv.otl_root = rc.otl_root
+    rv.command_def_path = cmd_path.as_str
     rv.local = CfgLocal()
+    
 
     return rv
 
@@ -92,6 +94,7 @@ class PyGraph:
     """
     PyGraph is the python wrapper for the otl runtime.
     """
+    
 
     otl_targets: Optional[Dict[str, Target]]
     """ 
@@ -245,7 +248,7 @@ class PyGraph:
         self.controller.set_graph(commands_as_str)
 
     @classmethod
-    def init(cls, otl_targets: Dict[str, Target], commands: List[Command], cfg : ConfigureOtl = default_cfg()):
+    def init(cls, otl_targets: Dict[str, Target], commands: List[Command],  cfg : ConfigureOtl ):
         cfg_bytes = bytes(cfg)
         graph = PyController(cfg_bytes)
         
@@ -258,16 +261,26 @@ class PyGraph:
     # This is a testing utility
     @classmethod
     def init_commands_only(cls, commands: List[Command]):
-        return cls.init({}, commands)
+        cfg = default_cfg(OtlPath.from_str("."))
+        return cls.init({}, commands, cfg)
+
+def _create_cfg(otl_test_list: str) -> ConfigureOtl:
+    command_def_path = relatavize_inp_path(OtlRcHolder.current_rc().otl_root,otl_test_list)
+    cfg = default_cfg(command_def_path)
+    return cfg
 
 
-def create_graph(otl_test_list: str, cfg : ConfigureOtl = default_cfg()) -> PyGraph:
+def create_graph(otl_test_list: str) -> PyGraph:
+    cfg = _create_cfg(otl_test_list)
     targets, command_list = parse_otl(otl_test_list)
-    return PyGraph.init(targets, command_list, cfg)
+    rv = PyGraph.init(targets, command_list, cfg)
+    return rv
 
 def create_graph_with_docker(otl_test_list: str, docker_img: str) -> PyGraph:
-    cfg = default_cfg()
+    cfg = _create_cfg(otl_test_list)
     cfg.docker = CfgDocker()
     cfg.docker.image_name = docker_img
     cfg.docker.additional_mounts = {}
-    return create_graph(otl_test_list)
+    targets, command_list = parse_otl(otl_test_list)
+    rv = PyGraph.init(targets, command_list, cfg)
+    return rv                                        

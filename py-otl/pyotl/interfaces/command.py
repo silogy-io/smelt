@@ -25,7 +25,7 @@ class Command:
     dependent_files: List[str]
 
     """
-    Paths to files this command creates
+    Paths to required files this command creates -- if these outputs do not exist after a test has executed, we crash 
     """
     outputs: List[str]
     runtime: RuntimeRequirements

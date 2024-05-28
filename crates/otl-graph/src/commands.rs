@@ -1,7 +1,6 @@
 use allocative::Allocative;
 use dupe::Dupe;
 
-
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
@@ -15,38 +14,20 @@ use std::{
 use otl_core::OtlErr;
 pub use otl_data::CommandOutput;
 
-use crate::digest::{CommandDefDigest};
+use crate::digest::CommandDefDigest;
+use otl_core::CommandDefPath;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
     pub target_type: TargetType,
     pub script: Vec<String>,
     #[serde(default)]
-    pub dependent_files: Vec<String>,
+    pub dependent_files: Vec<CommandDefPath>,
     #[serde(default)]
     pub dependencies: Vec<String>,
     #[serde(default)]
-    pub outputs: Vec<String>,
+    pub outputs: Vec<CommandDefPath>,
     pub runtime: Runtime,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Allocative)]
-pub enum CommandRtStatus {
-    /// This command, nor its dependencies, have started running
-    Unscheduled,
-    //
-    Scheduled {
-        scheduled_time: std::time::Instant,
-    },
-    Running {
-        scheduled_time: std::time::Instant,
-        started_time: std::time::Instant,
-    },
-    Finished {
-        scheduled_time: std::time::Instant,
-        started_time: std::time::Instant,
-        finished_time: std::time::Instant,
-    },
 }
 
 impl Command {
@@ -158,6 +139,8 @@ pub struct Runtime {
     pub max_memory_mb: u32,
     pub timeout: u32,
     pub env: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub command_run_dir: Option<String>,
 }
 
 impl fmt::Display for Command {

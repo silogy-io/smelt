@@ -9,6 +9,7 @@ edition.workspace = true
 [dependencies]
 tokio = { workspace = true }
 otl-data = { workspace = true }
+otl-core = { workspace = true }
 
 dice = { workspace = true }
 serde = { workspace = true }

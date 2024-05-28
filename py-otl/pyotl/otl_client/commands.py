@@ -44,10 +44,14 @@ class ConfigureOtl(betterproto.Message):
     provide this when creating an otl handle
     """
 
+    # Should be an absolute path
     otl_root: str = betterproto.string_field(1)
-    job_slots: int = betterproto.uint64_field(2)
-    local: "CfgLocal" = betterproto.message_field(3, group="InitExecutor")
-    docker: "CfgDocker" = betterproto.message_field(4, group="InitExecutor")
+    # relative to otl_root -- this is an OtlPath
+    command_def_path: str = betterproto.string_field(2)
+    # number of slots the entire executor has -- analogous to job slots in make
+    job_slots: int = betterproto.uint64_field(3)
+    local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")
+    docker: "CfgDocker" = betterproto.message_field(11, group="InitExecutor")
 
 
 @dataclass

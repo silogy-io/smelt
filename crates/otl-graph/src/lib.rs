@@ -3,6 +3,7 @@ mod digest;
 mod dispatcher;
 mod executor;
 mod graph;
+mod paths;
 mod utils;
 
 pub use commands::*;

@@ -3,7 +3,7 @@ from abc import ABC
 from enum import Enum
 from typing import Any, List, Dict, Literal
 from pyotl.interfaces.runtime import RuntimeRequirements
-from pyotl.interfaces.paths import OtlPath
+from pyotl.interfaces.paths import OtlFilePath
 from pyotl.path_utils import get_git_root
 
 
@@ -30,7 +30,7 @@ class Target(ABC):
     def __post_init__(self):
         self.injected_state = {}
 
-    def get_outputs(self) -> Dict[str, OtlPath]:
+    def get_outputs(self) -> Dict[str, OtlFilePath]:
         return {}
 
     def gen_script(self) -> List[str]:
