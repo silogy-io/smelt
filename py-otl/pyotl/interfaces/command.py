@@ -6,6 +6,8 @@ from dataclasses import dataclass, asdict
 
 CommandRef = str
 
+CommandLiterals = Literal["test", "stimulus", "build"]
+
 
 @dataclass
 class Command:
@@ -16,7 +18,7 @@ class Command:
     """
 
     name: str
-    target_type: str
+    target_type: Literal["test", "stimulus", "build"]
     script: List[str]
     """
     A list of bash commands that will be executed in sequence

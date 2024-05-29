@@ -94,7 +94,6 @@ class PyGraph:
     """
     PyGraph is the python wrapper for the otl runtime.
     """
-    
 
     otl_targets: Optional[Dict[str, Target]]
     """ 
@@ -107,6 +106,9 @@ class PyGraph:
     holds all of the commands that are live in the graph -- some of these may not map back to an otl target
     """
     controller: PyController
+    """
+    Handle to rust -- calls the function defined in the pyo3 bindings
+    """
     
     done_tracker : IsDoneSubscriber
     retcode_tracker : RetcodeTracker

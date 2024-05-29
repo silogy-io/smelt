@@ -2,8 +2,10 @@ from typing_extensions import Annotated
 from pathlib import Path
 import typer
 import yaml
+from pyotl.output import otl_console
 from pyotl.interfaces import OtlTargetType
 from pyotl.otl_muncher import parse_otl
+from pyotl.output_utils import pretty_print_tests
 from pyotl.pygraph import create_graph
 from pyotl.serde import SafeDataclassDumper
 from typing import Optional
@@ -94,6 +96,25 @@ def execute(
         graph.run_all_tests(tt)
     if rerun:
         graph.rerun()
+
+
+@app.command(
+    help="Executes an otl file",
+)
+def validate(
+    otl_file: TlPath,
+    tt: str = typer.Option("test", help="OTL target type", callback=validate_type),
+    target_name: Optional[str] = typer.Option(
+        None, help="Target name -- if not provided, runs all the tests"
+    ),
+    rerun: bool = typer.Option(
+        False, help="Rerun the commands that failed", is_flag=True
+    ),
+):
+
+    graph = create_graph(str(otl_file))
+    otl_console.print(f"[green] {otl_file.name} is valid")
+    pretty_print_tests(graph)
 
 
 def main():
