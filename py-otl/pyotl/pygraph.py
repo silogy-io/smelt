@@ -159,6 +159,8 @@ class PyGraph:
     def run_one_test_interactive(self, name: str, sink: StdoutSink = print):
         """
         Runs a single test, with a "sink" handle to process all of the stdout for that specific command
+
+        By default, this will just print stdout + stderr to the screen -- it looks like you're running the command interactively 
         """
         self.reset()
         listener = self.controller.run_one_test(name)

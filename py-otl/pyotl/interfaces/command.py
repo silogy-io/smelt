@@ -38,8 +38,6 @@ class Command:
         runtime = target.runtime_requirements()
         dependencies = target.get_dependencies()
         dependent_files = target.get_dependent_files()
-        default_env = target.required_runtime_env_vars(default_root)
-        runtime.env.update(default_env)
 
         outputs = list(map(lambda path: str(path), target.get_outputs().values()))
 
