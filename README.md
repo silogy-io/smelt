@@ -1,8 +1,8 @@
 # otl
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/silogy-io/otl)
-![GitHub](https://img.shields.io/github/license/silogy-io/otl)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/silogy-io/otl/smoke)
+![GitHub License](https://img.shields.io/github/license/silogy-io/otl)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/silogy-io/otl/postcommit.yml)
 
 otl is a library for describing, running and tracking integration tests. It was built specifically for the testing of digital circuits.
 
