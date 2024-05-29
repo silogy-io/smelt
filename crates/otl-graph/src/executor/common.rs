@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::Command;
 
-use otl_core::OtlErr;
+
 use otl_data::Event;
 
 use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};

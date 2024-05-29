@@ -46,7 +46,7 @@ pub struct CommandVal {
 pub(crate) fn check_outputs(command: &Command, cmd_def_abs_path: PathBuf) -> Result<(), OtlErr> {
     let mut missing_outputs = vec![];
     for out in command.outputs.iter() {
-        if !out.to_path(cmd_def_abs_path.as_path()).exists() {}
+        out.to_path(cmd_def_abs_path.as_path()).exists();
         missing_outputs.push(out.clone());
     }
     if !missing_outputs.is_empty() {
