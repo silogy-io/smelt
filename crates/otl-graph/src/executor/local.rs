@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use otl_data::{CommandOutput, Event};
 use otl_events::{
-    runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel},
+    runtime_support::{GetCmdDefPath, GetOtlRoot, GetTraceId, GetTxChannel},
     to_file,
 };
 use tokio::{
@@ -32,11 +32,12 @@ impl Executor for LocalExecutor {
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let root = global_data.get_otl_root();
+        let command_default_dir = global_data.get_cmd_def_path();
         let rv = execute_local_command(
             local_command.as_ref(),
             trace_id.clone(),
             tx.clone(),
-            dd,
+            command_default_dir,
             root,
         )
         .await
@@ -58,7 +59,7 @@ async fn execute_local_command(
     command: &Command,
     trace_id: String,
     tx_chan: Sender<Event>,
-    _dd: &UserComputationData,
+    command_working_dir: PathBuf,
     root: PathBuf,
 ) -> anyhow::Result<CommandOutput> {
     let shell = "bash";
@@ -74,10 +75,12 @@ async fn execute_local_command(
         mut stdout,
         working_dir,
     } = prepare_workspace(command, root.clone()).await?;
+
     let mut commandlocal = tokio::process::Command::new(shell);
+
     commandlocal
         .arg(script_file)
-        .current_dir(root)
+        .current_dir(command_working_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;

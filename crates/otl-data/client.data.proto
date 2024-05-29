@@ -24,14 +24,16 @@ message RunType {
 
 // This configuration is done once, when OTL is initialized
 // The client should provide this when creating an otl handle
-message ConfigureOtl {
+message ConfigureOtl { 
+  // Should be an absolute path
   string otl_root = 1;
-  uint64 job_slots = 2;
+  // relative to otl_root -- this is an OtlPath
+  string command_def_path = 2;
+  // number of slots the entire executor has -- analogous to job slots in make
+  uint64 job_slots = 3;
   oneof InitExecutor {
-    CfgLocal local = 3;
-    CfgDocker docker = 4;
-
-
+    CfgLocal local = 10;
+    CfgDocker docker = 11;
   }
 }
 

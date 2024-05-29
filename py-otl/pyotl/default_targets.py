@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from pyotl.interfaces import Target, OtlPath, OtlTargetType, TargetRef
+from pyotl.interfaces import Target, OtlFilePath, OtlTargetType, TargetRef
 from typing import List, Dict
 
 

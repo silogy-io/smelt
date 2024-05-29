@@ -14,12 +14,14 @@ use futures::{
 
 use otl_events::{
     self,
-    runtime_support::{GetTraceId, GetTxChannel, SetOtlRoot, SetTraceId, SetTxChannel},
+    runtime_support::{
+        GetCmdDefPath, GetTraceId, GetTxChannel, SetOtlCfg, SetTraceId, SetTxChannel,
+    },
     ClientCommandBundle, Event,
 };
 
 use futures::FutureExt;
-use std::{path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
@@ -28,6 +30,7 @@ use crate::{
     utils::invoke_start_message,
 };
 use async_trait::async_trait;
+use otl_core::CommandDefPath;
 use otl_core::OtlErr;
 use otl_data::CommandOutput;
 
@@ -40,6 +43,20 @@ pub struct CommandVal {
     command: CommandRef,
 }
 
+pub(crate) fn check_outputs(command: &Command, cmd_def_abs_path: PathBuf) -> Result<(), OtlErr> {
+    let mut missing_outputs = vec![];
+    for out in command.outputs.iter() {
+        if !out.to_path(cmd_def_abs_path.as_path()).exists() {
+            missing_outputs.push(out.clone());
+        }
+    }
+    if !missing_outputs.is_empty() {
+        Err(OtlErr::MissingOutputs { missing_outputs })
+    } else {
+        Ok(())
+    }
+}
+
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct QueryCommandRef(Arc<Command>);
 
@@ -47,7 +64,7 @@ pub struct QueryCommandRef(Arc<Command>);
 pub struct LookupCommand(Arc<String>);
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Display, Allocative)]
-pub struct LookupFileMaker(Arc<String>);
+pub struct LookupFileMaker(Arc<CommandDefPath>);
 
 impl LookupCommand {
     fn from_str_ref(strref: &str) -> Self {
@@ -56,8 +73,8 @@ impl LookupCommand {
 }
 
 impl LookupFileMaker {
-    fn from_str_ref(strref: &str) -> Self {
-        Self(Arc::new(strref.to_string()))
+    fn from_ref(strref: &CommandDefPath) -> Self {
+        Self(Arc::new(strref.clone()))
     }
 }
 
@@ -157,6 +174,9 @@ impl Key for CommandRef {
             )
             .await
             .map(|val| val.command_output().expect("We couldnt execute"));
+        if let Err(missing) = check_outputs(&self.0, ctx.global_data().get_cmd_def_path()) {
+            dbg!(format!("we are missing an output {}", missing));
+        }
 
         let output = output.map_err(|err| Arc::new(OtlErr::ExecutorFailed(err.to_string())))?;
 
@@ -174,7 +194,7 @@ impl Key for CommandRef {
 async fn get_command_deps(
     ctx: &mut DiceComputations<'_>,
     dep_target_names: &[String],
-    dep_file_names: &[String],
+    dep_file_names: &[CommandDefPath],
 ) -> (
     Vec<Result<CommandRef, OtlErr>>,
     Vec<Result<CommandRef, OtlErr>>,
@@ -202,7 +222,7 @@ async fn get_command_deps(
     let filedeps = ctx.compute_many(dep_file_names.iter().map(|val| {
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, OtlErr>> {
-                let val = LookupFileMaker::from_str_ref(val);
+                let val = LookupFileMaker::from_ref(val);
                 ctx.compute(&val).map(flatten_res).boxed()
             },
         )
@@ -306,18 +326,21 @@ impl CommandGraph {
         cfg: ConfigureOtl,
     ) -> Result<Self, OtlErr> {
         let executor: Arc<dyn Executor> = match cfg.init_executor {
-            Some(exec_val) => match exec_val {
+            Some(ref exec_val) => match exec_val {
                 configure_otl::InitExecutor::Local(_) => Arc::new(LocalExecutor {}),
                 configure_otl::InitExecutor::Docker(docker_cfg) => Arc::new(
-                    DockerExecutor::new(docker_cfg.image_name, docker_cfg.additional_mounts)
-                        .expect("Could not create docker executor"),
+                    DockerExecutor::new(
+                        docker_cfg.image_name.clone(),
+                        docker_cfg.additional_mounts.clone(),
+                    )
+                    .expect("Could not create docker executor"),
                 ),
             },
             None => Arc::new(LocalExecutor {}),
         };
 
         let mut dice_builder = Dice::builder();
-        dice_builder.set_otl_root(PathBuf::from(cfg.otl_root));
+        dice_builder.set_otl_cfg(cfg);
         dice_builder.set_executor(executor);
 
         let dice = dice_builder.build(DetectCycles::Enabled);
@@ -377,6 +400,29 @@ impl CommandGraph {
 
     pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), OtlErr> {
         let mut ctx = self.dice.updater();
+        fn check_unique_outputs_and_names(commands: &Vec<Command>) -> Result<(), OtlErr> {
+            let mut outputfiles = HashSet::new();
+            let mut cmdnames = HashSet::new();
+            for command in commands.iter() {
+                if cmdnames.contains(&command.name) {
+                    return Err(OtlErr::DuplicateCommandName {
+                        name: command.name.clone(),
+                    });
+                }
+                cmdnames.insert(&command.name);
+                for output in command.outputs.iter() {
+                    if outputfiles.contains(&output) {
+                        return Err(OtlErr::DuplicateOutput {
+                            output: output.clone(),
+                        });
+                    }
+                    outputfiles.insert(output);
+                }
+            }
+            Ok(())
+        }
+        check_unique_outputs_and_names(&commands)?;
+
         let commands: Vec<CommandRef> = commands
             .into_iter()
             .map(|val| CommandRef(Arc::new(val)))
@@ -558,7 +604,13 @@ pub fn spawn_graph_server(cfg: ConfigureOtl) -> OtlServerHandle {
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::mpsc::{channel, unbounded_channel, Receiver};
+    use std::path::{Path, PathBuf};
+
+    use tokio::{
+        fs::File,
+        io::AsyncReadExt,
+        sync::mpsc::{channel, unbounded_channel, Receiver},
+    };
 
     use super::*;
 
@@ -581,22 +633,43 @@ mod tests {
         }
     }
 
-    fn testing_cfg() -> ConfigureOtl {
+    fn manifest_rel_path(path: &'static str) -> String {
+        let manifest = std::env!("CARGO_MANIFEST_DIR").to_string();
+
+        format!("{}/{}", manifest, path)
+    }
+    fn testing_cfg(cmd_def_path: String) -> ConfigureOtl {
+        let command_def_path = PathBuf::from(cmd_def_path)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
         ConfigureOtl {
             otl_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
+            command_def_path,
             job_slots: 1,
             init_executor: Some(configure_otl::InitExecutor::Local(CfgLocal {})),
         }
     }
 
-    async fn execute_all_tests_in_file(yaml_data: &str) {
-        let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data);
+    async fn execute_all_tests_in_file(yaml_path: &'static str) {
+        let yaml_path = manifest_rel_path(yaml_path);
+        let mut yaml_data = String::new();
+
+        let _ = File::open(Path::new(&yaml_path))
+            .await
+            .unwrap()
+            .read_to_string(&mut yaml_data)
+            .await
+            .unwrap();
+        let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data.as_str());
 
         let _script = script.unwrap();
         let (_tx, rx) = unbounded_channel();
         let (tx, rx_handle) = channel(100);
 
-        let graph = CommandGraph::new(rx, testing_cfg()).await.unwrap();
+        let graph = CommandGraph::new(rx, testing_cfg(yaml_path)).await.unwrap();
         let mut gh = TestGraphHandle { rx_chan: rx_handle };
         graph
             .run_all_typed("test".to_string(), tx.clone())
@@ -614,20 +687,20 @@ mod tests {
 
     #[tokio::test]
     async fn dependency_less_exec() {
-        let yaml_data = include_str!("../../../test_data/command_lists/cl1.yaml");
+        let yaml_path = "test_data/command_lists/cl1.yaml";
 
-        execute_all_tests_in_file(yaml_data).await
+        execute_all_tests_in_file(yaml_path).await
     }
 
     #[tokio::test]
     async fn test_with_deps() {
-        let yaml_data = include_str!("../../../test_data/command_lists/cl2.yaml");
-        execute_all_tests_in_file(yaml_data).await
+        let yaml_path = "test_data/command_lists/cl2.yaml";
+        execute_all_tests_in_file(yaml_path).await
     }
 
     #[tokio::test]
     async fn test_with_intraphase_deps() {
-        let yaml_data = include_str!("../../../test_data/command_lists/cl3.yaml");
-        execute_all_tests_in_file(yaml_data).await
+        let yaml_path = "test_data/command_lists/cl3.yaml";
+        execute_all_tests_in_file(yaml_path).await
     }
 }

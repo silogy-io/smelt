@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from pyotl.interfaces import Target, OtlPath
+from pyotl.interfaces import Target, OtlFilePath
 from typing import List, Dict
 
 
@@ -14,5 +14,5 @@ class run_spi2(Target):
     def gen_script(self) -> List[str]:
         return ['echo "hello world"']
 
-    def get_outputs(self) -> Dict[str, OtlPath]:
-        return {"log": OtlPath.abs_path(f"{self.name}.log")}
+    def get_outputs(self) -> Dict[str, OtlFilePath]:
+        return {"log": OtlFilePath.abs_path(f"{self.name}.log")}
