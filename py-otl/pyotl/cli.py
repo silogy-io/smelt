@@ -63,7 +63,7 @@ def validate_type(value: str):
 
 
 @app.command(
-    help="Lowers an otl filesto a command file",
+    help="Lowers an otl file to a command file",
 )
 def lower(
     otl_file: TlPath,
