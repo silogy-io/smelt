@@ -14,12 +14,14 @@ use futures::{
 
 use otl_events::{
     self,
-    runtime_support::{GetTraceId, GetTxChannel, SetOtlCfg, SetTraceId, SetTxChannel},
+    runtime_support::{
+        GetCmdDefPath, GetTraceId, GetTxChannel, SetOtlCfg, SetTraceId, SetTxChannel,
+    },
     ClientCommandBundle, Event,
 };
 
 use futures::FutureExt;
-use std::{str::FromStr, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
@@ -39,6 +41,19 @@ pub struct CommandRef(Arc<Command>);
 pub struct CommandVal {
     output: CommandOutput,
     command: CommandRef,
+}
+
+pub(crate) fn check_outputs(command: &Command, cmd_def_abs_path: PathBuf) -> Result<(), OtlErr> {
+    let mut missing_outputs = vec![];
+    for out in command.outputs.iter() {
+        if !out.to_path(cmd_def_abs_path.as_path()).exists() {}
+        missing_outputs.push(out.clone());
+    }
+    if !missing_outputs.is_empty() {
+        Err(OtlErr::MissingOutputs { missing_outputs })
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
@@ -158,6 +173,9 @@ impl Key for CommandRef {
             )
             .await
             .map(|val| val.command_output().expect("We couldnt execute"));
+        if let Err(missing) = check_outputs(&self.0, ctx.global_data().get_cmd_def_path()) {
+            dbg!(format!("we are missing an output {}", missing));
+        }
 
         let output = output.map_err(|err| Arc::new(OtlErr::ExecutorFailed(err.to_string())))?;
 
@@ -381,6 +399,29 @@ impl CommandGraph {
 
     pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), OtlErr> {
         let mut ctx = self.dice.updater();
+        fn check_unique_outputs_and_names(commands: &Vec<Command>) -> Result<(), OtlErr> {
+            let mut outputfiles = HashSet::new();
+            let mut cmdnames = HashSet::new();
+            for command in commands.iter() {
+                if cmdnames.contains(&command.name) {
+                    return Err(OtlErr::DuplicateCommandName {
+                        name: command.name.clone(),
+                    });
+                }
+                cmdnames.insert(&command.name);
+                for output in command.outputs.iter() {
+                    if outputfiles.contains(&output) {
+                        return Err(OtlErr::DuplicateOutput {
+                            output: output.clone(),
+                        });
+                    }
+                    outputfiles.insert(output);
+                }
+            }
+            Ok(())
+        }
+        check_unique_outputs_and_names(&commands)?;
+
         let commands: Vec<CommandRef> = commands
             .into_iter()
             .map(|val| CommandRef(Arc::new(val)))

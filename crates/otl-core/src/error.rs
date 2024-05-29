@@ -5,6 +5,8 @@ use pyo3::prelude::PyErr;
 
 use thiserror::Error;
 
+use crate::CommandDefPath;
+
 #[derive(Error, Debug)]
 pub enum OtlErr {
     #[error("unknown error")]
@@ -29,6 +31,14 @@ pub enum OtlErr {
     MissingFileDependency { missing_file_name: String },
     #[error("Setting commands failed; reason is {reason}")]
     CommandSettingFailed { reason: String },
+    #[error("Two commands with the same name {name} where declared")]
+    DuplicateCommandName { name: String },
+    #[error("{output} was declared twice!")]
+    DuplicateOutput { output: CommandDefPath },
+    #[error("The following outputs were declared but never created: {missing_outputs:?}")]
+    MissingOutputs {
+        missing_outputs: Vec<CommandDefPath>,
+    },
 }
 
 impl Allocative for OtlErr {
