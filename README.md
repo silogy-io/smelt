@@ -4,9 +4,9 @@
 ![GitHub](https://img.shields.io/github/license/silogy-io/otl)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/silogy-io/otl/smoke)
 
-otl is a library for describing, running and tracking integration tests.
+otl is a library for describing, running and tracking integration tests. It was built specifically for the testing of digital circuits.
 
-At its core, otl is a test runner, in the spirit of Make or Taskfile. Each test should be described as a series of bash commands.
+At its core, otl is a test runner in the spirit of Make or Task. Each test is described as a series of bash commands, run in sequence.
 
 ⚠️ OTL IS UNDER ACTIVE DEVELOPMENT⚠️ feel free to use it, but docs and features are still being created rapidly, so there are no guarantees of stability :)
 
