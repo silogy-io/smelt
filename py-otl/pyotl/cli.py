@@ -2,15 +2,14 @@ from typing_extensions import Annotated
 from pathlib import Path
 import typer
 import yaml
-from pyotl.rc import OtlRC
-from pyotl.importer import get_all_targets
+from pyotl.output import otl_console
 from pyotl.interfaces import OtlTargetType
 from pyotl.otl_muncher import parse_otl
+from pyotl.output_utils import pretty_print_tests
 from pyotl.pygraph import create_graph
 from pyotl.serde import SafeDataclassDumper
-
 from typing import Optional
-from typer import Typer, Argument, Exit
+from typer import Exit
 
 app = typer.Typer()
 
@@ -55,21 +54,6 @@ RulePath = Annotated[
 ]
 
 
-@app.command()
-def init(rule_path: RulePath = Path("otl_rules")):
-    OtlRC.init_rc()
-
-
-@app.command()
-def targets(
-    rule_path: RulePath = Path("otl_rules"), help="Prints out all visibile targets"
-):
-    otlrc = OtlRC.try_load()
-    targets = get_all_targets(otlrc)
-
-    print(targets)
-
-
 def validate_type(value: str):
     if value not in OtlTargetType._value2member_map_:
         raise Exit(
@@ -78,11 +62,12 @@ def validate_type(value: str):
     return value
 
 
-@app.command()
-def munch(
+@app.command(
+    help="Lowers an otl file to a command file",
+)
+def lower(
     otl_file: TlPath,
     output: CommandPath = Path("command.yaml"),
-    help="Converts .otl files to a command file",
 ):
     typer.echo(f"Validating: {otl_file}")
 
@@ -90,13 +75,18 @@ def munch(
     yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
 
 
-@app.command()
+@app.command(
+    help="Executes an otl file",
+)
 def execute(
     otl_file: TlPath,
     tt: str = typer.Option("test", help="OTL target type", callback=validate_type),
-    target_name: Optional[str] = typer.Option(None, help="Target name"),
-    rerun: bool = typer.Option(False, help="Rerun the command", is_flag=True),
-    help="Goes through the entire flow, from otl file to executing a command list",
+    target_name: Optional[str] = typer.Option(
+        None, help="Target name -- if not provided, runs all the tests"
+    ),
+    rerun: bool = typer.Option(
+        False, help="Rerun the commands that failed", is_flag=True
+    ),
 ):
 
     graph = create_graph(str(otl_file))
@@ -106,6 +96,25 @@ def execute(
         graph.run_all_tests(tt)
     if rerun:
         graph.rerun()
+
+
+@app.command(
+    help="Executes an otl file",
+)
+def validate(
+    otl_file: TlPath,
+    tt: str = typer.Option("test", help="OTL target type", callback=validate_type),
+    target_name: Optional[str] = typer.Option(
+        None, help="Target name -- if not provided, runs all the tests"
+    ),
+    rerun: bool = typer.Option(
+        False, help="Rerun the commands that failed", is_flag=True
+    ),
+):
+
+    graph = create_graph(str(otl_file))
+    otl_console.print(f"[green] {otl_file.name} is valid")
+    pretty_print_tests(graph)
 
 
 def main():

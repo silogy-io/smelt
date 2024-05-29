@@ -94,7 +94,6 @@ class PyGraph:
     """
     PyGraph is the python wrapper for the otl runtime.
     """
-    
 
     otl_targets: Optional[Dict[str, Target]]
     """ 
@@ -107,6 +106,9 @@ class PyGraph:
     holds all of the commands that are live in the graph -- some of these may not map back to an otl target
     """
     controller: PyController
+    """
+    Handle to rust -- calls the function defined in the pyo3 bindings
+    """
     
     done_tracker : IsDoneSubscriber
     retcode_tracker : RetcodeTracker
@@ -159,6 +161,8 @@ class PyGraph:
     def run_one_test_interactive(self, name: str, sink: StdoutSink = print):
         """
         Runs a single test, with a "sink" handle to process all of the stdout for that specific command
+
+        By default, this will just print stdout + stderr to the screen -- it looks like you're running the command interactively 
         """
         self.reset()
         listener = self.controller.run_one_test(name)

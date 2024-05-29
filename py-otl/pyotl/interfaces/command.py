@@ -6,6 +6,8 @@ from dataclasses import dataclass, asdict
 
 CommandRef = str
 
+CommandLiterals = Literal["test", "stimulus", "build"]
+
 
 @dataclass
 class Command:
@@ -16,7 +18,7 @@ class Command:
     """
 
     name: str
-    target_type: str
+    target_type: Literal["test", "stimulus", "build"]
     script: List[str]
     """
     A list of bash commands that will be executed in sequence
@@ -38,8 +40,6 @@ class Command:
         runtime = target.runtime_requirements()
         dependencies = target.get_dependencies()
         dependent_files = target.get_dependent_files()
-        default_env = target.required_runtime_env_vars(default_root)
-        runtime.env.update(default_env)
 
         outputs = list(map(lambda path: str(path), target.get_outputs().values()))
 

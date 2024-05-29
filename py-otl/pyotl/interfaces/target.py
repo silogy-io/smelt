@@ -4,7 +4,6 @@ from enum import Enum
 from typing import Any, List, Dict, Literal
 from pyotl.interfaces.runtime import RuntimeRequirements
 from pyotl.interfaces.paths import OtlFilePath
-from pyotl.path_utils import get_git_root
 
 
 class OtlTargetType(Enum):
@@ -39,16 +38,6 @@ class Target(ABC):
     @staticmethod
     def rule_type() -> OtlTargetType:
         return OtlTargetType.Test
-
-    def required_runtime_env_vars(self, default_path: str) -> Dict[str, str]:
-        try:
-            git_root = get_git_root()
-        except Exception:
-            git_root = "$(git rev-parse --show-toplevel)"
-        otl_root = f"{git_root}/{default_path}"
-        target_root = f"{otl_root}/{self.name}"
-
-        return dict(GIT_ROOT=git_root, OTL_ROOT=otl_root, TARGET_ROOT=target_root)
 
     def runtime_env_vars(self) -> Dict[str, str]:
         return {}

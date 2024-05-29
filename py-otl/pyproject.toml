@@ -19,14 +19,8 @@ email = "james@silogy.io"
 requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
-[tool.scripts]
-otl-cli = "otl.cli:main"
+[project.scripts]
+otl = "pyotl.cli:main"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-
-[tool.poetry]
-name = "pyotl"
-version = "0.1.0"
-description = "igore_me"
-authors = ["hack_section"]
