@@ -89,7 +89,9 @@ class TestResult:
 @dataclass
 class Invocation:
     """
-    Highest level invocation for a test
+    Highest level invocation for a set of tests -- must contain one or more test results
+
+    any time we run any test(s), an invocation object is created
     """
 
     invoke_id: str  # uuid
