@@ -51,14 +51,12 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --manifest-path py-otl/Cargo.toml --out dist --find-interpreter
           sccache: "true"
-          manylinux:
-            auto
+          manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.target }}
-          path:
-            dist
+          path: dist
 
       - name: Upload release archive
         env:
@@ -112,8 +110,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --manifest-path py-otl/Cargo.toml --out dist --find-interpreter
-          sccache:
-            "true"
+          sccache: "true"
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -134,13 +131,12 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args:   --out dist
+          args: --out dist
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
           name: wheels-sdist
-          path:
-            dist
+          path: dist
 
   release:
     name: Release
@@ -155,4 +151,4 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
-              args: --non-interactive --skip-existing wheels-*/*
+          args: --non-interactive --skip-existing wheels-*/*
