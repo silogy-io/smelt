@@ -16,17 +16,17 @@ build: deps ## Builds the rust package only
 test: deps ## Tests the rust package
 	cargo test
 
+
+gen_py_proto: crates/otl-data/*.proto
+	cd py-otl/pyotl && protoc  -I ../../crates/otl-data/ --python_betterproto_out=.  data.proto client.data.proto executed_tests.proto &&cd -;
+
+
+
 develop: deps ## Builds and installs the python package with maturin 
+	cd py-otl/pyotl;
+	protoc  -I ../../crates/otl-data/ --python_betterproto_out=.  data.proto client.data.proto
 	maturin develop --manifest-path py-otl/Cargo.toml 
+
 
 wheel: deps ## Builds the pyotl wheel and is placed in dist/
 	maturin build  --manifest-path py-otl/Cargo.toml --out dist
-
-release: deps ## Creates a release on gha, should create wheels for all platforms -- not tested
-	##
-	bash release.sh
-
-
-destructive_release: deps ## Creates a release to the tag 0.0.0 destructively -- deletes the old tag and the artifacts
-	bash re_release.sh
-
