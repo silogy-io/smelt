@@ -1,5 +1,8 @@
 use allocative::Allocative;
-use otl_data::client_commands::{client_command::ClientCommands, *};
+use otl_data::{
+    client_commands::{client_command::ClientCommands, *},
+    executed_tests::{ArtifactPointer, ExecutedTestResult, TestResult},
+};
 
 use derive_more::Display;
 use dice::{
@@ -130,7 +133,7 @@ impl Key for LookupFileMaker {
 
 #[async_trait]
 impl Key for CommandRef {
-    type Value = Result<CommandVal, Arc<OtlErr>>;
+    type Value = Result<Arc<ExecutedTestResult>, Arc<OtlErr>>;
     async fn compute(
         &self,
         ctx: &mut DiceComputations,
@@ -173,17 +176,18 @@ impl Key for CommandRef {
                 ctx.global_data(),
             )
             .await
-            .map(|val| val.command_output().expect("We couldnt execute"));
-        if let Err(missing) = check_outputs(&self.0, ctx.global_data().get_cmd_def_path()) {
-            dbg!(format!("we are missing an output {}", missing));
-        }
+            .map(|val| val);
 
         let output = output.map_err(|err| Arc::new(OtlErr::ExecutorFailed(err.to_string())))?;
 
-        Ok(CommandVal {
-            output,
-            command: self.clone(),
-        })
+        let command_finished = Event::command_finished(
+            self.0.name.clone(),
+            ctx.per_transaction_data().get_trace_id(),
+            output.get_retcode(),
+        );
+        let mut _handleme = tx.send(command_finished).await;
+
+        Ok(Arc::new(output))
     }
 
     fn equality(_x: &Self::Value, _y: &Self::Value) -> bool {
@@ -247,12 +251,12 @@ pub trait CommandExecutor {
     async fn execute_command(
         &mut self,
         command_name: &CommandRef,
-    ) -> Result<CommandOutput, Arc<OtlErr>>;
+    ) -> Result<Arc<ExecutedTestResult>, Arc<OtlErr>>;
 
     async fn execute_commands(
         &mut self,
         command_name: Vec<CommandRef>,
-    ) -> Vec<Result<CommandOutput, Arc<OtlErr>>>;
+    ) -> Vec<Result<Arc<ExecutedTestResult>, Arc<OtlErr>>>;
 }
 
 #[async_trait]
@@ -260,22 +264,22 @@ impl CommandExecutor for DiceComputations<'_> {
     async fn execute_command(
         &mut self,
         command: &CommandRef,
-    ) -> Result<CommandOutput, Arc<OtlErr>> {
+    ) -> Result<Arc<ExecutedTestResult>, Arc<OtlErr>> {
         match self.compute(command).await {
-            Ok(val) => val.map(|val| val.output),
+            Ok(val) => val.map(|val| val.clone()),
             Err(dicey) => Err(Arc::new(OtlErr::DiceFail(dicey))),
         }
     }
     async fn execute_commands(
         &mut self,
         commands: Vec<CommandRef>,
-    ) -> Vec<Result<CommandOutput, Arc<OtlErr>>> {
+    ) -> Vec<Result<Arc<ExecutedTestResult>, Arc<OtlErr>>> {
         let futs = self.compute_many(commands.into_iter().map(|val| {
             DiceComputations::declare_closure(
-                move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandOutput, Arc<OtlErr>>> {
+                move |ctx: &mut DiceComputations| -> BoxFuture<Result<Arc<ExecutedTestResult>, Arc<OtlErr>>> {
                     ctx.compute(&val)
                         .map(|computed_val| match computed_val {
-                            Ok(val) => val.map(|val| val.output),
+                            Ok(val) => val.map(|val| val.clone()),
                             Err(err) => Err(Arc::new(OtlErr::DiceFail(err))),
                         })
                         .boxed()
@@ -555,7 +559,7 @@ impl CommandGraph {
 /// happens with the otl runtime itself e.g. if a file isn't able to be created, or a process can't
 /// be spawned off that needs to be spawned off, etc
 async fn handle_result(
-    compute_result: Vec<Result<CommandOutput, Arc<OtlErr>>>,
+    compute_result: Vec<Result<Arc<ExecutedTestResult>, Arc<OtlErr>>>,
     tx: Sender<Event>,
     trace: String,
 ) {

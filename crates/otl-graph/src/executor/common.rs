@@ -3,9 +3,14 @@ use std::path::PathBuf;
 
 use crate::Command;
 
+use dice::DiceData;
+use otl_core::{CommandDefPath, OtlErr};
+use otl_data::{
+    executed_tests::{ArtifactPointer, ExecutedTestResult, TestResult},
+    Event, OtlError,
+};
 
-use otl_data::Event;
-
+use otl_events::runtime_support::GetCmdDefPath;
 use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
 
 pub(crate) struct Workspace {
@@ -67,4 +72,44 @@ pub(crate) async fn handle_line(
     let bytes = line.as_str();
     let _unhandled = stdout.write(bytes.as_bytes()).await;
     let _unhandled = stdout.write(&[b'\n']).await;
+}
+
+pub(crate) fn create_test_result(
+    command: &Command,
+    exit_code: i32,
+    global_data: &DiceData,
+) -> ExecutedTestResult {
+    let command_default_dir = global_data.get_cmd_def_path();
+    let mut missing_artifacts = vec![];
+    let mut artifacts = vec![];
+    for output in command.outputs.iter() {
+        let path = output.to_path(command_default_dir.as_path());
+        let path_exists = path.exists();
+        let default_name = path
+            .file_name()
+            .expect("Filename missing from an artifact")
+            .to_string_lossy()
+            .to_string();
+        let artifact = ArtifactPointer::file_artifact(default_name, path);
+        if !path_exists {
+            missing_artifacts.push(artifact)
+        } else {
+            artifacts.push(artifact);
+        }
+    }
+
+    let test_result = TestResult {
+        test_name: command.name.clone(),
+        artifacts,
+        exit_code,
+    };
+
+    if missing_artifacts.is_empty() {
+        ExecutedTestResult::Success(test_result)
+    } else {
+        ExecutedTestResult::MissingFiles {
+            test_result,
+            missing_artifacts,
+        }
+    }
 }

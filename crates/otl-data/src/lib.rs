@@ -54,6 +54,7 @@ mod serialize_timestamp {
 //}
 
 pub mod client_commands;
+pub mod executed_tests;
 
 tonic::include_proto!("otl_telemetry.data");
 
@@ -74,15 +75,11 @@ impl Event {
         Self::new(et, trace_id)
     }
 
-    pub fn command_finished(
-        command_ref: String,
-        trace_id: String,
-        comm_out: CommandOutput,
-    ) -> Self {
+    pub fn command_finished(command_ref: String, trace_id: String, status_code: i32) -> Self {
         let et = event::Et::Command(CommandEvent {
             command_ref,
             command_variant: Some(CommandVariant::Finished(CommandFinished {
-                out: Some(comm_out),
+                out: Some(CommandOutput { status_code }),
             })),
         });
         Self::new(et, trace_id)

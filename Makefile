@@ -17,7 +17,7 @@ test: deps ## Tests the rust package
 	cargo test
 
 
-gen_py_proto: crates/otl-data/*.proto
+gen_py_proto: crates/otl-data/*.proto ## Builds the rust package only
 	cd py-otl/pyotl && protoc  -I ../../crates/otl-data/ --python_betterproto_out=.  data.proto client.data.proto executed_tests.proto &&cd -;
 
 

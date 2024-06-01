@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 
-use otl_data::{CommandOutput, Event};
+use otl_data::{
+    executed_tests::{ExecutedTestResult, TestResult},
+    CommandOutput, Event,
+};
 
 use otl_events::runtime_support::{GetOtlRoot, GetTraceId, GetTxChannel};
 use std::{collections::HashMap, sync::Arc};
@@ -16,7 +19,7 @@ use bollard::{
     service::HostConfig,
 };
 
-use super::common::{handle_line, prepare_workspace, Workspace};
+use super::common::{create_test_result, handle_line, prepare_workspace, Workspace};
 
 pub struct DockerExecutor {
     docker_client: Docker,
@@ -49,7 +52,7 @@ impl Executor for DockerExecutor {
         command: Arc<Command>,
         dd: &UserComputationData,
         global_data: &DiceData,
-    ) -> anyhow::Result<Event> {
+    ) -> anyhow::Result<ExecutedTestResult> {
         let shell = "bash";
         let trace_id = dd.get_trace_id();
         let tx = dd.get_tx_channel();
@@ -168,10 +171,10 @@ impl Executor for DockerExecutor {
             .state
             .and_then(|state| state.exit_code)
             .unwrap_or(1) as i32;
-
-        let dummy_output = CommandOutput { status_code };
-        let done = Event::command_finished(command.name.clone(), trace_id, dummy_output);
-        let _ = tx.send(done.clone()).await;
-        Ok(done)
+        Ok(create_test_result(
+            command.as_ref(),
+            status_code,
+            global_data,
+        ))
     }
 }
