@@ -10,12 +10,12 @@ hide_title: true
 </div>
 <br />
 
-OTL is a task and test runner that aims to be a simple framework to declare, execute and analyze tests; OTL was designed specifically designed to make the testing of digital circuits easy.
+SMELT is a task and test runner that aims to be a simple framework to declare, execute and analyze tests; SMELT was designed specifically designed to make the testing of digital circuits easy.
 
 Once [installed](/installation), you just need to describe your tasks
-using a simple [YAML][yaml] schema in a file called `test.otl`:
+using a simple [YAML][yaml] schema in a file called `test.smelt`:
 
-```yaml title="test.otl"
+```yaml title="test.smelt"
 version: "3"
 
 - name: say_hey
@@ -25,11 +25,11 @@ version: "3"
       - echo "hey"
 ```
 
-And call it by running `otl-cli execute test.otl` from your terminal.
+And call it by running `smelt-cli execute test.smelt` from your terminal.
 
 ## Features
 
-- [Gradual adoption](/adoption): Gradually move your tests and build into OTL
+- [Gradual adoption](/adoption): Gradually move your tests and build into SMELT
 - [Extensible](/writing-rules): Define your tests with a simple python interface
 - [Programatic test generation](/python-api): Programatically generate tests with python!Spin up 1000s of tests with 10 lines of code
 - [Run anywhere](/runners): Launch tests locally, in the cloud, dispatch them to SLURM or LSF.

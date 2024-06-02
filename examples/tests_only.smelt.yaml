@@ -1,0 +1,43 @@
+# for each target, the following environment variables will be present
+#  * $GIT_ROOT: root of the git repository
+#  * $SMELT_ROOT: root of the smelt-out workspace. will be smelt-out by default
+#  * $TEST_ROOT: root of the current test directory. by default, it will be ${SMELT_ROOT}/${TEST_NAME}
+#
+
+# each script is executed with cwd=${TEST_ROOT}
+- name: spi_seed_1000
+  target_type: test
+  script:
+    - echo "hello world"
+  dependencies: []
+  outputs:
+    - spi_seed_1000.log
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: spi_seed_1500
+  target_type: test
+  script:
+    - echo "hello world"
+  dependencies: []
+  outputs:
+    - spi_seed_1500.log
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}
+- name: spi_seed_2000
+  target_type: test
+  script:
+    - echo "hello world"
+  dependencies: []
+  outputs:
+    - spi_seed_2000.log
+  runtime:
+    num_cpus: 1
+    max_memory_mb: 1024
+    timeout: 600
+    env: {}

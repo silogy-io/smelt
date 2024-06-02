@@ -1,36 +1,36 @@
 from dataclasses import replace
-from pyotl.rc import OtlRC
+from pysmelt.rc import SmeltRC
 from typing import Dict
 
-from pyotl.importer import get_all_targets, DocumentedTarget
+from pysmelt.importer import get_all_targets, DocumentedTarget
 import pytest
 import subprocess
 from typing import Generator
 import pytest
 
-from pyotl.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pyotl.path_utils import get_git_root
-from pyotl.interfaces import Command
+from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
+from pysmelt.path_utils import get_git_root
+from pysmelt.interfaces import Command
 
 
 import yaml
 
 
-def get_test_rc() -> OtlRC:
+def get_test_rc() -> SmeltRC:
     default_jobs = 1
-    otl_rules_dir = "tests/rules"
+    smelt_rules_dir = "tests/rules"
 
-    default_rc = OtlRC.default()
+    default_rc = SmeltRC.default()
     test_rc = replace(
-        default_rc, default_jobs=default_jobs, otl_rules_dir=otl_rules_dir
+        default_rc, default_jobs=default_jobs, smelt_rules_dir=smelt_rules_dir
     )
 
     return test_rc
 
 
 def get_test_rules() -> Dict[str, DocumentedTarget]:
-    otlrc = get_test_rc()
-    targets = get_all_targets(otlrc)
+    smeltrc = get_test_rc()
+    targets = get_all_targets(smeltrc)
     return targets
 
 

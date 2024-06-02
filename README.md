@@ -1,27 +1,27 @@
-# otl
+# smelt
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/silogy-io/otl)
-![GitHub License](https://img.shields.io/github/license/silogy-io/otl)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/silogy-io/otl/postcommit.yml)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/silogy-io/smelt)
+![GitHub License](https://img.shields.io/github/license/silogy-io/smelt)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/silogy-io/smelt/postcommit.yml)
 
-otl is a library for describing, running and tracking integration tests. It was built specifically for the testing of digital circuits.
+smelt is a library for describing, running and tracking integration tests. It was built specifically for the testing of digital circuits.
 
-At its core, otl is a test runner in the spirit of Make or Task. Each test is described as a series of bash commands, run in sequence.
+At its core, smelt is a test runner in the spirit of Make or Task. Each test is described as a series of bash commands, run in sequence.
 
-⚠️ OTL IS UNDER ACTIVE DEVELOPMENT⚠️ feel free to use it, but docs and features are still being created rapidly, so there are no guarantees of stability :)
+⚠️ SMELT IS UNDER ACTIVE DEVELOPMENT⚠️ feel free to use it, but docs and features are still being created rapidly, so there are no guarantees of stability :)
 
 ## Getting started
 
-First, install otl with pip:
+First, install smelt with pip:
 
 ```
-pip install pyotl
+pip install pysmelt
 ```
 
-now create an otl file, named `tests.otl.yaml` -- below is an example
+now create an smelt file, named `tests.smelt.yaml` -- below is an example
 
 ```yaml
-# tests.otl.yaml
+# tests.smelt.yaml
 - name: test_example_1
   rule: raw_bash
   rule_args:
@@ -42,6 +42,6 @@ now create an otl file, named `tests.otl.yaml` -- below is an example
       - echo "test3"
 ```
 
-otl files can be validated via `otl validaite tests.otl.yaml #replace with the path to your command file`.
+smelt files can be validated via `smelt validaite tests.smelt.yaml #replace with the path to your command file`.
 
-To execute all tests in a file, execute `otl execute tests.otl.yaml`
+To execute all tests in a file, execute `smelt execute tests.smelt.yaml`

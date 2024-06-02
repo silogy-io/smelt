@@ -1,8 +1,8 @@
 import subprocess
 from typing import Generator
-from pyotl.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pyotl.path_utils import get_git_root
-from pyotl.interfaces import Command
+from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
+from pysmelt.path_utils import get_git_root
+from pysmelt.interfaces import Command
 
 
 import yaml
@@ -29,7 +29,7 @@ def test_sanity_pygraph_rerun_nofailing():
     """
     Tests the case where no re-run is needed
     """
-    test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
+    test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
     graph = create_graph(test_list)
 
     graph.run_all_tests("test")
@@ -41,7 +41,7 @@ def test_sanity_pygraph_rerun_nofailing():
 
 
 def test_sanity_pygraph_rerun_with_failing():
-    test_list = f"{get_git_root()}/test_data/otl_files/failing_tests_only.otl.yaml"
+    test_list = f"{get_git_root()}/test_data/smelt_files/failing_tests_only.smelt.yaml"
     graph = create_graph(test_list)
     graph.run_all_tests("test")
     graph.rerun()
@@ -57,7 +57,7 @@ def test_sanity_pygraph_rerun_with_failing():
 
 
 def test_sanity_pygraph_new_build():
-    test_list = f"{get_git_root()}/test_data/otl_files/rerun_with_newbuild.otl.yaml"
+    test_list = f"{get_git_root()}/test_data/smelt_files/rerun_with_newbuild.smelt.yaml"
     graph = create_graph(test_list)
     graph.run_all_tests("test")
     graph.rerun()
@@ -76,7 +76,7 @@ def test_sanity_pygraph_docker(simple_docker_image):
     """
     Tests the case where no re-run is needed
     """
-    test_list = f"{get_git_root()}/test_data/otl_files/tests_only.otl.yaml"
+    test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
 
     graph = create_graph_with_docker(test_list, docker_img=simple_docker_image)
 

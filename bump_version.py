@@ -2,7 +2,7 @@ import toml
 import argparse
 import subprocess
 
-pypath = "py-otl/pyproject.toml"
+pypath = "py-smelt/pyproject.toml"
 cargopath = "Cargo.toml"
 
 

@@ -3,7 +3,7 @@ import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
-  title: "OTL",
+  title: "SMELT",
   tagline: "Task orchestrator built for circuit design",
   favicon: "img/favicon.ico",
 
@@ -16,7 +16,7 @@ const config: Config = {
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "silogy-io", // Usually your GitHub org/user name.
-  projectName: "otl", // Usually your repo name.
+  projectName: "smelt", // Usually your repo name.
 
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
@@ -57,7 +57,7 @@ const config: Config = {
     // Replace with your project's social card
     image: "img/none.jpg",
     navbar: {
-      title: "Otl",
+      title: "Smelt",
       logo: {
         alt: "My Site Logo",
         src: "img/logo.svg",
@@ -70,7 +70,7 @@ const config: Config = {
         },
 
         {
-          href: "https://github.com/silogy-io/otl",
+          href: "https://github.com/silogy-io/smelt",
           label: "GitHub",
           position: "right",
         },
@@ -103,7 +103,7 @@ const config: Config = {
             {
               label: "GitHub",
 
-              href: "https://github.com/silogy-io/otl",
+              href: "https://github.com/silogy-io/smelt",
             },
           ],
         },
