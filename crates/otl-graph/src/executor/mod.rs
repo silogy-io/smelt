@@ -3,7 +3,10 @@ use std::sync::Arc;
 use crate::Command;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 
-use otl_data::Event;
+use otl_data::{
+    executed_tests::{ExecutedTestResult, TestResult},
+    Event,
+};
 
 mod common;
 
@@ -23,7 +26,7 @@ pub trait Executor: Send + Sync {
         command: Arc<Command>,
         dice_data: &UserComputationData,
         global_dice_data: &DiceData,
-    ) -> anyhow::Result<Event>;
+    ) -> anyhow::Result<ExecutedTestResult>;
 }
 
 pub trait SetExecutor {

@@ -6,7 +6,10 @@ use std::{path::PathBuf, sync::Arc};
 use crate::Command;
 use async_trait::async_trait;
 
-use otl_data::{CommandOutput, Event};
+use otl_data::{
+    executed_tests::{ExecutedTestResult, TestResult},
+    CommandOutput, Event,
+};
 use otl_events::{
     runtime_support::{GetCmdDefPath, GetOtlRoot, GetTraceId, GetTxChannel},
     to_file,
@@ -16,7 +19,7 @@ use tokio::{
     sync::mpsc::Sender,
 };
 
-use super::common::{prepare_workspace, Workspace};
+use super::common::{create_test_result, prepare_workspace, Workspace};
 
 pub struct LocalExecutor {}
 
@@ -27,7 +30,7 @@ impl Executor for LocalExecutor {
         command: Arc<Command>,
         dd: &UserComputationData,
         global_data: &DiceData,
-    ) -> anyhow::Result<Event> {
+    ) -> anyhow::Result<ExecutedTestResult> {
         let tx = dd.get_tx_channel();
         let local_command = command;
         let trace_id = dd.get_trace_id();
@@ -42,16 +45,9 @@ impl Executor for LocalExecutor {
         )
         .await
         .map(|output| {
-            Event::command_finished(local_command.name.clone(), dd.get_trace_id(), output)
-        });
-
-        match rv {
-            Ok(ref comm) => {
-                tx.send(comm.clone()).await.unwrap();
-            }
-            Err(_) => todo!("Haven't handled the error case yet"),
-        }
-        Ok(rv?)
+            create_test_result(local_command.as_ref(), output.status_code, global_data)
+        })?;
+        Ok(rv)
     }
 }
 
