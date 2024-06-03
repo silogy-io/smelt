@@ -1,6 +1,6 @@
-from pyotl.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pyotl.path_utils import get_git_root
-from pyotl.interfaces import Command
+from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
+from pysmelt.path_utils import get_git_root
+from pysmelt.interfaces import Command
 
 
 import yaml

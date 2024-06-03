@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package smelt_telemetry.data;
+import "google/protobuf/timestamp.proto";
+
+// Event flows from server -> client only
+message Event {
+  google.protobuf.Timestamp time = 1;
+  // A globally-unique ID (UUIDv4) of this trace. Required.
+  string trace_id = 2;
+  // type of event
+  oneof et {
+    CommandEvent command = 15;
+    InvokeEvent invoke = 16;
+    SmeltError error = 17;
+  }
+}
+
+// CommandEvents covers activity happening on a per target basis
+message CommandEvent {
+  string command_ref = 1;
+  oneof CommandVariant {
+    CommandScheduled scheduled = 4;
+    CommandStarted started = 5;
+    CommandCancelled cancelled = 6;
+    CommandFinished finished = 7;
+    CommandStdout stdout = 8;
+  }
+}
+
+message CommandScheduled {}
+message CommandStarted {}
+message CommandCancelled {}
+message CommandStdout { string output = 1; }
+message CommandFinished { CommandOutput out = 1; }
+message CommandOutput { int32 status_code = 1; }
+
+// InvokeEvent demarcates the start of a graph execution.
+message InvokeEvent {
+  oneof InvokeVariant {
+    ExecutionStart start = 5;
+    AllCommandsDone done = 6;
+    SetGraph set = 7;
+  }
+}
+
+message ExecutionStart {
+  string path = 1;
+  string username = 2;
+  string hostname = 3;
+}
+message AllCommandsDone {}
+message SetGraph {}
+
+enum SmeltErrorType {
+  // Client caused error
+  CLIENT_ERROR = 0;
+  // Internal error -- anything that is thrown by the smelt runtime
+  INTERNAL_ERROR = 1;
+  // Internal warning -- anything that the smelt runtime wants to broadcast back
+  INTERNAL_WARN = 2;
+}
+
+message SmeltError {
+  SmeltErrorType sig = 1;
+  string error_payload = 2;
+}

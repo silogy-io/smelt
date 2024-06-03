@@ -4,21 +4,21 @@ slug: /overview
 
 # Overview
 
-otl is a declaritive task runner, designed specifically to declare and run tests for eda easily.
+smelt is a declaritive task runner, designed specifically to declare and run tests for eda easily.
 
-otl uses two abstractions to define tasks -- targets and commands. at a high level, targets are used to represent common tasks succintly. At a lower level, commands describe explicitly every bash command that needs to be executed to run a test.
+smelt uses two abstractions to define tasks -- targets and commands. at a high level, targets are used to represent common tasks succintly. At a lower level, commands describe explicitly every bash command that needs to be executed to run a test.
 
 ## Abstractions
 
 ### Tasks
 
-A task is an abstraction to describe one unit of "work" under otl. It is
+A task is an abstraction to describe one unit of "work" under smelt. It is
 analogous to a make target in Gnu Make. A target and a command both represent a
 task, at differing levels of abstraction
 
 ### Targets
 
-A target is a high level abstraction of a task under otl -- it seeks to provide
+A target is a high level abstraction of a task under smelt -- it seeks to provide
 a programmable interface to paramterize tasks, using python
 
 a target definition is often called a `rule` in our documentation, following the
@@ -27,7 +27,7 @@ with paramterizable seed
 
 ```python
 from dataclasses import dataclass, field
-from otl.interfaces import Target, OtlPath
+from smelt.interfaces import Target, SmeltPath
 from typing import List, Dict
 
 
@@ -78,7 +78,7 @@ spi_seed_2000 = run_spi(name="spi_seed_2000", seed=2000)
 
 ```
 
-Targets are lowered into commands, which can be actually executed by otlexec
+Targets are lowered into commands, which can be actually executed by smeltexec
 
 ### Commands
 
@@ -139,7 +139,7 @@ Each Command maps to exactly one Target -- functionally, Commands should be
 viewed as a "lowered" task representation, the same way that C or C++ code can
 be lowered into LLVM bitcode.
 
-data flows through otl as shown below:
+data flows through smelt as shown below:
 
 ```bash
 
@@ -151,7 +151,7 @@ data flows through otl as shown below:
                            │    │
                            ▼    ▼
                      ┌────────────┐
-                     │ otl parser │
+                     │ smelt parser │
                      │            │
                      └────────────┘
                            │
@@ -165,7 +165,7 @@ data flows through otl as shown below:
                            │
                            ▼
                      ┌────────────┐
-                     │ otlexec    │
+                     │ smeltexec    │
                      └─────┬──────┘
                            │
                            │
@@ -177,17 +177,17 @@ data flows through otl as shown below:
 
 ```
 
-### otl parser
+### smelt parser
 
-The otl parser is the software component that converts target lists into command
+The smelt parser is the software component that converts target lists into command
 lists.
 
 The responsibility of this component is to check that a target list is well
 formed. Functionally, this will parse a target list, and call the `gen_script` function on each target that is created
 
-### otlexec
+### smeltexec
 
-otlexec ingests command files and then executes the tasks locally. The responsibility of otlexec is the following:
+smeltexec ingests command files and then executes the tasks locally. The responsibility of smeltexec is the following:
 
 - parse the command list and assert that is well formed
 - create the command graph -- this is a directed acyclic graph of commands

@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "py-otl"]
+members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.1.0"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
@@ -93,23 +93,23 @@ features = ["prost", "cleanup-markdown"]
 version = "1.37.0"
 features = ["full", "tracing"]
 
-[workspace.dependencies.otl-events]
-path = "crates/otl-events"
+[workspace.dependencies.smelt-events]
+path = "crates/smelt-events"
 default-features = false
 
-[workspace.dependencies.otl-core]
-path = "crates/otl-core"
+[workspace.dependencies.smelt-core]
+path = "crates/smelt-core"
 default-features = false
 
-[workspace.dependencies.otl-graph]
-path = "crates/otl-graph"
+[workspace.dependencies.smelt-graph]
+path = "crates/smelt-graph"
 default-features = false
 
-[workspace.dependencies.otl-data]
-path = "crates/otl-data"
+[workspace.dependencies.smelt-data]
+path = "crates/smelt-data"
 default-features = false
 
 
-[workspace.dependencies.py-otl]
-path = "py-otl"
+[workspace.dependencies.py-smelt]
+path = "py-smelt"
 default-features = false
