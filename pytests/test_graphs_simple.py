@@ -98,3 +98,7 @@ def test_sanity_pygraph_docker(simple_docker_image):
     assert (
         passed_commands == expected_passed
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
+
+
+for i in range(10):
+    test_sanity_pygraph_runone()
