@@ -7,7 +7,7 @@ use crate::Command;
 use async_trait::async_trait;
 
 use smelt_data::{
-    executed_tests::{ExecutedTestResult, TestResult},
+    executed_tests::{ExecutedTestResult},
     CommandOutput, Event,
 };
 use smelt_events::{

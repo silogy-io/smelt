@@ -1,7 +1,7 @@
 use allocative::Allocative;
 use smelt_data::{
     client_commands::{client_command::ClientCommands, *},
-    executed_tests::{ArtifactPointer, ExecutedTestResult, TestResult},
+    executed_tests::ExecutedTestResult,
 };
 
 use derive_more::Display;
@@ -17,14 +17,12 @@ use futures::{
 
 use smelt_events::{
     self,
-    runtime_support::{
-        GetCmdDefPath, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
-    },
+    runtime_support::{GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel},
     ClientCommandBundle, Event,
 };
 
 use futures::FutureExt;
-use std::{collections::HashSet, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashSet, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::{
@@ -44,20 +42,6 @@ pub struct CommandRef(Arc<Command>);
 pub struct CommandVal {
     output: CommandOutput,
     command: CommandRef,
-}
-
-pub(crate) fn check_outputs(command: &Command, cmd_def_abs_path: PathBuf) -> Result<(), SmeltErr> {
-    let mut missing_outputs = vec![];
-    for out in command.outputs.iter() {
-        if !out.to_path(cmd_def_abs_path.as_path()).exists() {
-            missing_outputs.push(out.clone());
-        }
-    }
-    if !missing_outputs.is_empty() {
-        Err(SmeltErr::MissingOutputs { missing_outputs })
-    } else {
-        Ok(())
-    }
 }
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
@@ -175,8 +159,7 @@ impl Key for CommandRef {
                 ctx.per_transaction_data(),
                 ctx.global_data(),
             )
-            .await
-            .map(|val| val);
+            .await;
 
         let output = output.map_err(|err| Arc::new(SmeltErr::ExecutorFailed(err.to_string())))?;
 
@@ -266,7 +249,7 @@ impl CommandExecutor for DiceComputations<'_> {
         command: &CommandRef,
     ) -> Result<Arc<ExecutedTestResult>, Arc<SmeltErr>> {
         match self.compute(command).await {
-            Ok(val) => val.map(|val| val.clone()),
+            Ok(val) => val,
             Err(dicey) => Err(Arc::new(SmeltErr::DiceFail(dicey))),
         }
     }
@@ -279,7 +262,7 @@ impl CommandExecutor for DiceComputations<'_> {
                 move |ctx: &mut DiceComputations| -> BoxFuture<Result<Arc<ExecutedTestResult>, Arc<SmeltErr>>> {
                     ctx.compute(&val)
                         .map(|computed_val| match computed_val {
-                            Ok(val) => val.map(|val| val.clone()),
+                            Ok(val) => val,
                             Err(err) => Err(Arc::new(SmeltErr::DiceFail(err))),
                         })
                         .boxed()
@@ -375,7 +358,7 @@ impl CommandGraph {
                     .await
                     .map_err(|err| err.to_string());
                 if let Err(ref err) = rv {
-                    event_streamer
+                    let _ = event_streamer
                         .send(Event::runtime_error(
                             err.clone(),
                             "ADD_TRACE_ID_HERE".to_string(),
