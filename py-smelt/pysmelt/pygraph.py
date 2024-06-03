@@ -61,8 +61,6 @@ def maybe_get_message(
     listener: PyEventStream, blocking: bool = False
 ) -> Optional[Event]:
     try: 
-        if listener.is_done():
-            return None
         if blocking:
             message = listener.pop_message_blocking()
             event = Event.FromString(message)
@@ -133,7 +131,6 @@ class PyGraph:
                 # but async interopt with rust is kind of experimental and i dont want to do it yet
                 message = maybe_get_message(listener, blocking=False)
                 if message:
-                    
                     self.retcode_tracker.process_message(message)
                     console.process_message(message)
                     errhandler.process_message(message)

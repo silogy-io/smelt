@@ -36,6 +36,7 @@ pub struct PyController {
 pub struct PyEventStream {
     recv_chan: Receiver<Event>,
     done: bool,
+    chan_exhausted: bool,
 }
 
 impl PyEventStream {
@@ -43,6 +44,7 @@ impl PyEventStream {
         Self {
             recv_chan,
             done: false,
+            chan_exhausted: false,
         }
     }
 }
@@ -143,7 +145,7 @@ impl PyEventStream {
     }
 
     pub fn is_done(&mut self, _py: Python<'_>) -> bool {
-        self.done
+        self.done && self.recv_chan.is_closed()
     }
 }
 
