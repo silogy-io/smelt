@@ -36,7 +36,6 @@ pub struct PyController {
 pub struct PyEventStream {
     recv_chan: Receiver<Event>,
     done: bool,
-    chan_exhausted: bool,
 }
 
 impl PyEventStream {
@@ -44,7 +43,6 @@ impl PyEventStream {
         Self {
             recv_chan,
             done: false,
-            chan_exhausted: false,
         }
     }
 }
