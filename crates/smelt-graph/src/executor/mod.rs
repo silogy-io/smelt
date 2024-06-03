@@ -4,8 +4,7 @@ use crate::Command;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 
 use smelt_data::{
-    executed_tests::{ExecutedTestResult, TestResult},
-    Event,
+    executed_tests::{ExecutedTestResult},
 };
 
 mod common;

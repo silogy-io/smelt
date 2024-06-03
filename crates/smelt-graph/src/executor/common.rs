@@ -4,10 +4,10 @@ use std::path::PathBuf;
 use crate::Command;
 
 use dice::DiceData;
-use smelt_core::{CommandDefPath, SmeltErr};
+
 use smelt_data::{
     executed_tests::{ArtifactPointer, ExecutedTestResult, TestResult},
-    Event, SmeltError,
+    Event,
 };
 
 use smelt_events::runtime_support::GetCmdDefPath;

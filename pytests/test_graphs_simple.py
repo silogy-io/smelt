@@ -40,6 +40,17 @@ def test_sanity_pygraph_rerun_nofailing():
     assert observed_reexec == expected_executed_tasks, f"We don't re-run"
 
 
+def test_sanity_pygraph_runone():
+    """
+    Tests running one test -- we didn't have this path tested, woops
+    """
+    test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
+    graph = create_graph(test_list)
+
+    graph.run_one_test_interactive("test_example_1")
+    # we have 3 tests, 0 of which fail -- so we should rerun no tests
+
+
 def test_sanity_pygraph_rerun_with_failing():
     test_list = f"{get_git_root()}/test_data/smelt_files/failing_tests_only.smelt.yaml"
     graph = create_graph(test_list)
@@ -87,3 +98,7 @@ def test_sanity_pygraph_docker(simple_docker_image):
     assert (
         passed_commands == expected_passed
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
+
+
+for i in range(10):
+    test_sanity_pygraph_runone()

@@ -5,8 +5,7 @@ use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 
 use smelt_data::{
-    executed_tests::{ExecutedTestResult, TestResult},
-    CommandOutput, Event,
+    executed_tests::{ExecutedTestResult}, Event,
 };
 
 use smelt_events::runtime_support::{GetSmeltRoot, GetTraceId, GetTxChannel};
