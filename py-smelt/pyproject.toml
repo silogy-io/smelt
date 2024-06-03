@@ -1,6 +1,6 @@
 [project]
 name = "pysmelt"
-version = "0.1.0"
+version = "0.1.1"
 description = "smelt is a system to describe, run, and analyze integration tests"
 requires-python = ">=3.8"
 dependencies = [

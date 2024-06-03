@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
@@ -80,7 +80,6 @@ rev = "9e17b241"
 [workspace.dependencies.static_interner]
 version = "0.1.1"
 
-
 [workspace.dependencies.tonic]
 version = "0.9.2"
 features = ["tls", "tls-webpki-roots"]
@@ -108,7 +107,6 @@ default-features = false
 [workspace.dependencies.smelt-data]
 path = "crates/smelt-data"
 default-features = false
-
 
 [workspace.dependencies.py-smelt]
 path = "py-smelt"
