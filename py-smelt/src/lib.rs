@@ -2,14 +2,14 @@ use smelt_core::SmeltErr;
 use smelt_data::client_commands::ClientCommand;
 use smelt_data::{client_commands::ConfigureSmelt, Event};
 
-use smelt_events::{ClientCommandBundle, ClientCommandResp, EventStreams};
-use smelt_graph::{spawn_graph_server, SmeltServerHandle};
 use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
     types::{PyBytes, PyType},
 };
+use smelt_events::{ClientCommandBundle, ClientCommandResp, EventStreams};
+use smelt_graph::{spawn_graph_server, SmeltServerHandle};
 
 use std::sync::Arc;
 use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedSender};
@@ -35,11 +35,17 @@ pub struct PyController {
 #[pyclass]
 pub struct PyEventStream {
     recv_chan: Receiver<Event>,
+    done: bool,
+    exhausted: bool,
 }
 
 impl PyEventStream {
     pub(crate) fn create_subscriber(recv_chan: Receiver<Event>) -> Self {
-        Self { recv_chan }
+        Self {
+            recv_chan,
+            done: false,
+            exhausted: false,
+        }
     }
 }
 
@@ -113,7 +119,8 @@ impl PyEventStream {
         let val = self
             .recv_chan
             .blocking_recv()
-            .ok_or_else(|| PyRuntimeError::new_err("Event channel closed unexpectedly"))?;
+            .ok_or_else(|| PyRuntimeError::new_err("Event channel closed"))?;
+        self.set_done(&val);
 
         let val = val.encode_to_vec();
 
@@ -127,12 +134,25 @@ impl PyEventStream {
 
         match val {
             Ok(val) => {
+                self.set_done(&val);
                 let val = val.encode_to_vec();
 
                 Ok(Some(PyBytes::new_bound(py, &val)))
             }
             Err(TryRecvError::Empty) => Ok(None),
-            Err(_) => Err(PyRuntimeError::new_err("Event channel closed unexpectedly")),
+            Err(_) => Err(PyRuntimeError::new_err("Event channel closed")),
+        }
+    }
+
+    pub fn is_done<'py>(&mut self, _py: Python<'py>) -> bool {
+        self.done
+    }
+}
+
+impl PyEventStream {
+    fn set_done(&mut self, event: &Event) {
+        if event.finished_event() {
+            self.done = true;
         }
     }
 }

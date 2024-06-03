@@ -1,4 +1,6 @@
 from typing import Dict, Generator, List, Optional, Tuple, cast
+
+import betterproto
 from pysmelt.interfaces import Command, SmeltTargetType, Target
 from dataclasses import dataclass
 from pysmelt.interfaces.paths import SmeltPath
@@ -17,7 +19,6 @@ from pysmelt.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt
 
 
 from pysmelt.subscribers.error_handler import SmeltErrorHandler
-from pysmelt.subscribers.is_done import IsDoneSubscriber
 from pysmelt.subscribers.output_collector import OutputConsole
 from pysmelt.subscribers.retcode import RetcodeTracker
 
@@ -59,16 +60,28 @@ def default_target_rerun_callback(
 def maybe_get_message(
     listener: PyEventStream, blocking: bool = False
 ) -> Optional[Event]:
-    if blocking:
-        message = listener.pop_message_blocking()
-        event = Event.FromString(message)
-    else:
-        message = listener.nonblocking_pop()
-        if message is None:
+    try: 
+        if listener.is_done():
             return None
-        event = Event.FromString(message)
+        if blocking:
+            message = listener.pop_message_blocking()
+            event = Event.FromString(message)
+        else:
+            message = listener.nonblocking_pop()
+            if message is None:
+                return None
+            event = Event.FromString(message)
         
-    return event
+        return event
+    except RuntimeError as e: 
+        """
+        In expectation, we only return an error if the channel has been closed  
+
+        We don't have any paths above this function to handle that error, so we'll handle it here as getting the message failing 
+        """
+        
+        print(e)
+        return None
 
 
 def spin_for_message(
@@ -110,18 +123,17 @@ class PyGraph:
     Handle to rust -- calls the function defined in the pyo3 bindings
     """
     
-    done_tracker : IsDoneSubscriber
     retcode_tracker : RetcodeTracker
 
     def runloop(self, listener: PyEventStream):
         errhandler = SmeltErrorHandler()
         with OutputConsole() as console:
-            while not self.done_tracker.is_done:
+            while not listener.is_done():
                 # tbh, this could be async
                 # but async interopt with rust is kind of experimental and i dont want to do it yet
                 message = maybe_get_message(listener, blocking=False)
                 if message:
-                    self.done_tracker.process_message(message)
+                    
                     self.retcode_tracker.process_message(message)
                     console.process_message(message)
                     errhandler.process_message(message)
@@ -141,20 +153,21 @@ class PyGraph:
         The yielded value will be
         """
         stdout_tracker = StdoutPrinter(test_name, sink)
+        errhandler = SmeltErrorHandler()
         while True:
             # tbh, this could be async
             # but async interopt with rust is kind of experimental and i dont want to do it yet
             message = maybe_get_message(listener, blocking=False)
             if message:
-                self.done_tracker.process_message(message)
                 self.retcode_tracker.process_message(message)
                 stdout_tracker.process_message(message)
+                errhandler.process_message(message)
             if not message:
                 # add a little bit of backoff
-                yield self.done_tracker.is_done
+                yield listener.is_done()
 
     def reset(self):
-        self.done_tracker.reset()
+        pass
        # self.retcode_tracker.reset()
         
 
@@ -257,7 +270,7 @@ class PyGraph:
         graph = PyController(cfg_bytes)
         
         rv = cls(
-            smelt_targets=smelt_targets, commands=[], controller=graph, done_tracker=IsDoneSubscriber(), retcode_tracker= RetcodeTracker()
+            smelt_targets=smelt_targets, commands=[], controller=graph, retcode_tracker= RetcodeTracker()
         )
         rv.add_commands(commands)
         return rv

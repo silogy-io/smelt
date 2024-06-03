@@ -371,9 +371,17 @@ impl CommandGraph {
             }) = self.rx_chan.recv().await
             {
                 let rv = self
-                    .eat_command(command, event_streamer)
+                    .eat_command(command, event_streamer.clone())
                     .await
                     .map_err(|err| err.to_string());
+                if let Err(ref err) = rv {
+                    event_streamer
+                        .send(Event::runtime_error(
+                            err.clone(),
+                            "ADD_TRACE_ID_HERE".to_string(),
+                        ))
+                        .await;
+                }
                 let _ = oneshot_confirmer.send(rv);
             }
         }
