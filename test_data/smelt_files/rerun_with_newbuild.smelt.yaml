@@ -9,7 +9,7 @@
 - name: cmark
   rule: raw_bash
   rule_args:
-    dependencies:
+    deps:
       - verilator_build_dummy
     cmds:
       - echo "normal"
@@ -20,7 +20,7 @@
 - name: hello_world
   rule: raw_bash
   rule_args:
-    dependencies:
+    deps:
       - verilator_build_dummy
     cmds:
       - echo "normal hello_world"
