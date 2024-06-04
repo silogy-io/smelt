@@ -48,10 +48,15 @@ class TestResult(betterproto.Message):
 
     # name of the test
     test_name: str = betterproto.string_field(1)
-    # Maps artifacts to testsd
-    artifacts: List["ArtifactPointer"] = betterproto.message_field(2)
+    outputs: "TestOutputs" = betterproto.message_field(2)
+
+
+@dataclass
+class TestOutputs(betterproto.Message):
+    # Files that are expected from a test
+    artifacts: List["ArtifactPointer"] = betterproto.message_field(1)
     # exit code of the test
-    exit_code: int = betterproto.int32_field(3)
+    exit_code: int = betterproto.int32_field(2)
 
 
 @dataclass

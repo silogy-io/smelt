@@ -14,7 +14,7 @@ mod helpers {
 
     use super::*;
     use smelt_data::{command_event::CommandVariant, invoke_event::InvokeVariant, InvokeEvent};
-    use smelt_data::{event::Et, CommandOutput};
+    use smelt_data::{event::Et, executed_tests::TestOutputs};
     use smelt_data::{CommandEvent, Event};
 
     pub fn new_command_event(
@@ -49,7 +49,7 @@ mod helpers {
     const fn output_asfile() -> &'static str {
         "command.status"
     }
-    pub async fn to_file(out: &CommandOutput, _base_path: &Path) -> Result<(), std::io::Error> {
+    pub async fn to_file(out: &TestOutputs, _base_path: &Path) -> Result<(), std::io::Error> {
         let mut command_out = File::create(output_asfile()).await?;
 
         command_out

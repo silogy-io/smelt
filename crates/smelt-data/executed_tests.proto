@@ -53,10 +53,15 @@ message TrackedTestResult {
 message TestResult {
   // name of the test
   string test_name = 1;
-  // Maps artifacts to testsd
-  repeated ArtifactPointer artifacts = 2;
+  TestOutputs outputs = 2;
+}
+
+
+message TestOutputs { 
+  // Files that are expected from a test
+  repeated ArtifactPointer artifacts = 1;
   // exit code of the test
-  int32 exit_code= 3;
+  int32 exit_code= 2;
 }
 
 

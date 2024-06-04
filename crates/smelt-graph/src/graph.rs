@@ -10,10 +10,7 @@ use dice::{
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
-use futures::{
-    future::{self, BoxFuture},
-    Future,
-};
+use futures::future::{self, BoxFuture};
 
 use smelt_events::{
     self,
@@ -33,16 +30,9 @@ use crate::{
 use async_trait::async_trait;
 use smelt_core::CommandDefPath;
 use smelt_core::SmeltErr;
-use smelt_data::CommandOutput;
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandRef(Arc<Command>);
-
-#[derive(Clone, Dupe, PartialEq, Eq, Hash, Debug, Allocative)]
-pub struct CommandVal {
-    output: CommandOutput,
-    command: CommandRef,
-}
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct QueryCommandRef(Arc<Command>);
@@ -227,8 +217,6 @@ pub trait CommandSetter {
         equations: impl IntoIterator<Item = CommandRef>,
     ) -> Result<(), SmeltErr>;
 }
-pub type CommandOutputFuture<'a> =
-    dyn Future<Output = Result<CommandOutput, Arc<SmeltErr>>> + Send + 'a;
 #[async_trait]
 pub trait CommandExecutor {
     async fn execute_command(
@@ -443,9 +431,7 @@ impl CommandGraph {
         let val = tx.per_transaction_data().get_tx_channel();
         // todo -- handle err
         let _ = val
-            .send(invoke_start_message(
-                tx.per_transaction_data().get_trace_id(),
-            ))
+            .send(invoke_start_message(tx.per_transaction_data(), tx.global_data()).await)
             .await;
 
         Ok(tx)

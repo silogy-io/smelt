@@ -12,9 +12,8 @@ use std::{
 };
 
 use smelt_core::SmeltErr;
-pub use smelt_data::CommandOutput;
 
-use crate::digest::CommandDefDigest;
+use crate::digest::{CommandDefDigest, CommandIdDigest};
 use smelt_core::CommandDefPath;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
@@ -45,29 +44,12 @@ impl Command {
         let rv: [u8; 20] = hasher.finalize().into();
         CommandDefDigest::new(rv)
     }
-
-    //pub async fn inst_hash(&self) -> Option<CommandInstDigest> {
-    //    let file_digests = future::join_all(
-    //        self.dependent_files
-    //            .iter()
-    //            .cloned()
-    //            .map(|path| FileDigest::from_file(PathBuf::from(path))),
-    //    )
-    //    .await;
-
-    //    let mut swallower = Sha1::new();
-    //    for digest in file_digests {
-    //        match digest {
-    //            Ok(digest) => swallower.update(digest.get_payload()),
-    //            Err(err) => {
-    //                dbg!("Failed to get the digest of one of the files: {err}");
-    //                return None;
-    //            }
-    //        }
-    //    }
-
-    //    None
-    //}
+    pub fn id_digest(&self) -> CommandIdDigest {
+        let mut hasher = Sha1::new();
+        hasher.update(&self.name);
+        let rv: [u8; 20] = hasher.finalize().into();
+        CommandIdDigest::new(rv)
+    }
 
     pub const fn script_file() -> &'static str {
         "command.sh"
@@ -91,24 +73,6 @@ impl Command {
             .iter()
             .map(|(env_name, env_val)| format!("export {}={}", env_name, env_val))
             .chain(self.script.iter().cloned())
-    }
-
-    pub async fn get_status_from_fs(&self, root: &Path) -> Result<CommandOutput, SmeltErr> {
-        if let Ok(working_dir) = self.default_target_root(root) {
-            let val = working_dir
-                .exists()
-                .then(|| working_dir.join("command.status"));
-            if let Some(ile) = val {
-                let val: CommandOutput = tokio::fs::read_to_string(ile)
-                    .await
-                    .map(|val| serde_json::from_str(val.as_str()))??;
-                Ok(val)
-            } else {
-                Err(SmeltErr::CommandCacheMiss)
-            }
-        } else {
-            Err(SmeltErr::CommandCacheMiss)
-        }
     }
 }
 

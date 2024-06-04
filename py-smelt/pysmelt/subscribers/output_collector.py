@@ -1,13 +1,19 @@
 from datetime import datetime
 import enum
 from typing import Dict, Optional
+from typing_extensions import cast
 from rich.console import Group
 from rich.tree import Tree
 import rich
 from pysmelt.interfaces.target import SmeltTargetType, Target
 from pysmelt.output import smelt_console
 from dataclasses import dataclass, field
-from pysmelt.smelt_telemetry.data import CommandEvent, CommandFinished, CommandStdout, Event
+from pysmelt.proto.smelt_telemetry import (
+    CommandEvent,
+    CommandFinished,
+    CommandStdout,
+    Event,
+)
 import betterproto
 from rich.progress import (
     Progress,
@@ -94,13 +100,15 @@ class OutputConsole:
             (command_name, payload) = betterproto.which_one_of(
                 event_payload, "CommandVariant"
             )
+
             if command_name != "stdout":
                 self.status_dict[name] = Status(command_name)
                 if command_name == "started":
                     self.processed_started()
 
                 if command_name == "finished":
-                    self.process_finished(payload.out.status_code)
+                    payload = cast(CommandFinished, payload)
+                    self.process_finished(payload.outputs.exit_code)
 
             # we are processing stdout of a command
             else:

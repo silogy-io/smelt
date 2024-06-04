@@ -1,7 +1,8 @@
 syntax = "proto3";
 
-package smelt_telemetry.data;
+package smelt_telemetry;
 import "google/protobuf/timestamp.proto";
+import "executed_tests.proto";
 
 // Event flows from server -> client only
 message Event {
@@ -18,6 +19,8 @@ message Event {
 
 // CommandEvents covers activity happening on a per target basis
 message CommandEvent {
+  // test def id 
+  // this ref should be consistent for the same test being executed
   string command_ref = 1;
   oneof CommandVariant {
     CommandScheduled scheduled = 4;
@@ -32,8 +35,8 @@ message CommandScheduled {}
 message CommandStarted {}
 message CommandCancelled {}
 message CommandStdout { string output = 1; }
-message CommandFinished { CommandOutput out = 1; }
-message CommandOutput { int32 status_code = 1; }
+message CommandFinished { executed_tests.TestOutputs outputs =1; }
+
 
 // InvokeEvent demarcates the start of a graph execution.
 message InvokeEvent {
@@ -45,9 +48,12 @@ message InvokeEvent {
 }
 
 message ExecutionStart {
-  string path = 1;
+  string smelt_root = 1;
   string username = 2;
   string hostname = 3;
+  string git_hash = 4; 
+  string git_repo = 5;
+  string git_branch = 6;
 }
 message AllCommandsDone {}
 message SetGraph {}

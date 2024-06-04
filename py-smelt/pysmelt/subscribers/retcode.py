@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, cast
 import betterproto
-from pysmelt.smelt_telemetry.data import CommandEvent, CommandFinished, Event
+from pysmelt.proto.smelt_telemetry import CommandEvent, CommandFinished, Event
 
 
 @dataclass
@@ -23,7 +23,7 @@ class RetcodeTracker:
             if command_name == "finished":
                 command_payload = cast(CommandFinished, command_payload)
                 self.retcode_dict[event_payload.command_ref] = (
-                    command_payload.out.status_code
+                    command_payload.outputs.exit_code
                 )
             else:
                 pass

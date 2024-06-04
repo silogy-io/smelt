@@ -6,7 +6,7 @@ use crate::Command;
 use dice::DiceData;
 
 use smelt_data::{
-    executed_tests::{ArtifactPointer, ExecutedTestResult, TestResult},
+    executed_tests::{ArtifactPointer, ExecutedTestResult, TestOutputs, TestResult},
     Event,
 };
 
@@ -100,8 +100,10 @@ pub(crate) fn create_test_result(
 
     let test_result = TestResult {
         test_name: command.name.clone(),
-        artifacts,
-        exit_code,
+        outputs: Some(TestOutputs {
+            artifacts,
+            exit_code,
+        }),
     };
 
     if missing_artifacts.is_empty() {

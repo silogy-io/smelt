@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import betterproto
-from pysmelt.smelt_telemetry.data import Event
+from pysmelt.proto.smelt_telemetry import Event
 
 
 @dataclass

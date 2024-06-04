@@ -1,8 +1,6 @@
+tonic::include_proto!("executed_tests");
 use allocative::Allocative;
 use std::path::PathBuf;
-
-tonic::include_proto!("executed_tests");
-
 impl ArtifactPointer {
     pub fn file_artifact(artifact_name: String, path: PathBuf) -> Self {
         let abs_path = path.to_string_lossy().to_string();
@@ -26,16 +24,26 @@ pub enum ExecutedTestResult {
 }
 
 impl ExecutedTestResult {
-    pub fn to_test_result(self) -> TestResult {
+    pub fn to_test_result(self) -> TestOutputs {
         match self {
-            Self::Success(val) => val,
-            Self::MissingFiles { test_result, .. } => test_result,
+            Self::Success(val) => val.outputs.unwrap(),
+            Self::MissingFiles { test_result, .. } => test_result.outputs.unwrap(),
         }
     }
     pub fn get_retcode(&self) -> i32 {
         match self {
-            Self::Success(val) => val.exit_code,
-            Self::MissingFiles { test_result, .. } => test_result.exit_code,
+            Self::Success(val) => val.outputs.as_ref().map(|val| val.exit_code).unwrap(),
+            Self::MissingFiles { test_result, .. } => test_result
+                .outputs
+                .as_ref()
+                .map(|val| val.exit_code)
+                .unwrap(),
         }
+    }
+}
+
+impl TestOutputs {
+    pub fn passed(&self) -> bool {
+        self.exit_code == 0
     }
 }

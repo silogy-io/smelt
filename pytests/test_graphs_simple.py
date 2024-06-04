@@ -100,5 +100,4 @@ def test_sanity_pygraph_docker(simple_docker_image):
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
 
 
-for i in range(10):
-    test_sanity_pygraph_runone()
+test_sanity_pygraph_rerun_with_failing()
