@@ -47,13 +47,13 @@ async fn exec_info(global_data: &DiceData) -> ExecutionStart {
     let hostname = fallible::hostname().unwrap_or("unknown_host".to_string());
     let username = fallible::username().unwrap_or("unkown_user".to_string());
 
-    let otl_root = global_data.get_smelt_root().to_string_lossy().to_string();
+    let smelt_root = global_data.get_smelt_root().to_string_lossy().to_string();
     let (git_hash, git_branch, git_repo) = get_git_info().await;
     //TODO fill this in
     ExecutionStart {
         hostname,
         username,
-        otl_root,
+        smelt_root,
         git_hash,
         git_branch,
         git_repo,

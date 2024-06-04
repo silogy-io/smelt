@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+
 package smelt_telemetry;
 import "google/protobuf/timestamp.proto";
 import "executed_tests.proto";

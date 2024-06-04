@@ -57,12 +57,11 @@ pub mod client_commands;
 pub mod executed_tests;
 
 pub mod smelt_telemetry {
-    pub mod data {
-        tonic::include_proto!("smelt_telemetry.data");
-    }
+
+    tonic::include_proto!("smelt_telemetry");
 }
 use executed_tests::TestOutputs;
-pub use smelt_telemetry::data::*;
+pub use smelt_telemetry::*;
 
 impl Event {
     pub fn new(et: Et, trace_id: String) -> Self {
