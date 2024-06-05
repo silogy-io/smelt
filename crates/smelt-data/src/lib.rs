@@ -56,7 +56,12 @@ mod serialize_timestamp {
 pub mod client_commands;
 pub mod executed_tests;
 
-tonic::include_proto!("smelt_telemetry.data");
+pub mod smelt_telemetry {
+
+    tonic::include_proto!("smelt_telemetry");
+}
+use executed_tests::TestOutputs;
+pub use smelt_telemetry::*;
 
 impl Event {
     pub fn new(et: Et, trace_id: String) -> Self {
@@ -79,7 +84,10 @@ impl Event {
         let et = event::Et::Command(CommandEvent {
             command_ref,
             command_variant: Some(CommandVariant::Finished(CommandFinished {
-                out: Some(CommandOutput { status_code }),
+                outputs: Some(TestOutputs {
+                    exit_code: status_code,
+                    artifacts: vec![],
+                }),
             })),
         });
         Self::new(et, trace_id)
@@ -110,19 +118,19 @@ impl Event {
         Self::new(Et::set_graph(), "".to_string())
     }
 
-    pub fn command_output(&self) -> Option<CommandOutput> {
-        self.et
-            .as_ref()
-            .and_then(|val| match val {
-                Et::Command(comm) => comm.command_variant.clone().and_then(|inner| match inner {
-                    CommandVariant::Finished(CommandFinished { out }) => Some(out),
-                    _ => None,
-                }),
-
-                _ => None,
-            })
-            .flatten()
-    }
+    //    pub fn command_output(&self) -> Option<CommandOutput> {
+    //        self.et
+    //            .as_ref()
+    //            .and_then(|val| match val {
+    //                Et::Command(comm) => comm.command_variant.clone().and_then(|inner| match inner {
+    //                    CommandVariant::Finished(CommandFinished { out }) => Some(out),
+    //                    _ => None,
+    //                }),
+    //
+    //                _ => None,
+    //            })
+    //            .flatten()
+    //    }
 
     pub fn client_error(payload: String) -> Event {
         let trace_id = "CLIENT_ERROR".to_string();
@@ -164,13 +172,7 @@ impl CommandVariant {
 
 impl CommandFinished {
     pub fn passed(&self) -> bool {
-        self.out.as_ref().unwrap().passed()
-    }
-}
-
-impl CommandOutput {
-    pub fn passed(&self) -> bool {
-        self.status_code == 0
+        self.outputs.as_ref().unwrap().passed()
     }
 }
 

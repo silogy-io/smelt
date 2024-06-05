@@ -2,7 +2,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Optional, cast
 import betterproto
-from pysmelt.smelt_telemetry.data import CommandEvent, CommandFinished, CommandStdout, Event
+from pysmelt.proto.smelt_telemetry import (
+    CommandEvent,
+    CommandFinished,
+    CommandStdout,
+    Event,
+)
 
 
 StdoutSink = Callable[[str], None]

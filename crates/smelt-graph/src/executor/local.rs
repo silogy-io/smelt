@@ -7,8 +7,8 @@ use crate::Command;
 use async_trait::async_trait;
 
 use smelt_data::{
-    executed_tests::{ExecutedTestResult},
-    CommandOutput, Event,
+    executed_tests::{ExecutedTestResult, TestOutputs},
+    Event,
 };
 use smelt_events::{
     runtime_support::{GetCmdDefPath, GetSmeltRoot, GetTraceId, GetTxChannel},
@@ -44,9 +44,7 @@ impl Executor for LocalExecutor {
             root,
         )
         .await
-        .map(|output| {
-            create_test_result(local_command.as_ref(), output.status_code, global_data)
-        })?;
+        .map(|output| create_test_result(local_command.as_ref(), output.exit_code, global_data))?;
         Ok(rv)
     }
 }
@@ -57,7 +55,7 @@ async fn execute_local_command(
     tx_chan: Sender<Event>,
     command_working_dir: PathBuf,
     root: PathBuf,
-) -> anyhow::Result<CommandOutput> {
+) -> anyhow::Result<TestOutputs> {
     let shell = "bash";
     let _handle_me = tx_chan
         .send(Event::command_started(
@@ -87,7 +85,7 @@ async fn execute_local_command(
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();
 
-    let cstatus: CommandOutput = loop {
+    let cstatus: TestOutputs = loop {
         tokio::select!(
             Ok(Some(line)) = lines.next_line() => {
                 handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
@@ -96,7 +94,7 @@ async fn execute_local_command(
                 handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
             }
             status_code = comm_handle.wait() => {
-                break status_code.map(|val| CommandOutput { status_code: val.code().unwrap_or(-555)});
+                break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![]});
             }
 
 
@@ -107,6 +105,5 @@ async fn execute_local_command(
         handle_line(command, line, trace_id.clone(), &tx_chan, &mut stdout).await;
     }
 
-    to_file(&cstatus, &working_dir).await?;
     Ok(cstatus)
 }

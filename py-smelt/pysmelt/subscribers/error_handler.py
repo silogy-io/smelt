@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import cast
 import betterproto
-from pysmelt.smelt_telemetry.data import Event, SmeltError, SmeltErrorType
+from pysmelt.proto.smelt_telemetry import Event, SmeltError, SmeltErrorType
 
 
 class ClientErr(RuntimeError):

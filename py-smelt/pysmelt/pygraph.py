@@ -14,8 +14,8 @@ import time
 
 
 
-from pysmelt.smelt_telemetry.data import Event
-from pysmelt.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt
+from pysmelt.proto.smelt_telemetry import Event
+from pysmelt.proto.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt
 
 
 from pysmelt.subscribers.error_handler import SmeltErrorHandler
@@ -191,6 +191,7 @@ class PyGraph:
         self.reset()
         listener = self.controller.run_all_tests(maybe_type)
         self.runloop(listener)
+        print(self.retcode_tracker.retcode_dict)
 
     
 

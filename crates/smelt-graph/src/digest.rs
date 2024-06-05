@@ -57,5 +57,10 @@ impl<Kind> CasDigest<Kind> {
 pub struct CommandDefDigestKind {
     _private: (),
 }
+pub struct CommandIdDigestKind {
+    _private: (),
+}
 
 pub type CommandDefDigest = CasDigest<CommandDefDigestKind>;
+
+pub type CommandIdDigest = CasDigest<CommandIdDigestKind>;

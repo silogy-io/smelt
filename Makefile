@@ -18,7 +18,7 @@ test: deps ## Tests the rust package
 
 
 gen_py_proto: crates/smelt-data/*.proto ## Builds the rust package only
-	cd py-smelt/pysmelt && protoc  -I ../../crates/smelt-data/ --python_betterproto_out=.  data.proto client.data.proto executed_tests.proto &&cd -;
+	cd py-smelt/pysmelt/proto && protoc  -I ../../../crates/smelt-data/ --python_betterproto_out=.  data.proto client.data.proto executed_tests.proto &&cd -;
 
 
 

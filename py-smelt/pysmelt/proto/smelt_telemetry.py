@@ -6,6 +6,8 @@ from datetime import datetime
 
 import betterproto
 
+from . import executed_tests
+
 
 class SmeltErrorType(betterproto.Enum):
     # Client caused error
@@ -32,6 +34,7 @@ class Event(betterproto.Message):
 class CommandEvent(betterproto.Message):
     """CommandEvents covers activity happening on a per target basis"""
 
+    # test def id  this ref should be consistent for the same test being executed
     command_ref: str = betterproto.string_field(1)
     scheduled: "CommandScheduled" = betterproto.message_field(4, group="CommandVariant")
     started: "CommandStarted" = betterproto.message_field(5, group="CommandVariant")
@@ -62,12 +65,7 @@ class CommandStdout(betterproto.Message):
 
 @dataclass
 class CommandFinished(betterproto.Message):
-    out: "CommandOutput" = betterproto.message_field(1)
-
-
-@dataclass
-class CommandOutput(betterproto.Message):
-    status_code: int = betterproto.int32_field(1)
+    outputs: executed_tests.TestOutputs = betterproto.message_field(1)
 
 
 @dataclass
@@ -81,9 +79,12 @@ class InvokeEvent(betterproto.Message):
 
 @dataclass
 class ExecutionStart(betterproto.Message):
-    path: str = betterproto.string_field(1)
+    smelt_root: str = betterproto.string_field(1)
     username: str = betterproto.string_field(2)
     hostname: str = betterproto.string_field(3)
+    git_hash: str = betterproto.string_field(4)
+    git_repo: str = betterproto.string_field(5)
+    git_branch: str = betterproto.string_field(6)
 
 
 @dataclass
