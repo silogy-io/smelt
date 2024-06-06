@@ -9,6 +9,7 @@ from pysmelt.path_utils import relatavize_inp_path
 from pysmelt.pysmelt import PyController, PyEventStream
 from pysmelt.rc import SmeltRcHolder
 from pysmelt.rerun import DerivedTarget, RerunCallback
+from pysmelt.subscribers import SmeltSub
 import yaml
 import time
 
@@ -123,6 +124,8 @@ class PyGraph:
     
     retcode_tracker : RetcodeTracker
 
+    additional_listeners: List[SmeltSub]
+
     def runloop(self, listener: PyEventStream):
         errhandler = SmeltErrorHandler()
         with OutputConsole() as console:
@@ -134,6 +137,8 @@ class PyGraph:
                     self.retcode_tracker.process_message(message)
                     console.process_message(message)
                     errhandler.process_message(message)
+                    for other_listener in self.additional_listeners:
+                        other_listener.process_message(message)
                 if not message:
                     # add a little bit of backoff
                     time.sleep(0.01)
@@ -191,7 +196,7 @@ class PyGraph:
         self.reset()
         listener = self.controller.run_all_tests(maybe_type)
         self.runloop(listener)
-        print(self.retcode_tracker.retcode_dict)
+        
 
     
 
@@ -268,7 +273,7 @@ class PyGraph:
         graph = PyController(cfg_bytes)
         
         rv = cls(
-            smelt_targets=smelt_targets, commands=[], controller=graph, retcode_tracker= RetcodeTracker()
+            smelt_targets=smelt_targets, commands=[], controller=graph, retcode_tracker= RetcodeTracker(), additional_listeners=[]
         )
         rv.add_commands(commands)
         return rv

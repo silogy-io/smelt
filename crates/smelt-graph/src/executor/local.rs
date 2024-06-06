@@ -10,16 +10,16 @@ use smelt_data::{
     executed_tests::{ExecutedTestResult, TestOutputs},
     Event,
 };
-use smelt_events::{
-    runtime_support::{GetCmdDefPath, GetSmeltRoot, GetTraceId, GetTxChannel},
-    to_file,
-};
+use smelt_events::runtime_support::{GetCmdDefPath, GetSmeltRoot, GetTraceId, GetTxChannel};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::Sender,
 };
 
-use super::common::{create_test_result, prepare_workspace, Workspace};
+use super::{
+    common::{create_test_result, prepare_workspace, Workspace},
+    profiler::profile_cmd,
+};
 
 pub struct LocalExecutor {}
 
@@ -84,6 +84,20 @@ async fn execute_local_command(
 
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();
+    let maybe_pid = comm_handle.id();
+
+    let sample_task = if let Some(pid) = maybe_pid {
+        Some(tokio::spawn(profile_cmd(
+            pid,
+            tx_chan.clone(),
+            100,
+            command.name.clone(),
+            trace_id.clone(),
+        )))
+    } else {
+        None
+    };
+    //let sample_task = ;
 
     let cstatus: TestOutputs = loop {
         tokio::select!(
@@ -100,6 +114,10 @@ async fn execute_local_command(
 
         );
     }?;
+    //kill the sampling task
+    if let Some(task) = sample_task {
+        task.abort()
+    }
 
     while let Ok(Some(line)) = lines.next_line().await {
         handle_line(command, line, trace_id.clone(), &tx_chan, &mut stdout).await;

@@ -34,13 +34,14 @@ class Event(betterproto.Message):
 class CommandEvent(betterproto.Message):
     """CommandEvents covers activity happening on a per target basis"""
 
-    # test def id  this ref should be consistent for the same test being executed
+    # test def id this ref should be consistent for the same test being executed
     command_ref: str = betterproto.string_field(1)
     scheduled: "CommandScheduled" = betterproto.message_field(4, group="CommandVariant")
     started: "CommandStarted" = betterproto.message_field(5, group="CommandVariant")
     cancelled: "CommandCancelled" = betterproto.message_field(6, group="CommandVariant")
     finished: "CommandFinished" = betterproto.message_field(7, group="CommandVariant")
     stdout: "CommandStdout" = betterproto.message_field(8, group="CommandVariant")
+    profile: "CommandProfile" = betterproto.message_field(9, group="CommandVariant")
 
 
 @dataclass
@@ -66,6 +67,13 @@ class CommandStdout(betterproto.Message):
 @dataclass
 class CommandFinished(betterproto.Message):
     outputs: executed_tests.TestOutputs = betterproto.message_field(1)
+
+
+@dataclass
+class CommandProfile(betterproto.Message):
+    # memory used by the command, in bytes
+    memory_used: int = betterproto.uint64_field(1)
+    cpu_load: float = betterproto.float_field(2)
 
 
 @dataclass

@@ -72,6 +72,17 @@ impl Event {
         }
     }
 
+    pub fn from_command_variant(
+        command_ref: String,
+        trace_id: String,
+        variant: CommandVariant,
+    ) -> Self {
+        let et = event::Et::Command(CommandEvent {
+            command_ref,
+            command_variant: Some(variant),
+        });
+        Self::new(et, trace_id)
+    }
     pub fn command_started(command_ref: String, trace_id: String) -> Self {
         let et = event::Et::Command(CommandEvent {
             command_ref,
