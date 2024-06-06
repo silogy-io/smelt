@@ -11,7 +11,7 @@ use whoami::fallible;
 //      we need to support that
 async fn get_git_info() -> (String, String, String) {
     let hash = Command::new("git")
-        .args(&["rev-parse", "HEAD"])
+        .args(["rev-parse", "HEAD"])
         .output()
         .await
         .ok()
@@ -21,7 +21,7 @@ async fn get_git_info() -> (String, String, String) {
         .to_string();
 
     let branch = Command::new("git")
-        .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
         .await
         .ok()
@@ -31,7 +31,7 @@ async fn get_git_info() -> (String, String, String) {
         .to_string();
 
     let repo = Command::new("git")
-        .args(&["config", "--get", "remote.origin.url"])
+        .args(["config", "--get", "remote.origin.url"])
         .output()
         .await
         .ok()

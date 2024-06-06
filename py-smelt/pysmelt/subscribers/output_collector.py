@@ -101,7 +101,7 @@ class OutputConsole:
                 event_payload, "CommandVariant"
             )
 
-            if command_name != "stdout":
+            if command_name != "stdout" and command_name != "profile":
                 self.status_dict[name] = Status(command_name)
                 if command_name == "started":
                     self.processed_started()

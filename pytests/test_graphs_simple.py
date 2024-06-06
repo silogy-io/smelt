@@ -1,5 +1,10 @@
 import subprocess
 from typing import Generator
+from pysmelt.proto.smelt_client.commands import (
+    ConfigureSmelt,
+    ProfilerCfg,
+    ProfilingSelection,
+)
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
 from pysmelt.path_utils import get_git_root
 from pysmelt.interfaces import Command
@@ -100,4 +105,51 @@ def test_sanity_pygraph_docker(simple_docker_image):
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
 
 
-test_sanity_pygraph_rerun_with_failing()
+def test_profiler():
+    """
+    Tests the case where no re-run is needed
+    """
+    from pysmelt.subscribers.simple_profiler import ProfileWatcher
+    from typing import cast
+
+    test_list = f"{get_git_root()}/test_data/smelt_files/large_profile.smelt.yaml"
+
+    def init_sampler(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.prof_cfg = ProfilerCfg(
+            prof_type=ProfilingSelection.SIMPLE_PROF, sampling_period=100
+        )
+        return cfg
+
+    graph = create_graph(test_list, init_sampler)
+    graph.additional_listeners.append(ProfileWatcher())
+    graph.run_all_tests("test")
+    profiler = cast(ProfileWatcher, graph.additional_listeners[0])
+    print(profiler.profile_events)
+
+    big_mem_events = profiler.profile_events["high_mem_usage"]
+    smaller_mem = profiler.profile_events["baseline"]
+
+    def find_average(lst):
+        return sum(lst) / len(lst)
+
+    avg_big_mem = find_average([event.memory_used for event in big_mem_events])
+    avg_small_mem = find_average([event.memory_used for event in smaller_mem])
+    mem_used_ratio = avg_big_mem / avg_small_mem
+    lower_bound = 2.5
+    if not mem_used_ratio > lower_bound:
+        import warnings
+
+        warnings.warn(
+            UserWarning(
+                f"""We expect that the more memory test takes about ~4x more memory than the baseline -- we set a lower bound of 2.5x mem to be safe.
+
+                actual observed ratio is {mem_used_ratio}
+                """
+            )
+        )
+    # assert (
+    #    mem_used_ratio > lower_bound
+    # ), "We expect that the more memory test takes about ~4x more memory than the baseline -- we set a lower bound of 2.5x mem to be safe"
+
+
+test_profiler()

@@ -1,0 +1,11 @@
+- name: baseline
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - python -c 'import time; a = " " * 10000000; time.sleep(2);'
+
+- name: high_mem_usage
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - python -c 'import time; a = " " * 80000000; time.sleep(2);'

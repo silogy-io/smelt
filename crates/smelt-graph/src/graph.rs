@@ -627,6 +627,10 @@ mod tests {
             .unwrap()
             .to_string();
         ConfigureSmelt {
+            prof_cfg: Some(ProfilerCfg {
+                prof_type: 0,
+                sampling_period: 1000,
+            }),
             smelt_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
             command_def_path,
             job_slots: 1,

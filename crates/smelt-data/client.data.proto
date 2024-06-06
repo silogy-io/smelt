@@ -24,17 +24,30 @@ message RunType {
 
 // This configuration is done once, when SMELT is initialized
 // The client should provide this when creating an smelt handle
-message ConfigureSmelt { 
+message ConfigureSmelt {
   // Should be an absolute path
   string smelt_root = 1;
   // relative to smelt_root -- this is an SmeltPath
   string command_def_path = 2;
   // number of slots the entire executor has -- analogous to job slots in make
   uint64 job_slots = 3;
+  //configures how we profile commands
+  ProfilerCfg prof_cfg = 4;
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;
   }
+}
+
+message ProfilerCfg {
+  // if we enable simple profiling
+  ProfilingSelection prof_type = 1;
+  uint64 sampling_period =2 ;
+}
+enum ProfilingSelection {
+  DISABLED = 0;
+  // only memory and cpu
+  SIMPLE_PROF = 1;
 }
 
 message CfgLocal {}

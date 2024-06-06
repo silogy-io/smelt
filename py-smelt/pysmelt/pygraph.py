@@ -1,4 +1,4 @@
-from typing import Dict, Generator, List, Optional, Tuple, cast
+from typing import Callable, Dict, Generator, List, Optional, Tuple, cast
 
 import betterproto
 from pysmelt.interfaces import Command, SmeltTargetType, Target
@@ -9,6 +9,7 @@ from pysmelt.path_utils import relatavize_inp_path
 from pysmelt.pysmelt import PyController, PyEventStream
 from pysmelt.rc import SmeltRcHolder
 from pysmelt.rerun import DerivedTarget, RerunCallback
+from pysmelt.subscribers import SmeltSub
 import yaml
 import time
 
@@ -123,6 +124,8 @@ class PyGraph:
     
     retcode_tracker : RetcodeTracker
 
+    additional_listeners: List[SmeltSub]
+
     def runloop(self, listener: PyEventStream):
         errhandler = SmeltErrorHandler()
         with OutputConsole() as console:
@@ -134,6 +137,8 @@ class PyGraph:
                     self.retcode_tracker.process_message(message)
                     console.process_message(message)
                     errhandler.process_message(message)
+                    for other_listener in self.additional_listeners:
+                        other_listener.process_message(message)
                 if not message:
                     # add a little bit of backoff
                     time.sleep(0.01)
@@ -159,6 +164,9 @@ class PyGraph:
                 self.retcode_tracker.process_message(message)
                 stdout_tracker.process_message(message)
                 errhandler.process_message(message)
+                for other_listener in self.additional_listeners:
+                        other_listener.process_message(message)
+
             if not message:
                 # add a little bit of backoff
                 yield listener.is_done()
@@ -191,7 +199,7 @@ class PyGraph:
         self.reset()
         listener = self.controller.run_all_tests(maybe_type)
         self.runloop(listener)
-        print(self.retcode_tracker.retcode_dict)
+        
 
     
 
@@ -268,7 +276,7 @@ class PyGraph:
         graph = PyController(cfg_bytes)
         
         rv = cls(
-            smelt_targets=smelt_targets, commands=[], controller=graph, retcode_tracker= RetcodeTracker()
+            smelt_targets=smelt_targets, commands=[], controller=graph, retcode_tracker= RetcodeTracker(), additional_listeners=[]
         )
         rv.add_commands(commands)
         return rv
@@ -285,17 +293,19 @@ def _create_cfg(smelt_test_list: str) -> ConfigureSmelt:
     return cfg
 
 
-def create_graph(smelt_test_list: str) -> PyGraph:
+def create_graph(smelt_test_list: str, cfg_init: Optional[Callable[[ConfigureSmelt],ConfigureSmelt]] = None) -> PyGraph:
     cfg = _create_cfg(smelt_test_list)
+    if cfg_init:
+        cfg = cfg_init(cfg)
     targets, command_list = parse_smelt(smelt_test_list)
     rv = PyGraph.init(targets, command_list, cfg)
     return rv
 
 def create_graph_with_docker(smelt_test_list: str, docker_img: str) -> PyGraph:
-    cfg = _create_cfg(smelt_test_list)
-    cfg.docker = CfgDocker()
-    cfg.docker.image_name = docker_img
-    cfg.docker.additional_mounts = {}
-    targets, command_list = parse_smelt(smelt_test_list)
-    rv = PyGraph.init(targets, command_list, cfg)
-    return rv                                        
+    def init_docker(cfg: ConfigureSmelt) -> ConfigureSmelt: 
+        cfg.docker = CfgDocker()
+        cfg.docker.image_name = docker_img
+        cfg.docker.additional_mounts = {}
+        return cfg
+    return create_graph(smelt_test_list,init_docker)
+    

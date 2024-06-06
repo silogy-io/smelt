@@ -10,16 +10,18 @@ use smelt_data::{
     executed_tests::{ExecutedTestResult, TestOutputs},
     Event,
 };
-use smelt_events::{
-    runtime_support::{GetCmdDefPath, GetSmeltRoot, GetTraceId, GetTxChannel},
-    to_file,
+use smelt_events::runtime_support::{
+    GetCmdDefPath, GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel,
 };
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::Sender,
 };
 
-use super::common::{create_test_result, prepare_workspace, Workspace};
+use super::{
+    common::{create_test_result, prepare_workspace, Workspace},
+    profiler::profile_cmd,
+};
 
 pub struct LocalExecutor {}
 
@@ -42,6 +44,7 @@ impl Executor for LocalExecutor {
             tx.clone(),
             command_default_dir,
             root,
+            global_data,
         )
         .await
         .map(|output| create_test_result(local_command.as_ref(), output.exit_code, global_data))?;
@@ -55,6 +58,7 @@ async fn execute_local_command(
     tx_chan: Sender<Event>,
     command_working_dir: PathBuf,
     root: PathBuf,
+    global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
     let shell = "bash";
     let _handle_me = tx_chan
@@ -67,7 +71,7 @@ async fn execute_local_command(
     let Workspace {
         script_file,
         mut stdout,
-        working_dir,
+        ..
     } = prepare_workspace(command, root.clone()).await?;
 
     let mut commandlocal = tokio::process::Command::new(shell);
@@ -84,6 +88,21 @@ async fn execute_local_command(
 
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();
+    let maybe_pid = comm_handle.id();
+
+    let sample_task = maybe_pid.and_then(|pid| {
+        global_data.get_profiling_freq().map(|freq| {
+            tokio::spawn(profile_cmd(
+                pid,
+                tx_chan.clone(),
+                freq,
+                command.name.clone(),
+                trace_id.clone(),
+            ))
+        })
+    });
+
+    //let sample_task = ;
 
     let cstatus: TestOutputs = loop {
         tokio::select!(
@@ -100,6 +119,10 @@ async fn execute_local_command(
 
         );
     }?;
+    //kill the sampling task
+    if let Some(task) = sample_task {
+        task.abort()
+    }
 
     while let Ok(Some(line)) = lines.next_line().await {
         handle_line(command, line, trace_id.clone(), &tx_chan, &mut stdout).await;

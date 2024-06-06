@@ -3,15 +3,14 @@ use std::sync::Arc;
 use crate::Command;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 
-use smelt_data::{
-    executed_tests::{ExecutedTestResult},
-};
+use smelt_data::executed_tests::ExecutedTestResult;
 
 mod common;
 
 #[cfg(feature = "docker")]
 mod docker;
 mod local;
+mod profiler;
 
 use async_trait::async_trait;
 #[cfg(feature = "docker")]
