@@ -7,6 +7,12 @@ from typing import Dict, List
 import betterproto
 
 
+class ProfilingSelection(betterproto.Enum):
+    DISABLED = 0
+    # only memory and cpu
+    SIMPLE_PROF = 1
+
+
 @dataclass
 class ClientCommand(betterproto.Message):
     setter: "SetCommands" = betterproto.message_field(1, group="ClientCommands")
@@ -50,8 +56,17 @@ class ConfigureSmelt(betterproto.Message):
     command_def_path: str = betterproto.string_field(2)
     # number of slots the entire executor has -- analogous to job slots in make
     job_slots: int = betterproto.uint64_field(3)
+    # configures how we profile commands
+    prof_cfg: "ProfilerCfg" = betterproto.message_field(4)
     local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")
     docker: "CfgDocker" = betterproto.message_field(11, group="InitExecutor")
+
+
+@dataclass
+class ProfilerCfg(betterproto.Message):
+    # if we enable simple profiling
+    prof_type: "ProfilingSelection" = betterproto.enum_field(1)
+    sampling_period: int = betterproto.uint64_field(2)
 
 
 @dataclass

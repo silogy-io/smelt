@@ -1,5 +1,10 @@
 import subprocess
 from typing import Generator
+from pysmelt.proto.smelt_client.commands import (
+    ConfigureSmelt,
+    ProfilerCfg,
+    ProfilingSelection,
+)
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
 from pysmelt.path_utils import get_git_root
 from pysmelt.interfaces import Command
@@ -109,7 +114,13 @@ def test_profiler():
 
     test_list = f"{get_git_root()}/test_data/smelt_files/large_profile.smelt.yaml"
 
-    graph = create_graph(test_list)
+    def init_sampler(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.prof_cfg = ProfilerCfg(
+            prof_type=ProfilingSelection.SIMPLE_PROF, sampling_period=100
+        )
+        return cfg
+
+    graph = create_graph(test_list, init_sampler)
     graph.additional_listeners.append(ProfileWatcher())
     graph.run_all_tests("test")
     profiler = cast(ProfileWatcher, graph.additional_listeners[0])
@@ -139,3 +150,6 @@ def test_profiler():
     # assert (
     #    mem_used_ratio > lower_bound
     # ), "We expect that the more memory test takes about ~4x more memory than the baseline -- we set a lower bound of 2.5x mem to be safe"
+
+
+test_profiler()
