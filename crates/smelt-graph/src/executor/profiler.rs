@@ -1,10 +1,6 @@
 use std::time::Duration;
 
-use libproc::{
-    self,
-    pid_rusage::{PIDRUsage},
-    processes,
-};
+use libproc::{self, pid_rusage::PIDRUsage, processes};
 use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
 use tokio::{sync::mpsc::Sender, time::Instant};
 const MILIS_TO_NANOS: u64 = 1000000;
@@ -36,6 +32,7 @@ fn get_rusage_and_add(pid: i32, timeused: &mut u64, memused: &mut u64) {
 
 #[cfg(target_os = "linux")]
 fn get_rusage_and_add(pid: i32, timeused: &mut u64, memused: &mut u64) {
+    use libproc::pid_rusage::RUsageInfoV0;
     if let Some(val) = libproc::pid_rusage::pidrusage::<RUsageInfoV0>(pid as i32).ok() {
         *memused += val.memory_used();
         *timeused += (val.ri_system_time + val.ri_user_time) / MILIS_TO_NANOS;
