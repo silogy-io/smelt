@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use libproc::{
     self,
-    pid_rusage::{PIDRUsage, RUsageInfoV0, RUsageInfoV2},
+    pid_rusage::{PIDRUsage},
     processes,
 };
 use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
@@ -27,10 +27,10 @@ fn get_rusage_and_add(pid: i32, timeused: &mut u64, memused: &mut u64) {
     let mut timebase = mach_timebase_info::default();
 
     unsafe { mach_timebase_info(&mut timebase) };
-    if let Some(val) = libproc::pid_rusage::pidrusage::<RUsageInfoV3>(pid as i32).ok() {
+    if let Ok(val) = libproc::pid_rusage::pidrusage::<RUsageInfoV3>(pid) {
         *memused += val.memory_used();
-        *timeused += (((val.ri_system_time + val.ri_user_time) * timebase.numer as u64)
-            / timebase.denom as u64);
+        *timeused += ((val.ri_system_time + val.ri_user_time) * timebase.numer as u64)
+            / timebase.denom as u64;
     }
 }
 
@@ -46,7 +46,7 @@ fn sample_memory_and_load(
     pid: u32,
     previous_sample: &Option<SampleStruct>,
 ) -> Option<SampleStruct> {
-    let filter = libproc::processes::ProcFilter::ByParentProcess { ppid: pid as u32 };
+    let filter = libproc::processes::ProcFilter::ByParentProcess { ppid: pid };
     let mut timeused = 0;
     let mut memused = 0;
 
@@ -59,7 +59,7 @@ fn sample_memory_and_load(
     get_rusage_and_add(pid as i32, &mut timeused, &mut memused);
 
     if let Some(prev) = previous_sample {
-        timeused = timeused - prev.cpu_time_delta;
+        timeused -= prev.cpu_time_delta;
     }
     Some(SampleStruct {
         memory_used: memused,
@@ -81,7 +81,7 @@ pub async fn profile_cmd(
         let new_sample = sample_memory_and_load(pid, &prev_sample);
         if let Some(sample) = new_sample {
             let new_sample_time = Instant::now();
-            if let Some(ref prev) = Some(prev_sample) {
+            if let Some(ref _prev) = Some(prev_sample) {
                 let time_since = (new_sample_time - prev_sample_time).as_millis() as u64;
                 let _ = tx
                     .send(profile_event(&trace_id, &command_ref, &sample, time_since))

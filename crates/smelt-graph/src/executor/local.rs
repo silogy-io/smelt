@@ -10,7 +10,9 @@ use smelt_data::{
     executed_tests::{ExecutedTestResult, TestOutputs},
     Event,
 };
-use smelt_events::runtime_support::{GetCmdDefPath, GetSmeltRoot, GetTraceId, GetTxChannel};
+use smelt_events::runtime_support::{
+    GetCmdDefPath, GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel,
+};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::Sender,
@@ -42,6 +44,7 @@ impl Executor for LocalExecutor {
             tx.clone(),
             command_default_dir,
             root,
+            global_data,
         )
         .await
         .map(|output| create_test_result(local_command.as_ref(), output.exit_code, global_data))?;
@@ -55,6 +58,7 @@ async fn execute_local_command(
     tx_chan: Sender<Event>,
     command_working_dir: PathBuf,
     root: PathBuf,
+    global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
     let shell = "bash";
     let _handle_me = tx_chan
@@ -67,7 +71,7 @@ async fn execute_local_command(
     let Workspace {
         script_file,
         mut stdout,
-        working_dir,
+        ..
     } = prepare_workspace(command, root.clone()).await?;
 
     let mut commandlocal = tokio::process::Command::new(shell);
@@ -86,17 +90,18 @@ async fn execute_local_command(
     let mut lines = reader.lines();
     let maybe_pid = comm_handle.id();
 
-    let sample_task = if let Some(pid) = maybe_pid {
-        Some(tokio::spawn(profile_cmd(
-            pid,
-            tx_chan.clone(),
-            100,
-            command.name.clone(),
-            trace_id.clone(),
-        )))
-    } else {
-        None
-    };
+    let sample_task = maybe_pid.and_then(|pid| {
+        global_data.get_profiling_freq().map(|freq| {
+            tokio::spawn(profile_cmd(
+                pid,
+                tx_chan.clone(),
+                freq,
+                command.name.clone(),
+                trace_id.clone(),
+            ))
+        })
+    });
+
     //let sample_task = ;
 
     let cstatus: TestOutputs = loop {

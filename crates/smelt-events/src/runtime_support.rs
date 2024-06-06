@@ -28,11 +28,18 @@ pub trait SetSmeltCfg {
 }
 
 pub trait GetSmeltCfg {
-    fn get_smelt_cfg(&mut self) -> &ConfigureSmelt;
+    fn get_smelt_cfg(&self) -> &ConfigureSmelt;
 }
 
 pub trait GetSmeltRoot {
     fn get_smelt_root(&self) -> PathBuf;
+}
+
+pub trait GetProfilingFreq {
+    /// Gets the profiling frequency in milliseconds
+    ///
+    /// If not set, then profiling is disabled
+    fn get_profiling_freq(&self) -> Option<u64>;
 }
 
 pub trait GetCmdDefPath {
@@ -89,13 +96,28 @@ impl SetSmeltCfg for DiceDataBuilder {
 impl GetCmdDefPath for DiceData {
     fn get_cmd_def_path(&self) -> PathBuf {
         self.get::<ConfigureSmelt>()
-            .map(|val| SmeltPath::new(val.smelt_root.clone()).to_path(Path::new(val.smelt_root.as_str())))
+            .map(|val| {
+                SmeltPath::new(val.smelt_root.clone()).to_path(Path::new(val.smelt_root.as_str()))
+            })
             .unwrap()
     }
 }
 
 impl GetSmeltCfg for DiceData {
-    fn get_smelt_cfg(&mut self) -> &ConfigureSmelt {
-        self.get::<ConfigureSmelt>().expect("Trace id should be set")
+    fn get_smelt_cfg(&self) -> &ConfigureSmelt {
+        self.get::<ConfigureSmelt>()
+            .expect("Cfg object should be set")
+    }
+}
+use smelt_data::client_commands::ProfilingSelection;
+impl GetProfilingFreq for DiceData {
+    fn get_profiling_freq(&self) -> Option<u64> {
+        self.get_smelt_cfg().prof_cfg.as_ref().and_then(|val| {
+            if val.prof_type == ProfilingSelection::Disabled as i32 {
+                None
+            } else {
+                Some(val.sampling_period)
+            }
+        })
     }
 }
