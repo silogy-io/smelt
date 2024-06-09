@@ -36,4 +36,12 @@ impl ClientCommand {
             client_commands: Some(cc),
         }
     }
+
+    pub fn get_cfg() -> Self {
+        let cc = ClientCommands::Getcfg(GetConfig {});
+
+        ClientCommand {
+            client_commands: Some(cc),
+        }
+    }
 }

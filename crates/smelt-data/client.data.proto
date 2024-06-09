@@ -10,6 +10,7 @@ message ClientCommand {
     RunOne runone = 2;
     RunType runtype = 3;
     RunMany runmany = 4;
+    GetConfig getcfg = 5;
   }
 }
 
@@ -21,6 +22,19 @@ message RunType {
   // not today babey
   string typeinfo = 1;
 }
+message GetConfig {};
+
+
+// Responses to the client command
+message ClientResp {
+  oneof ClientResponses {
+    ConfigureSmelt current_cfg = 1;
+  }
+}
+
+
+
+
 
 // This configuration is done once, when SMELT is initialized
 // The client should provide this when creating an smelt handle
