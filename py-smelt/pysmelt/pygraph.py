@@ -37,8 +37,6 @@ def default_cfg(cmd_path: SmeltPath) -> ConfigureSmelt:
     rv.smelt_root = rc.smelt_root
     rv.command_def_path = cmd_path.as_str
     rv.local = CfgLocal()
-    
-
     return rv
 
 
@@ -76,7 +74,7 @@ def maybe_get_message(
         """
         In expectation, we only return an error if the channel has been closed  
 
-        We don't have any paths above this function to handle that error, so we'll handle it here as getting the message failing 
+        We don't have any paths above this function to handle that error, so we'll handle it here
         """
         
         print(e)
@@ -170,6 +168,9 @@ class PyGraph:
             if not message:
                 # add a little bit of backoff
                 yield listener.is_done()
+    def get_current_cfg(self) -> ConfigureSmelt:
+        raw_cfg = self.controller.get_current_cfg() 
+        return ConfigureSmelt.FromString(raw_cfg)
 
     def reset(self):
         pass

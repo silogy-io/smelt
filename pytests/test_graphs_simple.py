@@ -30,6 +30,16 @@ def test_sanity_pygraph():
     graph.run_all_tests("test")
 
 
+def test_get_cfg():
+
+    cmd_def_path_in = "test_data/smelt_files/large_profile.smelt.yaml"
+    test_list = f"{get_git_root()}/test_data/smelt_files/large_profile.smelt.yaml"
+    graph = create_graph(test_list)
+    assert (
+        cmd_def_path_in == graph.get_current_cfg().command_def_path
+    ), "command_def_path roundtrip doesn't match"
+
+
 def test_sanity_pygraph_rerun_nofailing():
     """
     Tests the case where no re-run is needed
@@ -150,6 +160,3 @@ def test_profiler():
     # assert (
     #    mem_used_ratio > lower_bound
     # ), "We expect that the more memory test takes about ~4x more memory than the baseline -- we set a lower bound of 2.5x mem to be safe"
-
-
-test_profiler()

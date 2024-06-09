@@ -36,4 +36,5 @@ def relatavize_inp_path(smelt_root: str, inp_path: str) -> SmeltPath:
     abs_inp_path = os.path.abspath(inp_path)
 
     # Return the path of `abs_inp_path` relative to `abs_path`
-    return SmeltPath.from_str(os.path.relpath(abs_inp_path, smelt_root))
+    rv = SmeltPath.from_str(os.path.relpath(abs_inp_path, smelt_root))
+    return rv

@@ -1,5 +1,6 @@
 pub mod runtime_support;
 
+use smelt_data::client_commands::{client_resp::ClientResponses, ClientResp};
 pub use smelt_data::{client_commands::ClientCommand, Event};
 
 use tokio::{
@@ -59,7 +60,7 @@ mod helpers {
     }
 }
 
-pub type ClientCommandResp = Result<(), String>;
+pub type ClientCommandResp = Result<ClientResp, String>;
 
 pub struct ClientCommandBundle {
     pub message: ClientCommand,

@@ -4,9 +4,7 @@ use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 
-use smelt_data::{
-    executed_tests::{ExecutedTestResult}, Event,
-};
+use smelt_data::{executed_tests::ExecutedTestResult, Event};
 
 use smelt_events::runtime_support::{GetSmeltRoot, GetTraceId, GetTxChannel};
 use std::{collections::HashMap, sync::Arc};
@@ -79,7 +77,7 @@ impl Executor for DockerExecutor {
             .iter()
             .fold(base_binds, |mut val, b| {
                 val.push(format!("{}:{}", b.0, b.1));
-                dbg!(&val);
+
                 val
             });
 

@@ -1,6 +1,6 @@
 use allocative::Allocative;
 use smelt_data::{
-    client_commands::{client_command::ClientCommands, *},
+    client_commands::{client_command::ClientCommands, client_resp::ClientResponses, *},
     executed_tests::ExecutedTestResult,
 };
 
@@ -14,7 +14,9 @@ use futures::future::{self, BoxFuture};
 
 use smelt_events::{
     self,
-    runtime_support::{GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel},
+    runtime_support::{
+        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
+    },
     ClientCommandBundle, Event,
 };
 
@@ -344,7 +346,10 @@ impl CommandGraph {
                 let rv = self
                     .eat_command(command, event_streamer.clone())
                     .await
-                    .map_err(|err| err.to_string());
+                    .map_err(|err| err.to_string())
+                    .map(|val| ClientResp {
+                        client_responses: val,
+                    });
                 if let Err(ref err) = rv {
                     let _ = event_streamer
                         .send(Event::runtime_error(
@@ -362,7 +367,7 @@ impl CommandGraph {
         &mut self,
         command: ClientCommands,
         event_streamer: Sender<Event>,
-    ) -> Result<(), SmeltErr> {
+    ) -> Result<Option<ClientResponses>, SmeltErr> {
         match command {
             ClientCommands::Setter(SetCommands { command_content }) => {
                 let script = serde_yaml::from_str(&command_content)?;
@@ -377,8 +382,19 @@ impl CommandGraph {
             ClientCommands::Runmany(RunMany { command_names }) => {
                 self.run_many_tests(command_names, event_streamer).await?;
             }
+            ClientCommands::Getcfg(GetConfig {}) => {
+                let rv = self.dice.updater();
+                let val = rv
+                    .existing_state()
+                    .await
+                    .global_data()
+                    .get_smelt_cfg()
+                    .clone();
+
+                return Ok(Some(ClientResponses::CurrentCfg(val)));
+            }
         }
-        Ok(())
+        return Ok(None);
     }
 
     pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), SmeltErr> {
