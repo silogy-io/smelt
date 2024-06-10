@@ -44,6 +44,13 @@ class SmeltPath:
 
 @dataclass
 class SmeltFilePath:
+    """
+    A file object in smelt can either be absolute or defined relative to the command_def path
+
+    for instance, if we have an output "foo"
+
+    """
+
     path_type: SmeltPathType
     path: str
 
