@@ -68,6 +68,13 @@ def main():
 
     if args.push_git:
         branch = f"release-{out_version}"
+        curr_branch = (
+            subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+            .decode("utf-8")
+            .strip()
+        )
+        if curr_branch != "dev":
+            raise RuntimeError("Current branch is not dev")
         subprocess.run(["git", "checkout", "-b", branch])
         subprocess.run(["taplo", "fmt", pypath, cargopath])
         subprocess.run(["git", "add", pypath, cargopath])
