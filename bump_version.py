@@ -73,8 +73,6 @@ def main():
         subprocess.run(["git", "add", pypath, cargopath])
         subprocess.run(["git", "commit", "-m", f"Bump version to {out_version}"])
         subprocess.run(["git", "push", "origin", branch])
-        subprocess.run(["git", "tag", out_version])
-        subprocess.run(["git", "push", "origin", out_version])
 
 
 if __name__ == "__main__":

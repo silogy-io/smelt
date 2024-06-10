@@ -113,7 +113,7 @@ class PyGraph:
     """
     commands: List[Command]
     """ 
-    holds all of the commands that are live in the graph -- some of these may not map back to an smelt target
+    holds all of the commands that are live in the graph 
     """
     controller: PyController
     """
