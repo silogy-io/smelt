@@ -3,7 +3,7 @@ use std::time::Duration;
 use libproc::{self, pid_rusage::PIDRUsage, processes};
 use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
 use tokio::{sync::mpsc::Sender, time::Instant};
-const MILIS_TO_NANOS: u64 = 1000000;
+const MICROS_TO_NANOS: u64 = 1_000;
 struct SampleStruct {
     /// Memory used by a command in bytes
     ///
@@ -35,7 +35,7 @@ fn get_rusage_and_add(pid: i32, timeused: &mut u64, memused: &mut u64) {
     use libproc::pid_rusage::RUsageInfoV0;
     if let Some(val) = libproc::pid_rusage::pidrusage::<RUsageInfoV0>(pid as i32).ok() {
         *memused += val.memory_used();
-        *timeused += (val.ri_system_time + val.ri_user_time) / MILIS_TO_NANOS;
+        *timeused += (val.ri_system_time + val.ri_user_time) / MICROS_TO_NANOS;
     }
 }
 
@@ -76,17 +76,17 @@ pub async fn profile_cmd(
 
     loop {
         let new_sample = sample_memory_and_load(pid, &prev_sample);
+        let new_sample_time = Instant::now();
         if let Some(sample) = new_sample {
-            let new_sample_time = Instant::now();
-            if let Some(ref _prev) = Some(prev_sample) {
-                let time_since = (new_sample_time - prev_sample_time).as_millis() as u64;
+            if let Some(ref _prev) = prev_sample {
+                let time_since = (new_sample_time - prev_sample_time).as_micros() as u64;
                 let _ = tx
                     .send(profile_event(&trace_id, &command_ref, &sample, time_since))
                     .await;
             }
             prev_sample = Some(sample);
-            prev_sample_time = new_sample_time;
         }
+        prev_sample_time = new_sample_time;
 
         tokio::time::sleep(Duration::from_millis(sample_freq_ms)).await;
     }
@@ -100,7 +100,7 @@ fn profile_event(
 ) -> Event {
     let variant = CommandVariant::Profile(CommandProfile {
         memory_used: sample.memory_used,
-        cpu_load: (sample.cpu_time_delta / MILIS_TO_NANOS) as f32 / sample_freq_ms as f32,
+        cpu_load: (sample.cpu_time_delta / MICROS_TO_NANOS) as f32 / sample_freq_ms as f32,
     });
     Event::from_command_variant(command_ref.clone(), trace_id.clone(), variant)
 }

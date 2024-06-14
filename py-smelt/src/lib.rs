@@ -126,7 +126,7 @@ impl PyController {
 }
 
 #[inline]
-fn to_bytes<'py, M: Message>(message: M, py: Python<'py>) -> Bound<'py, PyBytes> {
+fn to_bytes<M: Message>(message: M, py: Python<'_>) -> Bound<'_, PyBytes> {
     let val = message.encode_to_vec();
 
     PyBytes::new_bound(py, &val)
