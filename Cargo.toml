@@ -3,7 +3,6 @@ resolver = "2"
 members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-
 version = "0.2.1"
 
 
