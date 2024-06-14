@@ -394,7 +394,7 @@ impl CommandGraph {
                 return Ok(Some(ClientResponses::CurrentCfg(val)));
             }
         }
-        return Ok(None);
+        Ok(None)
     }
 
     pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), SmeltErr> {
