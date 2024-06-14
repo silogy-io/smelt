@@ -1,4 +1,5 @@
 import subprocess
+import math
 from typing import Generator
 from pysmelt.proto.smelt_client.commands import (
     ConfigureSmelt,
@@ -142,8 +143,22 @@ def test_profiler():
     def find_average(lst):
         return sum(lst) / len(lst)
 
+    for event in big_mem_events:
+        assert event.cpu_load != float(
+            "nan"
+        ), "We should not have any nans for cpu load!"
+    for eventlists in [big_mem_events, smaller_mem]:
+        for event in eventlists:
+            assert not math.isnan(
+                event.cpu_load
+            ), "We should not have any nans for cpu load!"
+            assert not math.isinf(
+                event.cpu_load
+            ), "We should not have infinite cpu load!"
+
     avg_big_mem = find_average([event.memory_used for event in big_mem_events])
     avg_small_mem = find_average([event.memory_used for event in smaller_mem])
+
     mem_used_ratio = avg_big_mem / avg_small_mem
     lower_bound = 2.5
     if not mem_used_ratio > lower_bound:
@@ -157,6 +172,10 @@ def test_profiler():
                 """
             )
         )
+
     # assert (
     #    mem_used_ratio > lower_bound
     # ), "We expect that the more memory test takes about ~4x more memory than the baseline -- we set a lower bound of 2.5x mem to be safe"
+
+
+test_profiler()
