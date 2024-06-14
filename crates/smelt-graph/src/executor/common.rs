@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::{io::Write, path::Path};
+use std::{io::Write};
 
 use crate::Command;
 

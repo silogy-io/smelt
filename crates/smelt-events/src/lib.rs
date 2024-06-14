@@ -1,6 +1,6 @@
 pub mod runtime_support;
 
-use smelt_data::client_commands::{client_resp::ClientResponses, ClientResp};
+use smelt_data::client_commands::{ClientResp};
 pub use smelt_data::{client_commands::ClientCommand, Event};
 
 use tokio::{
