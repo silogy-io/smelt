@@ -1,5 +1,6 @@
 from typing import Callable, Dict, Generator, List, Optional, Tuple, cast
 
+from dataclasses import replace
 import betterproto
 from pysmelt.interfaces import Command, SmeltTargetType, Target
 from dataclasses import dataclass
@@ -50,9 +51,10 @@ def default_target_rerun_callback(
     """
 
     requires_rerun = target.rule_type() == SmeltTargetType.Test and return_code != 0
-    new_target = deepcopy(target)
-    new_target.name = f"{new_target.name}_rerun"
-    new_target.injected_state = {"debug": "True"}
+    
+    new_target = replace(target, name=f"{target.name}_rerun")
+    new_target.injected_state={"debug": "True"}
+
     return (new_target, requires_rerun)
 
 

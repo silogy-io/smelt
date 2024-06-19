@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field, asdict
 from abc import ABC
 from enum import Enum
+from functools import partial
 from typing import Any, List, Dict, Literal
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.paths import SmeltFilePath
@@ -15,12 +16,16 @@ class SmeltTargetType(Enum):
 TargetRef = str
 
 
-@dataclass
+smelt_target = partial(dataclass, frozen=True)()
+
+
+@dataclass()
 class Target(ABC):
     """
     A target is a structure that holds logic to generate a `Command`
 
-    Targets are higher level abstraction to generate a new command based off of certain new input criterea -- for instance, if a target fails, and you create a new command
+    Targets are higher level abstraction to commands -- they allow users to embed "application logic" into targets
+
     """
 
     name: str

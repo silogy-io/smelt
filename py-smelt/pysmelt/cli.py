@@ -10,6 +10,7 @@ from pysmelt.pygraph import create_graph
 from pysmelt.serde import SafeDataclassDumper
 from typing import Optional
 from typer import Exit
+from pysmelt.templates.template_rule import create_rule_target_from_template
 
 app = typer.Typer()
 
@@ -40,14 +41,14 @@ CommandPath = Annotated[
 ]
 
 
-RulePath = Annotated[
+NewRulePath = Annotated[
     Path,
     typer.Argument(
         ...,
         exists=False,
         file_okay=True,
-        dir_okay=True,
-        writable=False,
+        dir_okay=False,
+        writable=True,
         readable=True,
         resolve_path=True,
     ),
@@ -115,6 +116,12 @@ def validate(
     graph = create_graph(str(smelt_file))
     smelt_console.print(f"[green] {smelt_file.name} is valid")
     pretty_print_tests(graph)
+
+
+@app.command(help="Create a new target def file at the provided path")
+def init_rule(output: CommandPath):
+    create_rule_target_from_template(str(output))
+    smelt_console.log(f"Created template at path {output}")
 
 
 def main():

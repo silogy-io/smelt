@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
+from functools import partial
 from pysmelt.interfaces import Target, SmeltFilePath, SmeltTargetType, TargetRef
-from typing import List, Dict
+from typing import Any, List, Dict
 
 
 @dataclass
