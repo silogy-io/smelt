@@ -19,6 +19,7 @@ class ClientCommand(betterproto.Message):
     runone: "RunOne" = betterproto.message_field(2, group="ClientCommands")
     runtype: "RunType" = betterproto.message_field(3, group="ClientCommands")
     runmany: "RunMany" = betterproto.message_field(4, group="ClientCommands")
+    getcfg: "GetConfig" = betterproto.message_field(5, group="ClientCommands")
 
 
 @dataclass
@@ -41,6 +42,20 @@ class RunType(betterproto.Message):
     # Eventually, perhaps we should encode this as info in protobuf not today
     # babey
     typeinfo: str = betterproto.string_field(1)
+
+
+@dataclass
+class GetConfig(betterproto.Message):
+    pass
+
+
+@dataclass
+class ClientResp(betterproto.Message):
+    """Responses to the client command"""
+
+    current_cfg: "ConfigureSmelt" = betterproto.message_field(
+        1, group="ClientResponses"
+    )
 
 
 @dataclass

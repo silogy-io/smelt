@@ -19,7 +19,7 @@ TargetRef = str
 smelt_target = partial(dataclass, frozen=True)()
 
 
-@dataclass()
+@dataclass
 class Target(ABC):
     """
     A target is a structure that holds logic to generate a `Command`
@@ -34,7 +34,7 @@ class Target(ABC):
     def __post_init__(self):
         self.injected_state = {}
 
-    def get_outputs(self) -> Dict[str, SmeltFilePath]:
+    def get_outputs(self) -> Dict[str, str]:
         return {}
 
     def gen_script(self) -> List[str]:
@@ -63,3 +63,10 @@ class Target(ABC):
         If any of these files change across invocations, the target will be re-executed
         """
         return []
+
+    @property
+    def as_ref(self) -> TargetRef:
+        """
+        Currently refs are just the names of each target
+        """
+        return self.name

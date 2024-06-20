@@ -4,6 +4,9 @@ from typing import List, TypedDict, Dict, Type, Optional
 from pysmelt.interfaces import Target
 from pathlib import Path
 from pysmelt.rc import SmeltRC
+from pysmelt.path_utils import get_git_root
+import sys
+from importlib.util import spec_from_file_location, module_from_spec
 
 
 class DocumentedTarget(TypedDict):
@@ -57,3 +60,26 @@ def _get_all_targets(targets_dir: Optional[Path]) -> Dict[str, DocumentedTarget]
             print(f"Failed to import rule definitions at {path}")
 
     return classes
+
+
+def import_procedural_testlist(py_path: str):
+    spec = spec_from_file_location("__main__", py_path)
+
+    module = module_from_spec(spec)
+
+    spec.loader.exec_module(module)
+    print(module)
+    return module
+
+
+def init_local_rules():
+    root_dir = Path(get_git_root()) / "smelt_rules"
+    if root_dir.exists():
+        for py_file in root_dir.glob("*.py"):
+            module_name = py_file.stem  # get filename without extension
+            spec = spec_from_file_location(module_name, str(py_file))
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+            sys.modules[module_name] = (
+                module  # add the module to the list of globally imported modules
+            )

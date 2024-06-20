@@ -176,3 +176,6 @@ def test_profiler():
     # assert (
     #    mem_used_ratio > lower_bound
     # ), "We expect that the more memory test takes about ~4x more memory than the baseline -- we set a lower bound of 2.5x mem to be safe"
+
+
+test_profiler()

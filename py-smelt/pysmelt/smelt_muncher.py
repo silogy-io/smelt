@@ -1,8 +1,15 @@
 from dataclasses import dataclass
 import yaml
+import pathlib
 from typing import Dict, Any, Iterable, Tuple, Type, List
 from pydantic import BaseModel
-from pysmelt.importer import DocumentedTarget, get_all_targets, get_default_targets
+from pysmelt.generators.procedural import get_procedural_targets
+from pysmelt.importer import (
+    DocumentedTarget,
+    get_all_targets,
+    get_default_targets,
+    import_procedural_testlist,
+)
 from pysmelt.interfaces import Target, Command
 from pysmelt.rc import SmeltRC, SmeltRcHolder
 from pysmelt.path_utils import get_git_root
@@ -44,11 +51,19 @@ def to_target(pre_target: PreTarget) -> Target:
 def parse_smelt(
     test_list: str, default_rules_only: bool = False
 ) -> Tuple[Dict[str, Target], List[Command]]:
-    yaml_content = open(test_list).read()
-    targets = smelt_contents_to_targets(
-        yaml_content, default_rules_only=default_rules_only
-    )
+    if pathlib.Path(test_list).suffix == ".py":
+        targets = get_procedural_targets(test_list)
+
+        print(targets)
+        targets = {target.name: target for target in targets}
+        print(targets)
+    else:
+        yaml_content = open(test_list).read()
+        targets = smelt_contents_to_targets(
+            yaml_content, default_rules_only=default_rules_only
+        )
     command_list = lower_targets_to_commands(targets.values())
+    print(command_list)
     return targets, command_list
 
 
