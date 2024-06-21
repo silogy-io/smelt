@@ -135,7 +135,6 @@ def test_profiler():
     graph.additional_listeners.append(ProfileWatcher())
     graph.run_all_tests("test")
     profiler = cast(ProfileWatcher, graph.additional_listeners[0])
-    print(profiler.profile_events)
 
     big_mem_events = profiler.profile_events["high_mem_usage"]
     smaller_mem = profiler.profile_events["baseline"]

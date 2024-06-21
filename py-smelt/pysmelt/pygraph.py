@@ -135,7 +135,7 @@ class PyGraph:
                 message = maybe_get_message(listener, blocking=False)
                 if message:
                     self.retcode_tracker.process_message(message)
-                    #console.process_message(message)
+                    console.process_message(message)
                     errhandler.process_message(message)
                     for other_listener in self.additional_listeners:
                         other_listener.process_message(message)

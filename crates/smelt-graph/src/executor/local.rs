@@ -72,14 +72,12 @@ async fn execute_local_command(
         script_file,
         mut stdout,
         ..
-    } = prepare_workspace(command, root.clone()).await?;
+    } = prepare_workspace(command, root.clone(), command_working_dir.as_path()).await?;
 
     let mut commandlocal = tokio::process::Command::new(shell);
 
-    dbg!(&command_working_dir);
     commandlocal
         .arg(script_file)
-        .current_dir(command_working_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;

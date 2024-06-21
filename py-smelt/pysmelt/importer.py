@@ -68,7 +68,7 @@ def import_procedural_testlist(py_path: str):
     module = module_from_spec(spec)
 
     spec.loader.exec_module(module)
-    print(module)
+
     return module
 
 

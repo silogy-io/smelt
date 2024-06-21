@@ -1,5 +1,5 @@
-use std::path::PathBuf;
-use std::{io::Write};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use crate::Command;
 
@@ -26,6 +26,7 @@ pub(crate) struct Workspace {
 pub(crate) async fn prepare_workspace(
     command: &Command,
     smelt_root: PathBuf,
+    command_working_dir: &Path,
 ) -> anyhow::Result<Workspace> {
     let env = &command.runtime.env;
     let working_dir = command.default_target_root(smelt_root.as_path())?;
@@ -41,6 +42,7 @@ pub(crate) async fn prepare_workspace(
     for (env_name, env_val) in env.iter() {
         writeln!(buf, "export {}={}", env_name, env_val)?;
     }
+    writeln!(buf, "cd {}", command_working_dir.to_string_lossy());
 
     for script_line in &command.script {
         writeln!(buf, "{}", script_line)?;

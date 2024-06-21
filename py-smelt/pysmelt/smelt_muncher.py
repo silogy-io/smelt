@@ -54,16 +54,15 @@ def parse_smelt(
     if pathlib.Path(test_list).suffix == ".py":
         targets = get_procedural_targets(test_list)
 
-        print(targets)
         targets = {target.name: target for target in targets}
-        print(targets)
+
     else:
         yaml_content = open(test_list).read()
         targets = smelt_contents_to_targets(
             yaml_content, default_rules_only=default_rules_only
         )
     command_list = lower_targets_to_commands(targets.values())
-    print(command_list)
+
     return targets, command_list
 
 
