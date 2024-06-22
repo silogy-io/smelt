@@ -132,6 +132,11 @@ impl LockSemaphore for DiceData {
         let sem = self.get::<Semaphore>().expect("Semaphore should be set");
         let max_slots = self.get_smelt_cfg().job_slots;
         let slots = cnt.min(max_slots as u32);
+
+        let available = sem.available_permits();
+        dbg!(format!(
+            "Acquiring semaphore {cnt}, max is {max_slots}, current is {available}"
+        ));
         let val = sem
             .acquire_many(slots)
             .await

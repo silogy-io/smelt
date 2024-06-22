@@ -88,9 +88,6 @@ class SmeltRcHolder:
         return SmeltRcHolder._current_rc
 
     @staticmethod
-    def override_arg(changes: Dict[str, str]):
-        for attr, attr_type in inspect.signature(SmeltRC.__init__).parameters.items():
-            if attr in changes:
-                changes[attr] = attr_type.annotation(changes[attr])
+    def set_jobs(jobs: int):
 
-        SmeltRcHolder._current_rc = replace(SmeltRcHolder._current_rc, **changes)
+        SmeltRcHolder._current_rc = replace(SmeltRcHolder._current_rc, jobs=jobs)

@@ -61,6 +61,7 @@ async fn execute_local_command(
     root: PathBuf,
     global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
+    let sem = global_data.lock_sem(command.runtime.num_cpus).await;
     let shell = "bash";
     let _handle_me = tx_chan
         .send(Event::command_started(
@@ -85,7 +86,6 @@ async fn execute_local_command(
     let stderr = comm_handle.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);
     let mut stderr_lines = stderr_reader.lines();
-    let _sem = global_data.lock_sem(command.runtime.num_cpus).await;
 
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();

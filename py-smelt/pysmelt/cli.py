@@ -1,4 +1,4 @@
-from typing_extensions import Annotated
+from typing_extensions import Annotated, List
 from pathlib import Path
 import typer
 import yaml
@@ -95,16 +95,17 @@ def execute(
         help="If set, assumes non-test commands have passed successfully and will not run them",
         is_flag=True,
     ),
-    override: Dict[str, str] = typer.Option(
-        None, "--override", help="Override values in the smelt RC"
+    jobs: Optional[int] = typer.Option(
+        None, "--jobs", help="max number of jobslots allowed"
     ),
 ):
+
+    if jobs:
+        SmeltRcHolder.set_jobs(jobs)
 
     def configure_cb(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.test_only = test_only
         return cfg
-
-    SmeltRcHolder.override_arg(override)
 
     graph = create_graph(str(smelt_file), cfg_init=configure_cb)
     if target_name:
