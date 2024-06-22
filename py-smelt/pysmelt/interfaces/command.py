@@ -35,7 +35,7 @@ class Command:
     runtime: RuntimeRequirements
 
     @classmethod
-    def from_target(cls, target: Target, default_root: str):
+    def from_target(cls, target: Target):
         name = target.name
         target_type = target.rule_type().value
         script = target.gen_script()

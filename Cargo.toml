@@ -46,6 +46,11 @@ lto = "fat"
 version = "1.0.197"
 features = ["std", "derive"]
 
+
+[workspace.dependencies.regex]
+version = "1.10.5"
+
+
 [workspace.dependencies.dice]
 git = "https://github.com/facebook/buck2"
 rev = "9e17b241"

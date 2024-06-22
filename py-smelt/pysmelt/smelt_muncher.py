@@ -68,7 +68,9 @@ def parse_smelt(
 
 def target_to_command(target: Target) -> Command:
     rc = SmeltRcHolder.current_rc()
-    return Command.from_target(target, default_root=rc.smelt_default_out)
+    return Command.from_target(
+        target,
+    )
 
 
 def lower_targets_to_commands(targets: Iterable[Target]) -> List[Command]:

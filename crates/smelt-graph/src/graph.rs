@@ -479,6 +479,7 @@ impl CommandGraph {
             let _out = tx.execute_commands(refs).await;
             let val = tx.per_transaction_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
+
             handle_result(_out, val, trace).await;
         });
         Ok(())

@@ -1,8 +1,8 @@
 use allocative::Allocative;
 use derive_more::Display;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-
 #[repr(transparent)]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative, Display)]
 pub struct SmeltPath(String);
@@ -16,7 +16,11 @@ impl SmeltPath {
         Self(path)
     }
     pub fn to_path(&self, smelt_root: &Path) -> PathBuf {
-        smelt_root.join(Path::new(self.0.as_str()))
+        let as_path = Path::new(self.0.as_str());
+        if as_path.is_absolute() {
+            return as_path.to_path_buf();
+        }
+        smelt_root.join(as_path)
     }
 }
 
@@ -25,7 +29,23 @@ impl CommandDefPath {
         Self(path)
     }
 
-    pub fn to_path(&self, command_dir_path: &Path) -> PathBuf {
+    pub fn to_path(&self, command_dir_path: &Path, smelt_root: &Path) -> PathBuf {
+        let val = replace_smelt_root(
+            self.0.as_str(),
+            smelt_root.to_string_lossy().to_string().as_str(),
+        );
+        let as_path = Path::new(self.0.as_str());
+
+        if as_path.is_absolute() {
+            return as_path.to_path_buf();
+        }
+
         command_dir_path.join(Path::new(self.0.as_str()))
     }
+}
+
+fn replace_smelt_root(input: &str, replacement: &str) -> PathBuf {
+    let re = Regex::new(r"\$SMELT_ROOT|\$\{SMELT_ROOT\}").unwrap();
+    let result = re.replace_all(input, replacement);
+    PathBuf::from(result.into_owned())
 }

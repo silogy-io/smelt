@@ -5,6 +5,7 @@ from functools import partial
 from typing import Any, List, Dict, Literal
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.paths import SmeltFilePath
+from pysmelt.rc import SmeltRcHolder
 
 
 class SmeltTargetType(Enum):

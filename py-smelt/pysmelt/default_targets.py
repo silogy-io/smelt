@@ -9,15 +9,15 @@ class raw_bash(Target):
     """
     Simple target for embedding raw bash commands in Smelt
 
-    Environment variables avaible are:
-        * ${GIT_ROOT}: the git root of the current git workspace
-        * ${SMELT_ROOT}: the root of the smelt-workspace -- by default, this will be ${GIT_ROOT}/smelt
-        * ${TARGET_ROOT}: the working space of the current target
+    Environment variables available, to all targets are:
+        * ${SMELT_ROOT}: the root of the smelt-workspace -- by default, this will be ${GIT_ROOT}
+        * ${COMMAND_ROOT}: the working space of the current command -- it will be ${SMELT_ROOT}/smelt-out/${COMMAND_NAME}
     """
 
     cmds: List[str] = field(default_factory=list)
     debug_cmds: List[str] = field(default_factory=list)
     deps: List[TargetRef] = field(default_factory=list)
+    outputs: Dict[str, str] = field(default_factory=dict)
 
     def gen_script(self) -> List[str]:
         if "debug" in self.injected_state and self.debug_cmds:
@@ -27,6 +27,9 @@ class raw_bash(Target):
 
     def get_dependencies(self) -> List[TargetRef]:
         return self.deps
+
+    def get_outputs(self) -> Dict[str, str]:
+        return self.outputs
 
 
 @dataclass
