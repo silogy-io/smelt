@@ -24,17 +24,10 @@ message RunType {
 }
 message GetConfig {};
 
-
 // Responses to the client command
 message ClientResp {
-  oneof ClientResponses {
-    ConfigureSmelt current_cfg = 1;
-  }
+  oneof ClientResponses { ConfigureSmelt current_cfg = 1; }
 }
-
-
-
-
 
 // This configuration is done once, when SMELT is initialized
 // The client should provide this when creating an smelt handle
@@ -45,8 +38,10 @@ message ConfigureSmelt {
   string command_def_path = 2;
   // number of slots the entire executor has -- analogous to job slots in make
   uint64 job_slots = 3;
-  //configures how we profile commands
+  // configures how we profile commands
   ProfilerCfg prof_cfg = 4;
+  // If true, we ignore the non test commands
+  bool test_only = 5;
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;
@@ -56,7 +51,7 @@ message ConfigureSmelt {
 message ProfilerCfg {
   // if we enable simple profiling
   ProfilingSelection prof_type = 1;
-  uint64 sampling_period =2 ;
+  uint64 sampling_period = 2;
 }
 enum ProfilingSelection {
   DISABLED = 0;

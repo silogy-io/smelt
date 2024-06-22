@@ -73,6 +73,8 @@ class ConfigureSmelt(betterproto.Message):
     job_slots: int = betterproto.uint64_field(3)
     # configures how we profile commands
     prof_cfg: "ProfilerCfg" = betterproto.message_field(4)
+    # If true, we ignore the non test commands
+    test_only: bool = betterproto.bool_field(5)
     local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")
     docker: "CfgDocker" = betterproto.message_field(11, group="InitExecutor")
 

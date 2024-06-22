@@ -4,6 +4,7 @@ from pathlib import Path
 from pysmelt.path_utils import get_git_root
 import toml
 import os
+import inspect
 
 from pprint import pprint
 from dataclasses import replace
@@ -13,9 +14,18 @@ from dataclasses import replace
 class SmeltRC:
 
     smelt_root: str
-
+    """
+    Path to smelt root -- is $GIT_ROOT by default
+    """
     smelt_rules_dir: str
+    """
+    Directory that holds third party smelt rules
+    """
+
     jobs: int
+    """
+    Number of job slots that can be used
+    """
 
     @classmethod
     def default(cls):
@@ -78,5 +88,9 @@ class SmeltRcHolder:
         return SmeltRcHolder._current_rc
 
     @staticmethod
-    def override_arg(**changes):
+    def override_arg(changes: Dict[str, str]):
+        for attr, attr_type in inspect.signature(SmeltRC.__init__).parameters.items():
+            if attr in changes:
+                changes[attr] = attr_type.annotation(changes[attr])
+
         SmeltRcHolder._current_rc = replace(SmeltRcHolder._current_rc, **changes)

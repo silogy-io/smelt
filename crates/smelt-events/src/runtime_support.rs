@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::Event;
+use async_trait::async_trait;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use smelt_core::SmeltPath;
 use smelt_data::client_commands::ConfigureSmelt;
+use tokio::sync::{Semaphore, SemaphorePermit};
 use uuid::Uuid;
 
 use tokio::sync::mpsc::Sender;
@@ -33,6 +35,19 @@ pub trait GetSmeltCfg {
 
 pub trait GetSmeltRoot {
     fn get_smelt_root(&self) -> PathBuf;
+}
+
+pub trait SetSemaphore {
+    fn set_sempahore(&mut self, cnt: usize);
+}
+
+#[async_trait]
+pub trait LockSemaphore {
+    /// Gets the semaphore we use to control how many slots we're using in smelt
+    async fn lock_sem(&self, cnt: u32) -> SemaphorePermit<'_>;
+}
+pub trait GetJobSlots {
+    fn get_job_slots(&self) -> u64;
 }
 
 pub trait GetProfilingFreq {
@@ -91,9 +106,38 @@ impl GetSmeltRoot for DiceData {
     }
 }
 
+impl GetJobSlots for DiceData {
+    fn get_job_slots(&self) -> u64 {
+        self.get_smelt_cfg().job_slots
+    }
+}
+
 impl SetSmeltCfg for DiceDataBuilder {
     fn set_smelt_cfg(&mut self, cfg: ConfigureSmelt) {
-        self.set(cfg)
+        let max = cfg.job_slots as usize;
+        self.set(cfg);
+        self.set_sempahore(max);
+    }
+}
+
+impl SetSemaphore for DiceDataBuilder {
+    fn set_sempahore(&mut self, cnt: usize) {
+        let sem = Semaphore::new(cnt);
+        self.set(sem);
+    }
+}
+#[async_trait]
+impl LockSemaphore for DiceData {
+    async fn lock_sem(&self, cnt: u32) -> SemaphorePermit<'_> {
+        let sem = self.get::<Semaphore>().expect("Semaphore should be set");
+        let max_slots = self.get_smelt_cfg().job_slots;
+        let slots = cnt.min(max_slots as u32);
+        let val = sem
+            .acquire_many(slots)
+            .await
+            .expect("We should NEVER close this semaphore");
+
+        val
     }
 }
 

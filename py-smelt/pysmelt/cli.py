@@ -4,11 +4,13 @@ import typer
 import yaml
 from pysmelt.output import smelt_console
 from pysmelt.interfaces import SmeltTargetType
+from pysmelt.proto.smelt_client.commands import ConfigureSmelt
+from pysmelt.rc import SmeltRcHolder
 from pysmelt.smelt_muncher import parse_smelt
 from pysmelt.output_utils import pretty_print_tests
 from pysmelt.pygraph import create_graph
 from pysmelt.serde import SafeDataclassDumper
-from typing import Optional
+from typing import Optional, Dict
 from typer import Exit
 from pysmelt.templates.template_rule import create_rule_target_from_template
 
@@ -88,9 +90,23 @@ def execute(
     rerun: bool = typer.Option(
         False, help="Rerun the commands that failed", is_flag=True
     ),
+    test_only: bool = typer.Option(
+        False,
+        help="If set, assumes non-test commands have passed successfully and will not run them",
+        is_flag=True,
+    ),
+    override: Dict[str, str] = typer.Option(
+        None, "--override", help="Override values in the smelt RC"
+    ),
 ):
 
-    graph = create_graph(str(smelt_file))
+    def configure_cb(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.test_only = test_only
+        return cfg
+
+    SmeltRcHolder.override_arg(override)
+
+    graph = create_graph(str(smelt_file), cfg_init=configure_cb)
     if target_name:
         graph.run_one_test_interactive(target_name)
     else:
@@ -104,13 +120,6 @@ def execute(
 )
 def validate(
     smelt_file: TlPath,
-    tt: str = typer.Option("test", help="SMELT target type", callback=validate_type),
-    target_name: Optional[str] = typer.Option(
-        None, help="Target name -- if not provided, runs all the tests"
-    ),
-    rerun: bool = typer.Option(
-        False, help="Rerun the commands that failed", is_flag=True
-    ),
 ):
 
     graph = create_graph(str(smelt_file))

@@ -12,6 +12,7 @@ use smelt_data::{
 };
 use smelt_events::runtime_support::{
     GetCmdDefDirPath, GetCmdDefPath, GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel,
+    LockSemaphore,
 };
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -84,6 +85,7 @@ async fn execute_local_command(
     let stderr = comm_handle.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);
     let mut stderr_lines = stderr_reader.lines();
+    let _sem = global_data.lock_sem(command.runtime.num_cpus).await;
 
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();

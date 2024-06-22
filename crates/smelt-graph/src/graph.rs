@@ -15,7 +15,8 @@ use futures::future::{self, BoxFuture};
 use smelt_events::{
     self,
     runtime_support::{
-        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
+        GetSmeltCfg, GetTraceId, GetTxChannel, LockSemaphore, SetSemaphore, SetSmeltCfg,
+        SetTraceId, SetTxChannel,
     },
     ClientCommandBundle, Event,
 };
