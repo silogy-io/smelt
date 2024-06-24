@@ -2,6 +2,7 @@ from typing_extensions import Annotated, List
 from pathlib import Path
 import typer
 import yaml
+from pysmelt.interfaces.paths import SmeltPath
 from pysmelt.output import smelt_console
 from pysmelt.interfaces import SmeltTargetType
 from pysmelt.proto.smelt_client.commands import ConfigureSmelt
@@ -74,7 +75,7 @@ def lower(
 ):
     typer.echo(f"Validating: {smelt_file}")
 
-    _, commands = parse_smelt(test_list=str(smelt_file))
+    _, commands = parse_smelt(test_list=SmeltPath.from_str(str(smelt_file)))
     yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
 
 

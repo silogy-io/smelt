@@ -91,3 +91,7 @@ class SmeltRcHolder:
     def set_jobs(jobs: int):
 
         SmeltRcHolder._current_rc = replace(SmeltRcHolder._current_rc, jobs=jobs)
+
+    @staticmethod
+    def current_smelt_root() -> str:
+        return SmeltRcHolder.current_rc().smelt_root

@@ -27,6 +27,8 @@ pub struct Command {
     #[serde(default)]
     pub outputs: Vec<CommandDefPath>,
     pub runtime: Runtime,
+    #[serde(default)]
+    pub command_def_dir: Option<PathBuf>,
 }
 
 impl Command {

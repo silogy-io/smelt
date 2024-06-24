@@ -1,8 +1,6 @@
 import subprocess
 import os
 
-from pysmelt.interfaces.paths import SmeltPath
-
 
 def memoize(func):
     cache = dict()
@@ -28,7 +26,7 @@ def get_git_root() -> str:
         raise RuntimeError("This directory is not a git repository.")
 
 
-def relatavize_inp_path(smelt_root: str, inp_path: str) -> SmeltPath:
+def relatavize_inp_path(smelt_root: str, inp_path: str) -> str:
     """
     This function converts the input path, which is relative to the current working directory to be relative to `abs_path`
     """
@@ -36,5 +34,5 @@ def relatavize_inp_path(smelt_root: str, inp_path: str) -> SmeltPath:
     abs_inp_path = os.path.abspath(inp_path)
 
     # Return the path of `abs_inp_path` relative to `abs_path`
-    rv = SmeltPath.from_str(os.path.relpath(abs_inp_path, smelt_root))
+    rv = os.path.relpath(abs_inp_path, smelt_root)
     return rv

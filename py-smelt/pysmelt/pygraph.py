@@ -5,7 +5,7 @@ import betterproto
 from pysmelt.interfaces import Command, SmeltTargetType, Target
 from dataclasses import dataclass
 from pysmelt.interfaces.paths import SmeltPath
-from pysmelt.smelt_muncher import parse_smelt
+from pysmelt.smelt_muncher import SmeltUniverse, create_universe, parse_smelt
 from pysmelt.path_utils import relatavize_inp_path
 from pysmelt.pysmelt import PyController, PyEventStream
 from pysmelt.rc import SmeltRcHolder
@@ -24,7 +24,6 @@ from pysmelt.subscribers.error_handler import SmeltErrorHandler
 from pysmelt.subscribers.output_collector import OutputConsole
 from pysmelt.subscribers.retcode import RetcodeTracker
 
-from copy import deepcopy
 
 from pysmelt.subscribers.stdout import StdoutPrinter, StdoutSink
 
@@ -103,17 +102,7 @@ def spin_for_message(
 
 @dataclass
 class PyGraph:
-    """
-    PyGraph is the python wrapper for the smelt runtime.
-    """
-
-    smelt_targets: Optional[Dict[str, Target]]
-    """ 
-    holds the original smelt targets (the python rules) that the user supplied. 
-
-    This is used to re-generate new commands on failure
-    """
-    commands: List[Command]
+    universe: SmeltUniverse
     """ 
     holds all of the commands that are live in the graph 
     """
@@ -210,88 +199,33 @@ class PyGraph:
         self,
         rerun_callback: RerunCallback = default_target_rerun_callback,
     ):
-        if self.smelt_targets:
-            """
-            We create a dictionary that maps all of the target names to a "DerivedTarget", that holds all of the state for prospective targets that may need to be created 
+        raise NotImplementedError("Currently re-writing this -- please file an issue if this is load bearing!")
 
-            This dictionary maps the original target name -> DerivedTarget bundle
-            """
-            all_derived = {
-                target: DerivedTarget.from_cb(
-                    orig_target, rerun_callback(self.smelt_targets[target], retcode)
-                )
-                for target, retcode in self.retcode_tracker.retcode_dict.items()
-                if (target in self.smelt_targets and (orig_target := self.smelt_targets[target]))
-            }
-
-
-
-            """
-            For each target, we go through and see if any of the "derived" targets have "changed" from the original target 
-
-            a target changing can mean one of three things
-
-            1. it needs to be rerun 
-            2. the command contents has changed and it does not need to be re-run (for example, when a if we want to have a debug build
-            3. A dependency of the target has changed
-
-            If a derived target has changed from its original, we lower it to a command, correct its dependencies and it is returned as part of the new commands list
-            """
-
-            new_commands = [
-                (new_target, target.requires_rerun)
-                for target in all_derived.values()
-                if (new_target := target.get_new_command(all_derived)) is not None
-            ]
-            if not any(new_commands):
-                return "No new commands were produced"
-            all_commands_to_add, requires_rerun = map(list, zip(*new_commands))
-            all_commands_to_add = cast(List[Command], all_commands_to_add)
-            requires_rerun = cast(List[bool], requires_rerun)
-            
-            if not any(requires_rerun):
-                print("No commands need a rerun is required!")
-                return
-
-            # TODO: its likely that we will also need to handle regenerating dependencies
-            #       for a first pass functionality, lets ignore this for now
-
-            self.add_commands(all_commands_to_add)
-            commands_to_run = [
-                command
-                for command, rerun in new_commands 
-                if rerun 
-            ]
-            self.run_specific_commands(commands_to_run)
-        else:
-            print(
-                "Warning! Cannot auto re-run because no smelt targets have been provided"
-            )
-
-    def add_commands(self, commands: List[Command]):
-        self.commands += commands
+    def set_commands(self):
+        commands = self.universe.all_commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
 
     @classmethod
-    def init(cls, smelt_targets: Dict[str, Target], commands: List[Command],  cfg : ConfigureSmelt ):
+    def init(cls, cfg : ConfigureSmelt, universe : SmeltUniverse):
         cfg_bytes = bytes(cfg)
         graph = PyController(cfg_bytes)
-        
         rv = cls(
-            smelt_targets=smelt_targets, commands=[], controller=graph, retcode_tracker= RetcodeTracker(), additional_listeners=[]
+            universe=universe, controller=graph, retcode_tracker= RetcodeTracker(), additional_listeners=[]
         )
-        rv.add_commands(commands)
+        rv.set_commands()
         return rv
 
     # This is a testing utility
     @classmethod
     def init_commands_only(cls, commands: List[Command]):
         cfg = default_cfg(SmeltPath.from_str("."))
-        return cls.init({}, commands, cfg)
+        top_path = SmeltPath.from_str('.')
+        universe = SmeltUniverse(top_file=top_path, commands={top_path : commands})
+        return cls.init(cfg, universe=universe)
 
 def _create_cfg(smelt_test_list: str) -> ConfigureSmelt:
-    command_def_path = relatavize_inp_path(SmeltRcHolder.current_rc().smelt_root,smelt_test_list)
+    command_def_path = SmeltPath.from_str(relatavize_inp_path(SmeltRcHolder.current_rc().smelt_root,smelt_test_list))
     cfg = default_cfg(command_def_path)
     return cfg
 
@@ -300,8 +234,8 @@ def create_graph(smelt_test_list: str, cfg_init: Optional[Callable[[ConfigureSme
     cfg = _create_cfg(smelt_test_list)
     if cfg_init:
         cfg = cfg_init(cfg)
-    targets, command_list = parse_smelt(smelt_test_list)
-    rv = PyGraph.init(targets, command_list, cfg)
+    universe = create_universe(SmeltPath.from_str(smelt_test_list))
+    rv = PyGraph.init(cfg, universe)
     return rv
 
 def create_graph_with_docker(smelt_test_list: str, docker_img: str) -> PyGraph:

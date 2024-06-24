@@ -1,8 +1,11 @@
 from typing import List, Literal, Dict, Any
 from enum import Enum
+from pysmelt.interfaces.paths import SmeltPath
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.target import SmeltTargetType, Target
 from dataclasses import dataclass, asdict
+
+from pysmelt.rc import SmeltRcHolder
 
 CommandRef = str
 
@@ -33,9 +36,10 @@ class Command:
     """
     outputs: List[str]
     runtime: RuntimeRequirements
+    working_dir: str
 
     @classmethod
-    def from_target(cls, target: Target):
+    def from_target(cls, target: Target, working_dir: str):
         name = target.name
         target_type = target.rule_type().value
         script = target.gen_script()
@@ -53,6 +57,7 @@ class Command:
             dependencies=dependencies,
             dependent_files=dependent_files,
             outputs=outputs,
+            working_dir=working_dir,
         )
 
     @classmethod
@@ -63,6 +68,12 @@ class Command:
         dependencies = data["dependencies"] if "dependencies" in data else []
         dependent_files = data["dependent_files"] if "dependent_files" in data else []
         outputs = data["outputs"] if "outputs" in data else []
+        working_dir = (
+            data["working_dir"]
+            if "working_dir" in data
+            else SmeltRcHolder.current_smelt_root()
+        )
+
         runtime = RuntimeRequirements.from_dict(data["runtime"])
 
         return cls(
@@ -73,6 +84,7 @@ class Command:
             dependencies=dependencies,
             outputs=outputs,
             runtime=runtime,
+            working_dir=working_dir,
         )
 
     def to_dict(self) -> Dict[str, Any]:

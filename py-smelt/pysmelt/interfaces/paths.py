@@ -2,6 +2,8 @@ from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
 
+from pysmelt import rc
+
 
 class SmeltPathType(Enum):
     Absolute = 1
@@ -9,7 +11,7 @@ class SmeltPathType(Enum):
     SmeltCommandDefRelative = 3
 
 
-@dataclass
+@dataclass(frozen=True)
 class SmeltPath:
     path_type: SmeltPathType
     path: str
@@ -33,7 +35,12 @@ class SmeltPath:
     def __str__(self):
         return self.path
 
-    def to_abs_path(self, smelt_root: str):
+    @staticmethod
+    def translate(in_path: str) -> str:
+        return SmeltPath.from_str(in_path).to_abs_path()
+
+    def to_abs_path(self):
+        smelt_root = rc.SmeltRcHolder.current_smelt_root()
         if self.path_type == SmeltPathType.SmeltRootRelative:
             return f"${smelt_root}/{self.path}"
         elif self.path_type == SmeltPathType.Absolute:
