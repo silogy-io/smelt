@@ -2249,6 +2249,8 @@ dependencies = [
  "smelt-graph",
  "thiserror",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2806,6 +2808,7 @@ dependencies = [
  "smelt-core",
  "smelt-data",
  "tokio",
+ "tracing",
  "uuid",
  "whoami",
 ]
@@ -2838,6 +2841,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tracing",
  "whoami",
 ]
 

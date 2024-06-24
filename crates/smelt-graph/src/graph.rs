@@ -15,8 +15,7 @@ use futures::future::{self, BoxFuture};
 use smelt_events::{
     self,
     runtime_support::{
-        GetSmeltCfg, GetTraceId, GetTxChannel, LockSemaphore, SetSemaphore, SetSmeltCfg,
-        SetTraceId, SetTxChannel,
+        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
     },
     ClientCommandBundle, Event,
 };
@@ -330,7 +329,7 @@ impl CommandGraph {
             all_commands: vec![],
         };
 
-        dbg!("Successfully made graph!");
+        tracing::trace!("Successfully made graph!");
         Ok(graph)
     }
 
@@ -437,7 +436,7 @@ impl CommandGraph {
             .map_err(|vals| SmeltErr::CommandSettingFailed {
                 reason: format!("{} invalid dependencies found", vals.len()),
             })?;
-        dbg!("All good here boss");
+        tracing::trace!("Successfully validated graph!");
         Ok(())
     }
 
@@ -539,7 +538,7 @@ impl CommandGraph {
         if !err_vec.is_empty() {
             for err in err_vec.iter() {
                 let sterr = err.to_string();
-                dbg!(format!("found err {sterr}"));
+                tracing::info!("found err while validating graph: {sterr}");
             }
 
             Err(err_vec)
@@ -604,7 +603,7 @@ pub fn spawn_graph_server(cfg: ConfigureSmelt) -> SmeltServerHandle {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use tokio::{
         fs::File,
@@ -638,7 +637,7 @@ mod tests {
 
         format!("{}/{}", manifest, path)
     }
-    fn testing_cfg(cmd_def_path: String) -> ConfigureSmelt {
+    fn testing_cfg(_cmd_def_path: String) -> ConfigureSmelt {
         ConfigureSmelt {
             prof_cfg: Some(ProfilerCfg {
                 prof_type: 0,

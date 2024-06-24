@@ -60,7 +60,7 @@ async fn execute_local_command(
     root: PathBuf,
     global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
-    let sem = global_data.lock_sem(command.runtime.num_cpus).await;
+    let _sem = global_data.lock_sem(command.runtime.num_cpus).await;
     let shell = "bash";
     let _handle_me = tx_chan
         .send(Event::command_started(

@@ -124,8 +124,15 @@ class OutputConsole:
             elif milliseconds > 0:
                 time_str += f"{milliseconds:.2f}ms "
 
-            smelt_console.log(execution_time.seconds)
-            table.add_row(command_name, str(obj.outputs.exit_code), time_str)
+            table.add_row(
+                command_name,
+                (
+                    "PASSED"
+                    if obj.outputs.exit_code == 0
+                    else f"FAILED, code: {obj.outputs.exit_code}"
+                ),
+                time_str,
+            )
 
         # Print the table
         smelt_console.log(table)

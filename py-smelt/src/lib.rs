@@ -2,6 +2,15 @@ use smelt_core::SmeltErr;
 use smelt_data::client_commands::{client_resp::ClientResponses, ClientCommand, ClientResp};
 use smelt_data::{client_commands::ConfigureSmelt, Event};
 
+mod telemetry;
+use telemetry::{get_subscriber, init_subscriber};
+
+use std::sync::Once;
+
+static START: Once = Once::new();
+
+// run initialization here
+
 use prost::Message;
 use pyo3::{
     exceptions::PyRuntimeError,
@@ -81,6 +90,10 @@ impl PyController {
         let cfg: ConfigureSmelt =
             ConfigureSmelt::decode(serialized_cfg.as_slice()).expect("Malformed cfg message");
 
+        START.call_once(|| {
+            let subscriber = get_subscriber("smelt".into(), "info".into(), std::io::stdout);
+            init_subscriber(subscriber);
+        });
         let handle = spawn_graph_server(cfg);
         Ok(PyController { handle })
     }

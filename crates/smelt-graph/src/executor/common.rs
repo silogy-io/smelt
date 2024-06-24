@@ -5,7 +5,7 @@ use crate::Command;
 
 use dice::DiceData;
 
-use smelt_core::SmeltErr;
+
 use smelt_data::{
     executed_tests::{ArtifactPointer, ExecutedTestResult, TestOutputs, TestResult},
     Event,
@@ -45,13 +45,13 @@ pub(crate) async fn prepare_workspace(
     writeln!(
         buf,
         "export SMELT_ROOT={}",
-        smelt_root.to_string_lossy().to_string()
+        smelt_root.to_string_lossy()
     );
 
     writeln!(
         buf,
         "export TARGET_ROOT={}/{}/{}",
-        smelt_root.to_string_lossy().to_string(),
+        smelt_root.to_string_lossy(),
         smeltoutdir,
         command.name
     );
