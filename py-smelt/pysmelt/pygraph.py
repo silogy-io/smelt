@@ -29,13 +29,12 @@ from pysmelt.subscribers.stdout import StdoutPrinter, StdoutSink
 
 
 
-def default_cfg(cmd_path: SmeltPath) -> ConfigureSmelt:
+def default_cfg() -> ConfigureSmelt:
     rv = ConfigureSmelt()
     rc = SmeltRcHolder.current_rc()
 
     rv.job_slots = rc.jobs
     rv.smelt_root = rc.smelt_root
-    rv.command_def_path = cmd_path.as_str
     rv.local = CfgLocal()
     return rv
 
@@ -203,8 +202,13 @@ class PyGraph:
 
     def set_commands(self):
         commands = self.universe.all_commands
+        
+        
+        
+
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
+        
 
     @classmethod
     def init(cls, cfg : ConfigureSmelt, universe : SmeltUniverse):
@@ -219,14 +223,14 @@ class PyGraph:
     # This is a testing utility
     @classmethod
     def init_commands_only(cls, commands: List[Command]):
-        cfg = default_cfg(SmeltPath.from_str("."))
+        cfg = default_cfg()
         top_path = SmeltPath.from_str('.')
         universe = SmeltUniverse(top_file=top_path, commands={top_path : commands})
         return cls.init(cfg, universe=universe)
 
 def _create_cfg(smelt_test_list: str) -> ConfigureSmelt:
     command_def_path = SmeltPath.from_str(relatavize_inp_path(SmeltRcHolder.current_rc().smelt_root,smelt_test_list))
-    cfg = default_cfg(command_def_path)
+    cfg = default_cfg()
     return cfg
 
 

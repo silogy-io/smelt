@@ -34,14 +34,12 @@ message ClientResp {
 message ConfigureSmelt {
   // Should be an absolute path
   string smelt_root = 1;
-  // relative to smelt_root -- this is an SmeltPath
-  string command_def_path = 2;
   // number of slots the entire executor has -- analogous to job slots in make
-  uint64 job_slots = 3;
+  uint64 job_slots = 2;
   // configures how we profile commands
-  ProfilerCfg prof_cfg = 4;
+  ProfilerCfg prof_cfg = 3;
   // If true, we ignore the non test commands
-  bool test_only = 5;
+  bool test_only = 4;
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;

@@ -11,7 +11,7 @@ use smelt_data::{
     Event,
 };
 
-use smelt_events::runtime_support::{GetCmdDefPath, GetSmeltRoot};
+use smelt_events::runtime_support::GetSmeltRoot;
 use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
 
 pub(crate) struct Workspace {
@@ -119,7 +119,7 @@ pub(crate) fn create_test_result(
     exit_code: i32,
     global_data: &DiceData,
 ) -> ExecutedTestResult {
-    let command_default_dir = global_data.get_cmd_def_path();
+    let command_default_dir = command.working_dir.clone();
     let smelt_root = global_data.get_smelt_root();
     let mut missing_artifacts = vec![];
     let mut artifacts = vec![];

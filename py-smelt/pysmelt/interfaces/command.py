@@ -1,9 +1,10 @@
 from typing import List, Literal, Dict, Any
 from enum import Enum
-from pysmelt.interfaces.paths import SmeltPath
+from pysmelt.interfaces.paths import SmeltPath, TempTarget
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.target import SmeltTargetType, Target
 from dataclasses import dataclass, asdict
+
 
 from pysmelt.rc import SmeltRcHolder
 

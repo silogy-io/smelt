@@ -1,6 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
+import pathlib
 
 from pysmelt import rc
 
@@ -42,7 +43,7 @@ class SmeltPath:
     def to_abs_path(self):
         smelt_root = rc.SmeltRcHolder.current_smelt_root()
         if self.path_type == SmeltPathType.SmeltRootRelative:
-            return f"${smelt_root}/{self.path}"
+            return f"{smelt_root}/{self.path}"
         elif self.path_type == SmeltPathType.Absolute:
             return f"{self.path}"
         else:
@@ -78,8 +79,48 @@ class SmeltFilePath:
 
     def to_abs_path(self, abs_cmd_path: str):
         if self.path_type == SmeltPathType.SmeltRootRelative:
-            return f"${abs_cmd_path}/{self.path}"
+            return f"{abs_cmd_path}/{self.path}"
         elif self.path_type == SmeltPathType.Absolute:
             return f"{self.path}"
         else:
             raise NotImplementedError(f"Unhandled variant {self.path_type}")
+
+
+@dataclass(frozen=True)
+class TempTarget:
+    name: str
+    file_path: SmeltPath
+
+    @classmethod
+    def parse_string_smelt_target(cls, raw_target: str, current_file: str):
+        # Split the string on the colon
+        if raw_target.startswith("//"):
+
+            parts = raw_target.split(":")
+
+            # Check if the split resulted in exactly two parts
+            if len(parts) != 2:
+                raise ValueError("TargetRef was formatted incorrectly")
+
+            # The first part is the path
+            path = parts[0]
+
+            # Remove the leading '//' from the path
+            if path.startswith("//"):
+                path = path[2:]
+
+            if pathlib.Path(path).suffix == ".py":
+                raise RuntimeError(
+                    "targets declared in python test lists are currently not supported as dependencies!"
+                )
+
+            # The second part is the target name
+            target_name = parts[1]
+            path = SmeltPath.from_str(path)
+            if not pathlib.Path(path.to_abs_path()).exists:
+                raise RuntimeError(f"path does not exist {path.to_abs_path()}")
+
+            return cls(name=target_name, file_path=path)
+        else:
+            target_name = raw_target
+            return cls(name=target_name, file_path=SmeltPath.from_str(current_file))

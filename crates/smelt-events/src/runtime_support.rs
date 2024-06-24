@@ -57,14 +57,6 @@ pub trait GetProfilingFreq {
     fn get_profiling_freq(&self) -> Option<u64>;
 }
 
-pub trait GetCmdDefPath {
-    fn get_cmd_def_path(&self) -> PathBuf;
-}
-
-pub trait GetCmdDefDirPath {
-    fn get_cmd_def_dir_path(&self) -> PathBuf;
-}
-
 impl SetTxChannel for UserComputationData {
     fn set_tx_channel(&mut self, tx_channel: Sender<Event>) {
         self.data.set(tx_channel);
@@ -143,23 +135,6 @@ impl LockSemaphore for DiceData {
             .expect("We should NEVER close this semaphore");
 
         val
-    }
-}
-
-impl GetCmdDefPath for DiceData {
-    fn get_cmd_def_path(&self) -> PathBuf {
-        self.get::<ConfigureSmelt>()
-            .map(|val| {
-                SmeltPath::new(val.command_def_path.clone())
-                    .to_path(Path::new(val.smelt_root.as_str()))
-            })
-            .unwrap()
-    }
-}
-
-impl GetCmdDefDirPath for DiceData {
-    fn get_cmd_def_dir_path(&self) -> PathBuf {
-        self.get_cmd_def_path().parent().unwrap().to_path_buf()
     }
 }
 

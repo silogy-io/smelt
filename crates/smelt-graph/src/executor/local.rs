@@ -11,8 +11,7 @@ use smelt_data::{
     Event,
 };
 use smelt_events::runtime_support::{
-    GetCmdDefDirPath, GetCmdDefPath, GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel,
-    LockSemaphore,
+    GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
 };
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -38,7 +37,7 @@ impl Executor for LocalExecutor {
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let root = global_data.get_smelt_root();
-        let command_default_dir = global_data.get_cmd_def_dir_path();
+        let command_default_dir = local_command.working_dir.clone();
         let rv = execute_local_command(
             local_command.as_ref(),
             trace_id.clone(),

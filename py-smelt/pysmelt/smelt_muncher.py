@@ -11,7 +11,7 @@ from pysmelt.importer import (
     import_procedural_testlist,
 )
 from pysmelt.interfaces import Target, Command
-from pysmelt.interfaces.paths import SmeltPath
+from pysmelt.interfaces.paths import SmeltPath, TempTarget
 from pysmelt.interfaces.target import TargetRef
 from pysmelt.rc import SmeltRC, SmeltRcHolder
 from pysmelt.path_utils import get_git_root
@@ -54,7 +54,9 @@ def parse_smelt(
     test_list: SmeltPath, default_rules_only: bool = False
 ) -> Tuple[Dict[str, Target], List[Command]]:
     test_list_orig = test_list
+
     test_list2 = test_list.to_abs_path()
+
     if pathlib.Path(test_list2).suffix == ".py":
         targets = get_procedural_targets(test_list2)
 
@@ -65,45 +67,11 @@ def parse_smelt(
         targets = smelt_contents_to_targets(
             yaml_content, default_rules_only=default_rules_only
         )
-    command_list = lower_targets_to_commands(targets.values(), test_list_orig.path)
+    command_list = lower_targets_to_commands(
+        targets.values(), str(pathlib.Path(test_list_orig.path).parent)
+    )
 
     return targets, command_list
-
-
-@dataclass(frozen=True)
-class TempTarget:
-    name: str
-    file_path: SmeltPath
-
-    @classmethod
-    def parse_string_smelt_target(cls, raw_target: TargetRef, current_file: str):
-        # Split the string on the colon
-        if raw_target.startswith("//"):
-            parts = raw_target.split(":")
-
-            # Check if the split resulted in exactly two parts
-            if len(parts) != 2:
-                raise ValueError("TargetRef was formatted incorrectly")
-
-            # The first part is the path
-            path = parts[0]
-
-            # Remove the leading '//' from the path
-            if path.startswith("//"):
-                path = path[2:]
-
-            if pathlib.Path(path).suffix == ".py":
-                raise RuntimeError(
-                    "targets declared in python test lists are currently not supported as dependencies!"
-                )
-
-            # The second part is the target name
-            target_name = parts[1]
-
-            return cls(name=target_name, file_path=SmeltPath.from_str(path))
-        else:
-            target_name = raw_target
-            return cls(name=target_name, file_path=SmeltPath.from_str(current_file))
 
 
 @dataclass
@@ -124,18 +92,24 @@ def create_universe(
     starting_file: SmeltPath,
     default_rules_only: bool = False,
 ) -> SmeltUniverse:
+    # Initialize the top file, seen files, visible files, and all commands
     top_file = starting_file
     seen_files = {starting_file}
-    visible_files = set()
+    visible_files = {starting_file}
     all_commands = {}
+
+    # Parse the "initial" file under consideration and all of the testlists seen to visible files
     _, commands = parse_smelt(starting_file, default_rules_only)
     for comm in commands:
         for dep in comm.dependencies:
             tt = TempTarget.parse_string_smelt_target(dep, starting_file.to_abs_path())
             visible_files.add(tt.file_path)
     all_commands[top_file] = commands
-    # all smelt_files
-    new_files = seen_files - visible_files
+
+    # Determine new files that are visible but not yet parsed
+    new_files = visible_files - seen_files
+
+    # Continue to parse new files until there are no new files
     while True:
         if len(new_files) != 0:
             file = new_files.pop()
@@ -145,6 +119,7 @@ def create_universe(
                 default_rules_only,
             )
 
+            # Add dependencies of new commands to new files if not seen
             for command in new_commands:
                 for dep in command.dependencies:
                     tt = TempTarget.parse_string_smelt_target(
@@ -155,8 +130,10 @@ def create_universe(
 
             all_commands[file] = new_commands
         else:
+            # Break the loop if there are no new files
             break
 
+    # Return a SmeltUniverse object with the top file and all commands
     return SmeltUniverse(top_file=top_file, commands=all_commands)
 
 

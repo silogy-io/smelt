@@ -33,7 +33,6 @@ class SmeltErrorHandler:
             if error.sig == SmeltErrorType.CLIENT_ERROR:
                 raise ClientErr(error.error_payload)
             if error.sig == SmeltErrorType.INTERNAL_ERROR:
-                print("hello")
                 raise SmeltErrEx(error.error_payload)
         else:
             pass

@@ -21,7 +21,6 @@ def capture_targets():
     yield instances
 
     Target.__post_init__ = original_init
-    print(instances)
 
     return
 
