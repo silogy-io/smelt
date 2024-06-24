@@ -1,0 +1,21 @@
+- name: cmark
+  rule: raw_bash
+  rule_args:
+    deps:
+      - //test_data/smelt_files/split_build/build.smelt.yaml:verilator_build_dummy
+    cmds:
+      - echo "normal"
+
+    debug_cmds:
+      - echo "we are re-running now . crazy"
+
+- name: hello_world
+  rule: raw_bash
+  rule_args:
+    deps:
+      - //test_data/smelt_files/split_build/build.smelt.yaml:verilator_build_dummy
+    cmds:
+      - echo "normal hello_world"
+
+    debug_cmds:
+      - echo "we are re-running now . crazy"
