@@ -1,9 +1,15 @@
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import sys
 from typing import List
 from pysmelt.importer import import_procedural_testlist
+
+
 from pysmelt.interfaces.target import Target
 import contextlib
 import weakref
+
+from pysmelt.path_utils import get_git_root
 
 
 @contextlib.contextmanager
@@ -31,3 +37,16 @@ def get_procedural_targets(py_path: str) -> List[Target]:
         mod = import_procedural_testlist(py_path)
 
     return a
+
+
+def init_local_rules():
+    root_dir = Path(get_git_root()) / "smelt_rules"
+    if root_dir.exists():
+        for py_file in root_dir.glob("*.py"):
+            module_name = py_file.stem  # get filename without extension
+            spec = spec_from_file_location(module_name, str(py_file))
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+            sys.modules[module_name] = (
+                module  # add the module to the list of globally imported modules
+            )

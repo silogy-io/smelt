@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import functools
 import yaml
 import pathlib
 from typing import Dict, Any, Iterable, Set, Tuple, Type, List
@@ -8,7 +9,6 @@ from pysmelt.importer import (
     DocumentedTarget,
     get_all_targets,
     get_default_targets,
-    import_procedural_testlist,
 )
 from pysmelt.interfaces import Target, Command
 from pysmelt.interfaces.paths import SmeltPath, TempTarget
@@ -20,7 +20,7 @@ from pysmelt.path_utils import get_git_root
 class SerYamlTarget(BaseModel):
     name: str
     rule: str
-    rule_args: Dict[str, Any]
+    rule_args: Dict[str, Any] = {}
 
 
 @dataclass
@@ -36,6 +36,8 @@ def populate_rule_args(
 ) -> PreTarget:
     rule_payload.rule_args["name"] = target_name
     if rule_payload.rule not in all_rules:
+        print(all_rules)
+
         # TODO: make a pretty error that
         #
         # Says that no rule is visible

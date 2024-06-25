@@ -2,6 +2,7 @@
 # sources: executed_tests.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List
 
 import betterproto
@@ -21,22 +22,8 @@ class Digest(betterproto.Message):
 
 @dataclass
 class ArtifactPointer(betterproto.Message):
-    cas_hash: "Digest" = betterproto.message_field(1, group="pointer")
-    path: str = betterproto.string_field(2, group="pointer")
+    path: str = betterproto.string_field(1, group="pointer")
     artifact_name: str = betterproto.string_field(3)
-
-
-@dataclass
-class TrackedTestResult(betterproto.Message):
-    # same key from Invocation -- maps this test to a particular repo, branch,
-    # and commit
-    invoke_id: str = betterproto.string_field(1)
-    # test definition id -- unique id to track the test across different
-    # Invocations, useful for test history
-    test_def_id: str = betterproto.string_field(2)
-    # cli reproduction -- how can you re-run this test?
-    repro_command: str = betterproto.string_field(3)
-    result: "TestResult" = betterproto.message_field(4)
 
 
 @dataclass
@@ -67,9 +54,10 @@ class Invocation(betterproto.Message):
     """
 
     invoke_id: str = betterproto.string_field(1)
-    rundate: str = betterproto.string_field(2)
+    rundate: datetime = betterproto.message_field(2)
     user: str = betterproto.string_field(3)
     repo: str = betterproto.string_field(4)
     branch: str = betterproto.string_field(5)
     hostname: str = betterproto.string_field(6)
-    executed_tests: List["TrackedTestResult"] = betterproto.message_field(8)
+    smelt_root: str = betterproto.string_field(7)
+    executed_tests: List["TestResult"] = betterproto.message_field(8)

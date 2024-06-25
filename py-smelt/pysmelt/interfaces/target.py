@@ -32,6 +32,10 @@ class Target(ABC):
     name: str
     injected_state: Dict[str, Any] = field(init=False)
 
+    @property
+    def ws_path(self) -> str:
+        return f"$SMELT_ROOT/smelt-out/{self.name}"
+
     def __post_init__(self):
         self.injected_state = {}
 

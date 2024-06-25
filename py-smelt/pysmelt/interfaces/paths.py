@@ -2,6 +2,7 @@ from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
 import pathlib
+from typing import Optional
 
 from pysmelt import rc
 
@@ -14,7 +15,6 @@ class SmeltPathType(Enum):
 
 @dataclass(frozen=True)
 class SmeltPath:
-    path_type: SmeltPathType
     path: str
 
     @property
@@ -22,16 +22,8 @@ class SmeltPath:
         return self.path
 
     @classmethod
-    def abs_path(cls, path: str):
-        return cls(path_type=SmeltPathType.Absolute, path=path)
-
-    @classmethod
     def from_str(cls, path: str):
-        if Path(path).is_absolute():
-            path_type = SmeltPathType.Absolute
-        else:
-            path_type = SmeltPathType.SmeltRootRelative
-        return cls(path_type=path_type, path=path)
+        return cls(path=path)
 
     def __str__(self):
         return self.path
@@ -42,12 +34,10 @@ class SmeltPath:
 
     def to_abs_path(self):
         smelt_root = rc.SmeltRcHolder.current_smelt_root()
-        if self.path_type == SmeltPathType.SmeltRootRelative:
-            return f"{smelt_root}/{self.path}"
-        elif self.path_type == SmeltPathType.Absolute:
+        if Path(self.path).is_absolute():
             return f"{self.path}"
         else:
-            raise NotImplementedError(f"Unhandled variant {self.path_type}")
+            return f"{smelt_root}/{self.path}"
 
 
 @dataclass
@@ -92,7 +82,9 @@ class TempTarget:
     file_path: SmeltPath
 
     @classmethod
-    def parse_string_smelt_target(cls, raw_target: str, current_file: str):
+    def parse_string_smelt_target(
+        cls, raw_target: str, current_file: Optional[str] = None
+    ):
         # Split the string on the colon
         if raw_target.startswith("//"):
 
@@ -122,5 +114,6 @@ class TempTarget:
 
             return cls(name=target_name, file_path=path)
         else:
+            assert current_file
             target_name = raw_target
             return cls(name=target_name, file_path=SmeltPath.from_str(current_file))

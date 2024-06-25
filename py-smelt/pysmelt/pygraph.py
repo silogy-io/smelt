@@ -21,6 +21,7 @@ from pysmelt.proto.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSm
 
 
 from pysmelt.subscribers.error_handler import SmeltErrorHandler
+from pysmelt.subscribers.invocation_builder import InvocationBuilder
 from pysmelt.subscribers.output_collector import OutputConsole
 from pysmelt.subscribers.retcode import RetcodeTracker
 
@@ -116,6 +117,7 @@ class PyGraph:
 
     def runloop(self, listener: PyEventStream):
         errhandler = SmeltErrorHandler()
+        invbuilder = InvocationBuilder()
         with OutputConsole() as console:
             while not listener.is_done():
                 # tbh, this could be async
@@ -125,11 +127,13 @@ class PyGraph:
                     self.retcode_tracker.process_message(message)
                     console.process_message(message)
                     errhandler.process_message(message)
+                    invbuilder.process_message(message)
                     for other_listener in self.additional_listeners:
                         other_listener.process_message(message)
                 if not message:
                     # add a little bit of backoff
                     time.sleep(0.01)
+        invbuilder.create_invocation_object()
 
     def console_runloop(
             self, test_name: str, listener: PyEventStream, sink: StdoutSink
