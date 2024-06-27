@@ -11,7 +11,7 @@ class raw_bash(Target):
 
     Environment variables available, to all targets are:
         * ${SMELT_ROOT}: the root of the smelt-workspace -- by default, this will be ${GIT_ROOT}
-        * ${COMMAND_ROOT}: the working space of the current command -- it will be ${SMELT_ROOT}/smelt-out/${COMMAND_NAME}
+        * ${TARGET_ROOT}: the working space of the current command -- it will be ${SMELT_ROOT}/smelt-out/${COMMAND_NAME}
     """
 
     cmds: List[str] = field(default_factory=list)
@@ -37,3 +37,18 @@ class raw_bash_build(raw_bash):
     @staticmethod
     def rule_type() -> SmeltTargetType:
         return SmeltTargetType.Build
+
+
+@dataclass
+class test_group(Target):
+    """
+    Target for oragnizing tests
+    """
+
+    tests: List[TargetRef] = field(default_factory=list)
+
+    def gen_script(self) -> List[str]:
+        return [f"echo {test}" for test in self.tests]
+
+    def get_dependencies(self) -> List[TargetRef]:
+        return self.tests

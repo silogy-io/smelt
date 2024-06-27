@@ -60,7 +60,7 @@ pub mod smelt_telemetry {
 
     tonic::include_proto!("smelt_telemetry");
 }
-use executed_tests::TestOutputs;
+use executed_tests::{TestOutputs, TestResult};
 pub use smelt_telemetry::*;
 
 impl Event {
@@ -91,14 +91,13 @@ impl Event {
         Self::new(et, trace_id)
     }
 
-    pub fn command_finished(command_ref: String, trace_id: String, status_code: i32) -> Self {
+    pub fn command_finished(test: TestResult, trace_id: String) -> Self {
+        let command_ref = test.test_name;
+        let to = test.outputs.unwrap();
         let et = event::Et::Command(CommandEvent {
             command_ref,
             command_variant: Some(CommandVariant::Finished(CommandFinished {
-                outputs: Some(TestOutputs {
-                    exit_code: status_code,
-                    artifacts: vec![],
-                }),
+                outputs: Some(to),
             })),
         });
         Self::new(et, trace_id)

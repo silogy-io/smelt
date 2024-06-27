@@ -47,7 +47,6 @@ def _get_all_targets(targets_dir: Optional[Path]) -> Dict[str, DocumentedTarget]
     else:
         paths = default_target_modules
 
-    print(paths)
     for path in paths:
         try:
 

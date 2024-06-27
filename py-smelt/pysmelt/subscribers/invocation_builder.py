@@ -33,12 +33,13 @@ class InvocationBuilder:
         if variant == "command":
             event_payload = cast(CommandEvent, event_payload)
             command_name = event_payload.command_ref
-            (command_name, command_payload) = betterproto.which_one_of(
+            (command_variant, command_payload) = betterproto.which_one_of(
                 event_payload, "CommandVariant"
             )
 
-            if command_name == "finished":
+            if command_variant == "finished":
                 command_payload = cast(CommandFinished, command_payload)
+
                 self.tests.append(
                     TestResult(test_name=command_name, outputs=command_payload.outputs)
                 )
@@ -47,10 +48,11 @@ class InvocationBuilder:
                 pass
         elif variant == "invoke":
             event_payload = cast(InvokeEvent, event_payload)
-            (variant, invoke_payload) = betterproto.which_one_of(
-                message, "InvokeVariant"
+            (invoke_variant, invoke_payload) = betterproto.which_one_of(
+                event_payload, "InvokeVariant"
             )
-            if variant == "start":
+
+            if invoke_variant == "start":
                 invoke_payload = cast(ExecutionStart, invoke_payload)
                 self.branch = invoke_payload.git_branch
                 self.repo = invoke_payload.git_repo
@@ -58,7 +60,7 @@ class InvocationBuilder:
                 self.smelt_root = invoke_payload.smelt_root
                 self.invoke_id = message.trace_id
                 self.user = invoke_payload.username
-            if variant == "done":
+            if invoke_variant == "done":
                 self.rundate = message.time
 
         else:
@@ -67,10 +69,11 @@ class InvocationBuilder:
     def create_invocation_object(self) -> Invocation:
         assert self.invoke_id, "invoke_id is required"
         assert self.rundate, "rundate is required"
-        assert self.user, "user is required"
-        assert self.repo, "repo is required"
-        assert self.branch, "branch is required"
-        assert self.hostname, "hostname is required"
+        # these 4 are optional
+        # assert self.user, "user is required"
+        # assert self.repo, "repo is required"
+        # assert self.branch, "branch is required"
+        # assert self.hostname, "hostname is required"
         assert self.smelt_root, "smelt_root is required"
 
         return Invocation(
@@ -86,4 +89,4 @@ class InvocationBuilder:
 
     def write_invocation_to_fs(self):
         inv_obj = self.create_invocation_object().SerializeToString()
-        most_recent_invoke_path().open("wb").write(inv_obj)
+        open(most_recent_invoke_path().to_abs_path(), ("wb")).write(inv_obj)

@@ -34,10 +34,9 @@ impl CommandDefPath {
             self.0.as_str(),
             smelt_root.to_string_lossy().to_string().as_str(),
         );
-        let as_path = Path::new(self.0.as_str());
 
-        if as_path.is_absolute() {
-            return as_path.to_path_buf();
+        if val.is_absolute() {
+            return val;
         }
 
         command_dir_path.join(Path::new(self.0.as_str()))

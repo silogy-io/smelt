@@ -12,7 +12,7 @@ impl ArtifactPointer {
     }
 }
 
-#[derive(Allocative)]
+#[derive(Allocative, Clone)]
 pub enum ExecutedTestResult {
     Success(TestResult),
     MissingFiles {
@@ -24,10 +24,10 @@ pub enum ExecutedTestResult {
 }
 
 impl ExecutedTestResult {
-    pub fn to_test_result(self) -> TestOutputs {
+    pub fn to_test_result(self) -> TestResult {
         match self {
-            Self::Success(val) => val.outputs.unwrap(),
-            Self::MissingFiles { test_result, .. } => test_result.outputs.unwrap(),
+            Self::Success(val) => val,
+            Self::MissingFiles { test_result, .. } => test_result,
         }
     }
     pub fn get_retcode(&self) -> i32 {

@@ -1,6 +1,8 @@
+import collections
 from datetime import datetime
 import enum
 from typing import Dict, List, Optional, Tuple
+from pysmelt.rc import SmeltRcHolder
 from rich.table import Table
 from typing_extensions import cast
 from rich.console import Group
@@ -54,6 +56,15 @@ class RenderableTree(RenderableColumn):
         return root
 
 
+def get_logs_from_command_name(command_name: str, num_lines_tail: int = 3) -> str:
+    root = SmeltRcHolder.current_rc().smelt_root
+    try:
+        log = open(f"{root}/smelt-out/{command_name}/command.out", "r")
+        return "\n".join(collections.deque(log, num_lines_tail))
+    except Exception as e:
+        return f"Could not read {command_name}'s log"
+
+
 @dataclass
 class OutputConsole:
     """
@@ -99,7 +110,7 @@ class OutputConsole:
 
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Command Name")
-        table.add_column("Exit Code")
+        table.add_column("Status")
         table.add_column("Execution Time")
 
         new_finished_list = [
@@ -133,9 +144,26 @@ class OutputConsole:
                 ),
                 time_str,
             )
-
-        # Print the table
+        if len(new_finished_list) > topn:
+            unseen = len(new_finished_list) - topn
+            table.add_row(f"and {unseen} other commands...", "")
         smelt_console.log(table)
+        fail_table = Table(
+            show_header=True, title="Failed commands", header_style="bold magenta"
+        )
+        fail_table.add_column("Command Name")
+        fail_table.add_column("log tail")
+
+        one_failed = False
+        for obj, command_name, execution_time in filter(
+            lambda x: x[0].outputs.exit_code != 0,
+            sorted(new_finished_list, key=lambda x: x[2], reverse=True),
+        ):
+            one_failed = True
+            logs = get_logs_from_command_name(command_name)
+            fail_table.add_row(command_name, logs)
+        if one_failed:
+            smelt_console.log(fail_table)
 
         pass
 

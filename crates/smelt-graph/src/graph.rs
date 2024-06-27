@@ -156,11 +156,10 @@ impl Key for CommandRef {
 
         let output = output.map_err(|err| Arc::new(SmeltErr::ExecutorFailed(err.to_string())))?;
 
-        let command_finished = Event::command_finished(
-            self.0.name.clone(),
-            ctx.per_transaction_data().get_trace_id(),
-            output.get_retcode(),
-        );
+        let tr = output.clone().to_test_result();
+
+        let command_finished =
+            Event::command_finished(tr, ctx.per_transaction_data().get_trace_id());
         let mut _handleme = tx.send(command_finished).await;
 
         Ok(Arc::new(output))

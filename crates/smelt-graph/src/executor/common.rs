@@ -5,9 +5,10 @@ use crate::Command;
 
 use dice::DiceData;
 
-
 use smelt_data::{
-    executed_tests::{ArtifactPointer, ExecutedTestResult, TestOutputs, TestResult},
+    executed_tests::{
+        artifact_pointer::Pointer, ArtifactPointer, ExecutedTestResult, TestOutputs, TestResult,
+    },
     Event,
 };
 
@@ -42,11 +43,7 @@ pub(crate) async fn prepare_workspace(
 
     let mut buf: Vec<u8> = Vec::new();
 
-    writeln!(
-        buf,
-        "export SMELT_ROOT={}",
-        smelt_root.to_string_lossy()
-    );
+    writeln!(buf, "export SMELT_ROOT={}", smelt_root.to_string_lossy());
 
     writeln!(
         buf,
@@ -94,26 +91,6 @@ pub(crate) async fn handle_line(
     let _unhandled = stdout.write(&[b'\n']).await;
 }
 
-//pub(crate) async fn copy_artifacts(
-//    command: &Command,
-//    global_data: &DiceData,
-//) -> Result<(), SmeltErr> {
-//    let command_default_dir = global_data.get_cmd_def_path();
-//    let otl_root = global_data.get_smelt_root();
-//
-//    for output in command.outputs.iter() {
-//        let path = output.to_path(command_default_dir.as_path());
-//        let path_exists = path.exists();
-//        let file_name = path.file_name().ok_or(SmeltErr::BadArtifactName)?;
-//        let mut new_path = command.default_target_root(otl_root.as_path())?;
-//        new_path.push(file_name);
-//        if path_exists {
-//            tokio::fs::copy(path, new_path).await?;
-//        }
-//    }
-//    Ok(())
-//}
-
 pub(crate) fn create_test_result(
     command: &Command,
     exit_code: i32,
@@ -122,7 +99,16 @@ pub(crate) fn create_test_result(
     let command_default_dir = command.working_dir.clone();
     let smelt_root = global_data.get_smelt_root();
     let mut missing_artifacts = vec![];
-    let mut artifacts = vec![];
+    let mut artifacts = vec![ArtifactPointer {
+        artifact_name: "smelt_log".into(),
+        //TODO: smelt-out shouldn't be hardcoded here, sorry for sinning mom
+        pointer: Some(Pointer::Path(format!(
+            "{}/smelt-out/{}/command.out",
+            smelt_root.to_string_lossy().to_string(),
+            command.name,
+        ))),
+    }];
+
     for output in command.outputs.iter() {
         let path = output.to_path(command_default_dir.as_path(), smelt_root.as_path());
         let path_exists = path.exists();
@@ -133,6 +119,11 @@ pub(crate) fn create_test_result(
             .to_string();
         let artifact = ArtifactPointer::file_artifact(default_name, path);
         if !path_exists {
+            tracing::debug!(
+                "Missing artifact {:?} for command {}",
+                artifact,
+                command.name
+            );
             missing_artifacts.push(artifact)
         } else {
             artifacts.push(artifact);
