@@ -33,6 +33,7 @@ class Status(enum.Enum):
     started = "started"
     finished = "finished"
     cancelled = "cancelled"
+    skipped = "skipped"
 
 
 @dataclass
@@ -82,6 +83,8 @@ class OutputConsole:
     finished_list: List[Tuple[CommandFinished, str, datetime]] = field(
         default_factory=list
     )
+    skipped_list: List[str] = field(default_factory=list)
+
     start_time: Dict[str, datetime] = field(default_factory=dict)
 
     def __enter__(self):
@@ -165,7 +168,12 @@ class OutputConsole:
         if one_failed:
             smelt_console.log(fail_table)
 
-        pass
+        failed = self.total_run - self.total_passed
+        smelt_console.print(f"[green] {self.total_passed} commands passed ")
+        if len(self.skipped_list) != 0:
+            smelt_console.print(f"[red] {len(self.skipped_list)} commands skipped")
+        if failed != 0:
+            smelt_console.print(f"[red] {failed} commands failed")
 
     def process_message(self, message: Event):
         (variant, event_payload) = betterproto.which_one_of(message, "et")
@@ -185,6 +193,9 @@ class OutputConsole:
                     payload = cast(CommandFinished, payload)
                     self.process_finished(payload, name, message.time)
 
+                if command_name == "skipped":
+                    self.process_skipped(name)
+
             # we are processing stdout of a command
             else:
                 if self.progress and self.print_stdout:
@@ -194,6 +205,9 @@ class OutputConsole:
         self.total_executing += 1
         self.total_run += 1
         self.start_time[name] = time
+
+    def process_skipped(self, name: str):
+        self.skipped_list.append(name)
 
     def process_finished(self, obj: CommandFinished, command_name: str, time: datetime):
         self.total_executing -= 1

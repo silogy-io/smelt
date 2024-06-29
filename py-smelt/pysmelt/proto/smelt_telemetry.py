@@ -42,6 +42,7 @@ class CommandEvent(betterproto.Message):
     finished: "CommandFinished" = betterproto.message_field(7, group="CommandVariant")
     stdout: "CommandStdout" = betterproto.message_field(8, group="CommandVariant")
     profile: "CommandProfile" = betterproto.message_field(9, group="CommandVariant")
+    skipped: "CommandSkipped" = betterproto.message_field(10, group="CommandVariant")
 
 
 @dataclass
@@ -56,6 +57,11 @@ class CommandStarted(betterproto.Message):
 
 @dataclass
 class CommandCancelled(betterproto.Message):
+    pass
+
+
+@dataclass
+class CommandSkipped(betterproto.Message):
     pass
 
 

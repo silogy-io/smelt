@@ -138,13 +138,50 @@ impl Key for CommandRef {
             )
         }));
 
-        let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
+        let val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
+
+        let mut exit = None;
+        for val in val {
+            match val {
+                Ok(res) => {
+                    if res.is_skipped() {
+                        tracing::trace!("Dependency was skipped -- skipping {}", self.0.name);
+                        exit = Some(Arc::new(ExecutedTestResult::Skipped));
+                        break;
+                    }
+
+                    if res.get_retcode() != 0 {
+                        tracing::trace!("Dependency was skipped -- skipping {}", self.0.name);
+                        exit = Some(Arc::new(ExecutedTestResult::Skipped));
+                        break;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Smelt runtime failed to execute a command with error {e}  -- skipping {}",
+                        self.0.name
+                    );
+                    exit = Some(Arc::new(ExecutedTestResult::Skipped));
+                    break;
+                }
+            }
+        }
+
+        let tx = ctx.per_transaction_data().get_tx_channel();
+        if let Some(need_to_skip) = exit {
+            let _ = tx
+                .send(Event::command_skipped(
+                    self.0.name.clone(),
+                    ctx.per_transaction_data().get_trace_id(),
+                ))
+                .await;
+            return Ok(need_to_skip);
+        }
+
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        let tx = ctx.per_transaction_data().get_tx_channel();
 
         let executor = ctx.global_data().get_executor();
-        let _local_tx = tx.clone();
 
         let output = executor
             .execute_commands(

@@ -2792,6 +2792,7 @@ dependencies = [
  "serde",
  "tonic",
  "tonic-build",
+ "tracing",
 ]
 
 [[package]]

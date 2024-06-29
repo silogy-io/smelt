@@ -103,6 +103,14 @@ impl Event {
         Self::new(et, trace_id)
     }
 
+    pub fn command_skipped(command_ref: String, trace_id: String) -> Self {
+        let et = event::Et::Command(CommandEvent {
+            command_ref,
+            command_variant: Some(CommandVariant::Skipped(CommandSkipped {})),
+        });
+        Self::new(et, trace_id)
+    }
+
     pub fn command_stdout(command_ref: String, trace_id: String, stdout: String) -> Self {
         let et = event::Et::Command(CommandEvent {
             command_ref,
