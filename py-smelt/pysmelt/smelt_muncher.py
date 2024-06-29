@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import functools
 import yaml
 import pathlib
-from typing import Dict, Any, Iterable, Set, Tuple, Type, List
+from typing import ClassVar, Dict, Any, Iterable, Set, Tuple, Type, List
 from pydantic import BaseModel
 from pysmelt.generators.procedural import get_procedural_targets
 from pysmelt.importer import (
@@ -29,6 +29,19 @@ class PreTarget:
     rule_args: Dict[str, Any]
 
 
+@dataclass
+class ImportTracker:
+    imported_commands: ClassVar[Dict[SmeltPath, List[Command]]] = {}
+
+    @staticmethod
+    def clear():
+        ImportTracker.imported_commands = {}
+
+    @staticmethod
+    def get_all_imported() -> Dict[SmeltPath, List[Command]]:
+        return ImportTracker.imported_commands
+
+
 def populate_rule_args(
     target_name: str,
     rule_payload: SerYamlTarget,
@@ -52,25 +65,31 @@ def to_target(pre_target: PreTarget) -> Target:
     return pre_target.target_typ(**pre_target.rule_args)
 
 
-def parse_smelt(
+def get_targets(
     test_list: SmeltPath, default_rules_only: bool = False
-) -> Tuple[Dict[str, Target], List[Command]]:
-    test_list_orig = test_list
+) -> Dict[str, Target]:
 
     test_list2 = test_list.to_abs_path()
 
     if pathlib.Path(test_list2).suffix == ".py":
         targets = get_procedural_targets(test_list2)
 
-        targets = {target.name: target for target in targets}
+        return {target.name: target for target in targets}
 
     else:
         yaml_content = open(test_list2).read()
-        targets = smelt_contents_to_targets(
+        return smelt_contents_to_targets(
             yaml_content, default_rules_only=default_rules_only
         )
+
+
+def parse_smelt(
+    test_list: SmeltPath, default_rules_only: bool = False
+) -> Tuple[Dict[str, Target], List[Command]]:
+    test_list_orig = test_list
+    targets = get_targets(test_list, default_rules_only)
     command_list = lower_targets_to_commands(
-        targets.values(), str(pathlib.Path(test_list_orig.path).parent)
+        targets.values(), str(pathlib.Path(test_list_orig.to_abs_path()).parent)
     )
 
     return targets, command_list
@@ -107,6 +126,8 @@ def create_universe(
             tt = TempTarget.parse_string_smelt_target(dep, starting_file.to_abs_path())
             visible_files.add(tt.file_path)
     all_commands[top_file] = commands
+    all_commands.update(ImportTracker.imported_commands)
+    ImportTracker.clear()
 
     # Determine new files that are visible but not yet parsed
     new_files = visible_files - seen_files
@@ -131,6 +152,9 @@ def create_universe(
                         new_files.add(tt.file_path)
 
             all_commands[file] = new_commands
+            all_commands.update(ImportTracker.imported_commands)
+            ImportTracker.clear()
+
         else:
             # Break the loop if there are no new files
             break

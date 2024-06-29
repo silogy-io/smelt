@@ -6,10 +6,28 @@ from pysmelt.importer import import_procedural_testlist
 
 
 from pysmelt.interfaces.target import Target
+
+
 import contextlib
-import weakref
+
 
 from pysmelt.path_utils import get_git_root
+
+_import_depth = 0
+
+
+def get_import_depth() -> int:
+    return _import_depth
+
+
+def inc_import_depth():
+    global _import_depth
+    _import_depth += 1
+
+
+def dec_import_depth():
+    global _import_depth
+    _import_depth -= 1
 
 
 @contextlib.contextmanager
@@ -20,7 +38,8 @@ def capture_targets():
 
     def new_init(self: Target, *args, **kwargs):
         original_init(self, *args, **kwargs)
-        instances.append(self)
+        if _import_depth == 0:
+            instances.append(self)
 
     Target.__post_init__ = new_init
 
