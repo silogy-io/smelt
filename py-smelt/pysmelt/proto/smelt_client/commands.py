@@ -19,6 +19,7 @@ class ClientCommand(betterproto.Message):
     runone: "RunOne" = betterproto.message_field(2, group="ClientCommands")
     runtype: "RunType" = betterproto.message_field(3, group="ClientCommands")
     runmany: "RunMany" = betterproto.message_field(4, group="ClientCommands")
+    getcfg: "GetConfig" = betterproto.message_field(5, group="ClientCommands")
 
 
 @dataclass
@@ -44,6 +45,20 @@ class RunType(betterproto.Message):
 
 
 @dataclass
+class GetConfig(betterproto.Message):
+    pass
+
+
+@dataclass
+class ClientResp(betterproto.Message):
+    """Responses to the client command"""
+
+    current_cfg: "ConfigureSmelt" = betterproto.message_field(
+        1, group="ClientResponses"
+    )
+
+
+@dataclass
 class ConfigureSmelt(betterproto.Message):
     """
     This configuration is done once, when SMELT is initialized The client
@@ -52,12 +67,12 @@ class ConfigureSmelt(betterproto.Message):
 
     # Should be an absolute path
     smelt_root: str = betterproto.string_field(1)
-    # relative to smelt_root -- this is an SmeltPath
-    command_def_path: str = betterproto.string_field(2)
     # number of slots the entire executor has -- analogous to job slots in make
-    job_slots: int = betterproto.uint64_field(3)
+    job_slots: int = betterproto.uint64_field(2)
     # configures how we profile commands
-    prof_cfg: "ProfilerCfg" = betterproto.message_field(4)
+    prof_cfg: "ProfilerCfg" = betterproto.message_field(3)
+    # If true, we ignore the non test commands
+    test_only: bool = betterproto.bool_field(4)
     local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")
     docker: "CfgDocker" = betterproto.message_field(11, group="InitExecutor")
 

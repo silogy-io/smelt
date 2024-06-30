@@ -12,7 +12,7 @@ impl ArtifactPointer {
     }
 }
 
-#[derive(Allocative)]
+#[derive(Allocative, Clone)]
 pub enum ExecutedTestResult {
     Success(TestResult),
     MissingFiles {
@@ -21,13 +21,18 @@ pub enum ExecutedTestResult {
         /// artifacts that are missing -- will always point to the filesystem
         missing_artifacts: Vec<ArtifactPointer>,
     },
+    Skipped,
 }
 
 impl ExecutedTestResult {
-    pub fn to_test_result(self) -> TestOutputs {
+    pub fn is_skipped(&self) -> bool {
+        matches!(self, Self::Skipped)
+    }
+    pub fn to_test_result(self) -> TestResult {
         match self {
-            Self::Success(val) => val.outputs.unwrap(),
-            Self::MissingFiles { test_result, .. } => test_result.outputs.unwrap(),
+            Self::Success(val) => val,
+            Self::MissingFiles { test_result, .. } => test_result,
+            Self::Skipped => TestResult::default(),
         }
     }
     pub fn get_retcode(&self) -> i32 {
@@ -38,6 +43,12 @@ impl ExecutedTestResult {
                 .as_ref()
                 .map(|val| val.exit_code)
                 .unwrap(),
+            Self::Skipped => {
+                tracing::error!(
+                    "Getting the retcode for a skipped testresult -- this is unexpected"
+                );
+                -1
+            }
         }
     }
 }

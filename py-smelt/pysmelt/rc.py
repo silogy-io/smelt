@@ -1,20 +1,31 @@
 from pydantic.dataclasses import dataclass
-from typing import ClassVar, Dict, Optional
+from typing import ClassVar, Dict, Optional, Union
 from pathlib import Path
 from pysmelt.path_utils import get_git_root
 import toml
 import os
+import inspect
 
 from pprint import pprint
+from dataclasses import replace
 
 
 @dataclass(frozen=True)
 class SmeltRC:
 
     smelt_root: str
-    smelt_default_out: str
+    """
+    Path to smelt root -- is $GIT_ROOT by default
+    """
     smelt_rules_dir: str
+    """
+    Directory that holds third party smelt rules
+    """
+
     jobs: int
+    """
+    Number of job slots that can be used
+    """
 
     @classmethod
     def default(cls):
@@ -26,7 +37,6 @@ class SmeltRC:
 
         return cls(
             smelt_root=smelt_root,
-            smelt_default_out="smelt-out",
             smelt_rules_dir="smelt_rules",
             jobs=default_jobs,
         )
@@ -45,7 +55,6 @@ class SmeltRC:
             rc_content = toml.loads(stream)
             return cls(
                 smelt_root=rc_content["smelt_root"],
-                smelt_default_out=rc_content["smelt_default_out"],
                 smelt_rules_dir=rc_content["smelt_rules_dir"],
                 jobs=rc_content["jobs"],
             )
@@ -60,7 +69,9 @@ class SmeltRC:
         rc_path = Path(f"{git_root}/.smeltrc")
         with open(rc_path, "w") as outfile:
             toml.dump(default.__dict__, outfile)
-        smelt_rules_dir = Path(f"{git_root}/{default.smelt_rules_dir}").mkdir(exist_ok=True)
+        smelt_rules_dir = Path(f"{git_root}/{default.smelt_rules_dir}").mkdir(
+            exist_ok=True
+        )
         pprint(f"Initialized .smeltrc at {rc_path}")
 
     @property
@@ -75,3 +86,12 @@ class SmeltRcHolder:
     @staticmethod
     def current_rc() -> SmeltRC:
         return SmeltRcHolder._current_rc
+
+    @staticmethod
+    def set_jobs(jobs: int):
+
+        SmeltRcHolder._current_rc = replace(SmeltRcHolder._current_rc, jobs=jobs)
+
+    @staticmethod
+    def current_smelt_root() -> str:
+        return SmeltRcHolder.current_rc().smelt_root

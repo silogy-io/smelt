@@ -15,6 +15,21 @@ use smelt_core::SmeltErr;
 
 use crate::digest::{CommandDefDigest, CommandIdDigest};
 use smelt_core::CommandDefPath;
+
+#[repr(transparent)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
+pub struct CommandDependency(String);
+
+impl CommandDependency {
+    pub fn get_command_name(&self) -> &str {
+        if self.0.starts_with("//") {
+            self.0.split_once(':').unwrap().1
+        } else {
+            self.0.as_str()
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
 pub struct Command {
     pub name: String,
@@ -23,10 +38,12 @@ pub struct Command {
     #[serde(default)]
     pub dependent_files: Vec<CommandDefPath>,
     #[serde(default)]
-    pub dependencies: Vec<String>,
+    pub dependencies: Vec<CommandDependency>,
     #[serde(default)]
     pub outputs: Vec<CommandDefPath>,
     pub runtime: Runtime,
+    #[serde(default)]
+    pub working_dir: PathBuf,
 }
 
 impl Command {
@@ -38,7 +55,7 @@ impl Command {
             hasher.update(line);
         }
         for dep in self.dependencies.iter() {
-            hasher.update(dep);
+            hasher.update(&dep.0);
         }
 
         let rv: [u8; 20] = hasher.finalize().into();

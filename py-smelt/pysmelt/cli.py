@@ -1,15 +1,19 @@
-from typing_extensions import Annotated
+from typing_extensions import Annotated, List
 from pathlib import Path
 import typer
 import yaml
+from pysmelt.interfaces.paths import SmeltPath
 from pysmelt.output import smelt_console
 from pysmelt.interfaces import SmeltTargetType
+from pysmelt.proto.smelt_client.commands import ConfigureSmelt
+from pysmelt.rc import SmeltRcHolder
 from pysmelt.smelt_muncher import parse_smelt
 from pysmelt.output_utils import pretty_print_tests
 from pysmelt.pygraph import create_graph
 from pysmelt.serde import SafeDataclassDumper
-from typing import Optional
+from typing import Optional, Dict
 from typer import Exit
+from pysmelt.templates.template_rule import create_rule_target_from_template
 
 app = typer.Typer()
 
@@ -40,14 +44,14 @@ CommandPath = Annotated[
 ]
 
 
-RulePath = Annotated[
+NewRulePath = Annotated[
     Path,
     typer.Argument(
         ...,
         exists=False,
         file_okay=True,
-        dir_okay=True,
-        writable=False,
+        dir_okay=False,
+        writable=True,
         readable=True,
         resolve_path=True,
     ),
@@ -71,7 +75,7 @@ def lower(
 ):
     typer.echo(f"Validating: {smelt_file}")
 
-    _, commands = parse_smelt(test_list=str(smelt_file))
+    _, commands = parse_smelt(test_list=SmeltPath.from_str(str(smelt_file)))
     yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
 
 
@@ -87,9 +91,24 @@ def execute(
     rerun: bool = typer.Option(
         False, help="Rerun the commands that failed", is_flag=True
     ),
+    test_only: bool = typer.Option(
+        False,
+        help="If set, assumes non-test commands have passed successfully and will not run them",
+        is_flag=True,
+    ),
+    jobs: Optional[int] = typer.Option(
+        None, "--jobs", help="max number of jobslots allowed"
+    ),
 ):
 
-    graph = create_graph(str(smelt_file))
+    if jobs:
+        SmeltRcHolder.set_jobs(jobs)
+
+    def configure_cb(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.test_only = test_only
+        return cfg
+
+    graph = create_graph(str(smelt_file), cfg_init=configure_cb)
     if target_name:
         graph.run_one_test_interactive(target_name)
     else:
@@ -103,18 +122,17 @@ def execute(
 )
 def validate(
     smelt_file: TlPath,
-    tt: str = typer.Option("test", help="SMELT target type", callback=validate_type),
-    target_name: Optional[str] = typer.Option(
-        None, help="Target name -- if not provided, runs all the tests"
-    ),
-    rerun: bool = typer.Option(
-        False, help="Rerun the commands that failed", is_flag=True
-    ),
 ):
 
     graph = create_graph(str(smelt_file))
     smelt_console.print(f"[green] {smelt_file.name} is valid")
     pretty_print_tests(graph)
+
+
+@app.command(help="Create a new target def file at the provided path")
+def init_rule(output: CommandPath):
+    create_rule_target_from_template(str(output))
+    smelt_console.log(f"Created template at path {output}")
 
 
 def main():

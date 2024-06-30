@@ -1,0 +1,5 @@
+- name: verilator_build_dummy
+  rule: raw_bash_build
+  rule_args:
+    cmds:
+      - echo "dummy build"

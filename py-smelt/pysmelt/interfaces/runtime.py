@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 @dataclass
@@ -13,7 +13,9 @@ class RuntimeRequirements:
     env: Dict[str, str]
 
     @classmethod
-    def default(cls, env: Dict[str, str]):
+    def default(cls, env: Optional[Dict[str, str]] = None):
+        if env is None:
+            env = {}
         return cls(num_cpus=1, max_memory_mb=1024, timeout=600, env=env)
 
     @classmethod
