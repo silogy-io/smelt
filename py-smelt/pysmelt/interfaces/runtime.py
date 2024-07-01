@@ -19,7 +19,7 @@ class RuntimeRequirements:
         return cls(num_cpus=1, max_memory_mb=1024, timeout=600, env=env)
 
     @classmethod
-    def from_dict(cls, indict: dict[str, Any]):
+    def from_dict(cls, indict: Dict[str, Any]):
         num_cpus = indict["num_cpus"]
         max_memory_mb = indict["max_memory_mb"]
         timeout = indict["timeout"]

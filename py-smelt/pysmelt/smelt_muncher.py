@@ -132,7 +132,7 @@ def create_universe(
     # Determine new files that are visible but not yet parsed
     new_files = visible_files - seen_files
 
-    # Continue to parse new files until there are no new files
+    # Continue to parse new files until we've seen everything
     while True:
         if len(new_files) != 0:
             file = new_files.pop()
@@ -159,7 +159,7 @@ def create_universe(
             # Break the loop if there are no new files
             break
 
-    # Return a SmeltUniverse object with the top file and all commands
+    # Should have everything in the Universe now
     return SmeltUniverse(top_file=top_file, commands=all_commands)
 
 

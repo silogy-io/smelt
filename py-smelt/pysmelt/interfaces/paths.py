@@ -102,9 +102,7 @@ class TempTarget:
                 path = path[2:]
 
             if pathlib.Path(path).suffix == ".py":
-                raise RuntimeError(
-                    "targets declared in python test lists are currently not supported as dependencies!"
-                )
+                pass
 
             # The second part is the target name
             target_name = parts[1]
