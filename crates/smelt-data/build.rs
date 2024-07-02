@@ -53,7 +53,8 @@ fn main() -> io::Result<()> {
             "smelt_telemetry.data.CommandOutput",
             "#[derive(Copy, dupe::Dupe,Eq,Hash)]",
         )
-        .field_attribute("time", "#[serde(with = \"crate::serialize_timestamp\")]");
+        .field_attribute("time", "#[serde(with = \"crate::serialize_timestamp\")]")
+        .field_attribute("rundate", "#[serde(with = \"crate::serialize_timestamp\")]");
 
     let proto_files = ["data.proto", "client.data.proto", "executed_tests.proto"];
     for proto_file in proto_files {

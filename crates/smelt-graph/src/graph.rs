@@ -28,6 +28,7 @@ use crate::{
     commands::{Command, TargetType},
     executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
     utils::invoke_start_message,
+    CommandDependency,
 };
 use async_trait::async_trait;
 use smelt_core::CommandDefPath;
@@ -137,13 +138,50 @@ impl Key for CommandRef {
             )
         }));
 
-        let _val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
+        let val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
+
+        let mut exit = None;
+        for val in val {
+            match val {
+                Ok(res) => {
+                    if res.is_skipped() {
+                        tracing::trace!("Dependency was skipped -- skipping {}", self.0.name);
+                        exit = Some(Arc::new(ExecutedTestResult::Skipped));
+                        break;
+                    }
+
+                    if res.get_retcode() != 0 {
+                        tracing::trace!("Dependency was skipped -- skipping {}", self.0.name);
+                        exit = Some(Arc::new(ExecutedTestResult::Skipped));
+                        break;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Smelt runtime failed to execute a command with error {e}  -- skipping {}",
+                        self.0.name
+                    );
+                    exit = Some(Arc::new(ExecutedTestResult::Skipped));
+                    break;
+                }
+            }
+        }
+
+        let tx = ctx.per_transaction_data().get_tx_channel();
+        if let Some(need_to_skip) = exit {
+            let _ = tx
+                .send(Event::command_skipped(
+                    self.0.name.clone(),
+                    ctx.per_transaction_data().get_trace_id(),
+                ))
+                .await;
+            return Ok(need_to_skip);
+        }
+
         //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
         //specifically, if build targets fail -- this would be Bad and should cause an abort
-        let tx = ctx.per_transaction_data().get_tx_channel();
 
         let executor = ctx.global_data().get_executor();
-        let _local_tx = tx.clone();
 
         let output = executor
             .execute_commands(
@@ -155,11 +193,10 @@ impl Key for CommandRef {
 
         let output = output.map_err(|err| Arc::new(SmeltErr::ExecutorFailed(err.to_string())))?;
 
-        let command_finished = Event::command_finished(
-            self.0.name.clone(),
-            ctx.per_transaction_data().get_trace_id(),
-            output.get_retcode(),
-        );
+        let tr = output.clone().to_test_result();
+
+        let command_finished =
+            Event::command_finished(tr, ctx.per_transaction_data().get_trace_id());
         let mut _handleme = tx.send(command_finished).await;
 
         Ok(Arc::new(output))
@@ -172,7 +209,7 @@ impl Key for CommandRef {
 
 async fn get_command_deps(
     ctx: &mut DiceComputations<'_>,
-    dep_target_names: &[String],
+    dep_target_names: &[CommandDependency],
     dep_file_names: &[CommandDefPath],
 ) -> (
     Vec<Result<CommandRef, SmeltErr>>,
@@ -190,7 +227,7 @@ async fn get_command_deps(
     let target_deps = ctx.compute_many(dep_target_names.iter().map(|val| {
         DiceComputations::declare_closure(
             move |ctx: &mut DiceComputations| -> BoxFuture<Result<CommandRef, SmeltErr>> {
-                let val = LookupCommand::from_str_ref(val);
+                let val = LookupCommand::from_str_ref(val.get_command_name());
                 ctx.compute(&val).map(flatten_res).boxed()
             },
         )
@@ -328,6 +365,7 @@ impl CommandGraph {
             all_commands: vec![],
         };
 
+        tracing::trace!("Successfully made graph!");
         Ok(graph)
     }
 
@@ -434,6 +472,7 @@ impl CommandGraph {
             .map_err(|vals| SmeltErr::CommandSettingFailed {
                 reason: format!("{} invalid dependencies found", vals.len()),
             })?;
+        tracing::trace!("Successfully validated graph!");
         Ok(())
     }
 
@@ -479,6 +518,7 @@ impl CommandGraph {
             let _out = tx.execute_commands(refs).await;
             let val = tx.per_transaction_data().get_tx_channel();
             let trace = tx.per_transaction_data().get_trace_id();
+
             handle_result(_out, val, trace).await;
         });
         Ok(())
@@ -532,11 +572,9 @@ impl CommandGraph {
         }
 
         if !err_vec.is_empty() {
-            let txchan = tx.per_transaction_data().get_tx_channel();
             for err in err_vec.iter() {
-                let _ = txchan
-                    .send(Event::graph_validate_error(err.to_string()))
-                    .await;
+                let sterr = err.to_string();
+                tracing::info!("found err while validating graph: {sterr}");
             }
 
             Err(err_vec)
@@ -601,7 +639,7 @@ pub fn spawn_graph_server(cfg: ConfigureSmelt) -> SmeltServerHandle {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use tokio::{
         fs::File,
@@ -635,20 +673,14 @@ mod tests {
 
         format!("{}/{}", manifest, path)
     }
-    fn testing_cfg(cmd_def_path: String) -> ConfigureSmelt {
-        let command_def_path = PathBuf::from(cmd_def_path)
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+    fn testing_cfg(_cmd_def_path: String) -> ConfigureSmelt {
         ConfigureSmelt {
             prof_cfg: Some(ProfilerCfg {
                 prof_type: 0,
                 sampling_period: 1000,
             }),
             smelt_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
-            command_def_path,
+            test_only: false,
             job_slots: 1,
             init_executor: Some(configure_smelt::InitExecutor::Local(CfgLocal {})),
         }

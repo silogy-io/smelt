@@ -29,12 +29,14 @@ message CommandEvent {
     CommandFinished finished = 7;
     CommandStdout stdout = 8;
     CommandProfile profile = 9;
+    CommandSkipped skipped = 10;
   }
 }
 
 message CommandScheduled {}
 message CommandStarted {}
 message CommandCancelled {}
+message CommandSkipped {}
 message CommandStdout { string output = 1; }
 message CommandFinished { executed_tests.TestOutputs outputs = 1; }
 message CommandProfile {

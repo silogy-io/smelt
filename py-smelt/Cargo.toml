@@ -36,3 +36,5 @@ fuzzy-matcher = { workspace = true }
 pythonize = { workspace = true }
 pyo3 = { workspace = true }
 prost = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

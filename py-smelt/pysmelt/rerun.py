@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pysmelt.interfaces import Target, TargetRef
 import functools
-from typing import Callable, List, Dict, Optional, Tuple
+from typing import Callable, List, Dict, Optional, Tuple, Union
 from copy import deepcopy
 
 from pysmelt.interfaces.command import Command
@@ -50,12 +50,11 @@ class DerivedTarget:
         return self.lower_derived_target(dependenents)
 
     def lower_derived_target(
-        self, dependenents: List[None | Command]
+        self, dependenents: List[Union[None, Command]]
     ) -> Optional[Command]:
         deps_changed = any(dependenents)
         if deps_changed:
-            """
-            """
+            """ """
             rv = target_to_command(self.derived_target)
 
             def choose(new: Optional[Command], old: str) -> str:
@@ -63,9 +62,7 @@ class DerivedTarget:
 
             new_deps = [
                 choose(new_dep, old_dep)
-                for new_dep, old_dep in zip(
-                    dependenents, rv.dependencies
-                )
+                for new_dep, old_dep in zip(dependenents, rv.dependencies)
             ]
             rv.dependencies = new_deps
             return rv

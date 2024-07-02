@@ -32,6 +32,9 @@ bollard = { version = "0.16.1", optional = true }
 sha1 = "0.10.6"
 hex.workspace = true
 libproc = "0.14.8"
+tracing = { workspace = true }
+
+
 [target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dependencies]
 mach2 = "0.4.2"
 
