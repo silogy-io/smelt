@@ -1,8 +1,6 @@
 [project]
 name = "pysmelt"
-
-
-version = "0.2.1"
+version = "0.4.0"
 
 
 description = "smelt is a system to describe, run, and analyze integration tests"
