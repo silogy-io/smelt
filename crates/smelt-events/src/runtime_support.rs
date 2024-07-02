@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::Event;
+use async_trait::async_trait;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
 use smelt_core::SmeltPath;
 use smelt_data::client_commands::ConfigureSmelt;
+use tokio::sync::{Semaphore, SemaphorePermit};
 use uuid::Uuid;
 
 use tokio::sync::mpsc::Sender;
@@ -35,15 +37,24 @@ pub trait GetSmeltRoot {
     fn get_smelt_root(&self) -> PathBuf;
 }
 
+pub trait SetSemaphore {
+    fn set_sempahore(&mut self, cnt: usize);
+}
+
+#[async_trait]
+pub trait LockSemaphore {
+    /// Gets the semaphore we use to control how many slots we're using in smelt
+    async fn lock_sem(&self, cnt: u32) -> SemaphorePermit<'_>;
+}
+pub trait GetJobSlots {
+    fn get_job_slots(&self) -> u64;
+}
+
 pub trait GetProfilingFreq {
     /// Gets the profiling frequency in milliseconds
     ///
     /// If not set, then profiling is disabled
     fn get_profiling_freq(&self) -> Option<u64>;
-}
-
-pub trait GetCmdDefPath {
-    fn get_cmd_def_path(&self) -> PathBuf;
 }
 
 impl SetTxChannel for UserComputationData {
@@ -87,19 +98,41 @@ impl GetSmeltRoot for DiceData {
     }
 }
 
-impl SetSmeltCfg for DiceDataBuilder {
-    fn set_smelt_cfg(&mut self, cfg: ConfigureSmelt) {
-        self.set(cfg)
+impl GetJobSlots for DiceData {
+    fn get_job_slots(&self) -> u64 {
+        self.get_smelt_cfg().job_slots
     }
 }
 
-impl GetCmdDefPath for DiceData {
-    fn get_cmd_def_path(&self) -> PathBuf {
-        self.get::<ConfigureSmelt>()
-            .map(|val| {
-                SmeltPath::new(val.smelt_root.clone()).to_path(Path::new(val.smelt_root.as_str()))
-            })
-            .unwrap()
+impl SetSmeltCfg for DiceDataBuilder {
+    fn set_smelt_cfg(&mut self, cfg: ConfigureSmelt) {
+        let max = cfg.job_slots as usize;
+        self.set(cfg);
+        self.set_sempahore(max);
+    }
+}
+
+impl SetSemaphore for DiceDataBuilder {
+    fn set_sempahore(&mut self, cnt: usize) {
+        let sem = Semaphore::new(cnt);
+        self.set(sem);
+    }
+}
+#[async_trait]
+impl LockSemaphore for DiceData {
+    async fn lock_sem(&self, cnt: u32) -> SemaphorePermit<'_> {
+        let sem = self.get::<Semaphore>().expect("Semaphore should be set");
+        let max_slots = self.get_smelt_cfg().job_slots;
+        let slots = cnt.min(max_slots as u32);
+
+        let available = sem.available_permits();
+        tracing::debug!("Acquiring semaphore {cnt}, max is {max_slots}, current is {available}");
+        let val = sem
+            .acquire_many(slots)
+            .await
+            .expect("We should NEVER close this semaphore");
+
+        val
     }
 }
 

@@ -1,5 +1,9 @@
 syntax = "proto3";
 
+
+import "google/protobuf/timestamp.proto";
+
+
 package executed_tests;
 
 // Taken directly from the bazel reapi, for compat
@@ -16,8 +20,7 @@ message Digest {
 message ArtifactPointer {
   // Artifacts are assumed to be files
   oneof pointer {
-    Digest cas_hash = 1;
-    string path = 2;
+    string path = 1;
   }
   string artifact_name = 3;
 }
@@ -34,16 +37,7 @@ message ArtifactPointer {
 //  map<string, string> extras = 3;
 //}
 
-message TrackedTestResult {
-  // same key from Invocation -- maps this test to a particular repo, branch, and commit
-  string invoke_id = 1;
-  // test definition id -- unique id to track the test across different
-  // Invocations, useful for test history
-  string test_def_id = 2;
-  // cli reproduction -- how can you re-run this test? 
-  string repro_command = 3;
-  TestResult result =  4;
-}
+
 
 
 
@@ -70,10 +64,11 @@ message TestOutputs {
 // test results any time we run any test(s), an invocation object is created
 message Invocation {
   string invoke_id = 1; // uuid
-  string rundate = 2;   // date
+  google.protobuf.Timestamp rundate = 2;
   string user = 3;
   string repo = 4;
   string branch = 5;
   string hostname = 6;
-  repeated TrackedTestResult executed_tests = 8;
+  string smelt_root = 7;
+  repeated TestResult executed_tests = 8;
 }

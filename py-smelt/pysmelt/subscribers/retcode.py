@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, cast
 import betterproto
 from pysmelt.proto.smelt_telemetry import CommandEvent, CommandFinished, Event
+from pysmelt.proto.executed_tests import Invocation
 
 
 @dataclass

@@ -11,7 +11,7 @@ use smelt_data::{
     Event,
 };
 use smelt_events::runtime_support::{
-    GetCmdDefPath, GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel,
+    GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
 };
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -37,7 +37,7 @@ impl Executor for LocalExecutor {
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let root = global_data.get_smelt_root();
-        let command_default_dir = global_data.get_cmd_def_path();
+        let command_default_dir = local_command.working_dir.clone();
         let rv = execute_local_command(
             local_command.as_ref(),
             trace_id.clone(),
@@ -60,6 +60,7 @@ async fn execute_local_command(
     root: PathBuf,
     global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
+    let _sem = global_data.lock_sem(command.runtime.num_cpus).await;
     let shell = "bash";
     let _handle_me = tx_chan
         .send(Event::command_started(
@@ -72,13 +73,12 @@ async fn execute_local_command(
         script_file,
         mut stdout,
         ..
-    } = prepare_workspace(command, root.clone()).await?;
+    } = prepare_workspace(command, root.clone(), command_working_dir.as_path()).await?;
 
     let mut commandlocal = tokio::process::Command::new(shell);
 
     commandlocal
         .arg(script_file)
-        .current_dir(command_working_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;

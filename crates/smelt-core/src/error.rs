@@ -39,6 +39,8 @@ pub enum SmeltErr {
     MissingOutputs {
         missing_outputs: Vec<CommandDefPath>,
     },
+    #[error("Artifact name cannot be parsed out")]
+    BadArtifactName,
 }
 
 impl Allocative for SmeltErr {

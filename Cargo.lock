@@ -2227,7 +2227,7 @@ dependencies = [
 
 [[package]]
 name = "pysmelt"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "allocative 0.3.3 (git+https://github.com/facebook/buck2?rev=9e17b241)",
  "anyhow",
@@ -2249,6 +2249,8 @@ dependencies = [
  "smelt-graph",
  "thiserror",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2422,9 +2424,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.4"
+version = "1.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c117dbdfde9c8308975b6a18d71f3f385c89461f7b3fb054288ecf2a2058ba4c"
+checksum = "b91213439dad192326a0d7c6ee3955910425f441d7038e0d6933b0aec5c4517f"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2757,7 +2759,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "allocative 0.3.3 (git+https://github.com/facebook/buck2?rev=9e17b241)",
  "async-trait",
@@ -2768,6 +2770,7 @@ dependencies = [
  "fuzzy-matcher",
  "pyo3",
  "pythonize",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2777,7 +2780,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-data"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "allocative 0.3.3 (git+https://github.com/facebook/buck2?rev=9e17b241)",
  "dupe 0.9.0 (git+https://github.com/facebook/buck2?rev=9e17b241)",
@@ -2789,13 +2792,15 @@ dependencies = [
  "serde",
  "tonic",
  "tonic-build",
+ "tracing",
 ]
 
 [[package]]
 name = "smelt-events"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "allocative 0.3.3 (git+https://github.com/facebook/buck2?rev=9e17b241)",
+ "async-trait",
  "derive_more",
  "dice",
  "dupe 0.9.0 (git+https://github.com/facebook/buck2?rev=9e17b241)",
@@ -2804,13 +2809,14 @@ dependencies = [
  "smelt-core",
  "smelt-data",
  "tokio",
+ "tracing",
  "uuid",
  "whoami",
 ]
 
 [[package]]
 name = "smelt-graph"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "allocative 0.3.3 (git+https://github.com/facebook/buck2?rev=9e17b241)",
  "anyhow",
@@ -2836,6 +2842,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tracing",
  "whoami",
 ]
 

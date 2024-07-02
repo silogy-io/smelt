@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field, asdict
 from abc import ABC
 from enum import Enum
+from functools import partial
 from typing import Any, List, Dict, Literal
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.paths import SmeltFilePath
+from pysmelt.rc import SmeltRcHolder
 
 
 class SmeltTargetType(Enum):
@@ -15,21 +17,29 @@ class SmeltTargetType(Enum):
 TargetRef = str
 
 
+smelt_target = partial(dataclass, frozen=True)()
+
+
 @dataclass
 class Target(ABC):
     """
     A target is a structure that holds logic to generate a `Command`
 
-    Targets are higher level abstraction to generate a new command based off of certain new input criterea -- for instance, if a target fails, and you create a new command
+    Targets are higher level abstraction to commands -- they allow users to embed "application logic" into targets
+
     """
 
     name: str
     injected_state: Dict[str, Any] = field(init=False)
 
+    @property
+    def ws_path(self) -> str:
+        return f"$SMELT_ROOT/smelt-out/{self.name}"
+
     def __post_init__(self):
         self.injected_state = {}
 
-    def get_outputs(self) -> Dict[str, SmeltFilePath]:
+    def get_outputs(self) -> Dict[str, str]:
         return {}
 
     def gen_script(self) -> List[str]:
@@ -58,3 +68,10 @@ class Target(ABC):
         If any of these files change across invocations, the target will be re-executed
         """
         return []
+
+    @property
+    def as_ref(self) -> TargetRef:
+        """
+        Currently refs are just the names of each target
+        """
+        return self.name

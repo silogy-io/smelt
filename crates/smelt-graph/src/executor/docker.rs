@@ -60,13 +60,15 @@ impl Executor for DockerExecutor {
             .expect("Smelt root couldnt be converted to string ")
             .to_string();
 
+        let command_default_dir = command.working_dir.clone();
+
         // "Prepares" the workspace for this command -- creates a directory at path
         // {SMELT_ROOT}/smelt-out/{COMMAND_NAME}
         let Workspace {
             script_file,
             mut stdout,
             working_dir: _,
-        } = prepare_workspace(&command, root.clone()).await?;
+        } = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
 
         // The "default" bind mount for all commands is smelt root -- in expectation, this should
         // mount the git root in to the container, at the same path as it has on the host
