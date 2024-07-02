@@ -1,0 +1,30 @@
+---
+slug: /getting-started
+---
+
+# Getting started
+
+Go to the root of your project and create a file named `testlist.smelt.yaml` with the following content:
+
+```yaml
+- name: say_hey
+  rule: raw_bash_build
+  rule_args:
+    cmds:
+      - echo "hey"
+
+- name: say_bye
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - echo "bye"
+    deps:
+      - say_hey
+```
+
+You can execute this testlist by executing `smelt execute testlist.smelt.yaml`. When a test list is executed, the following steps occur:
+
+1. Each target creates a bash script in your project root, at path `smelt-out/{target_name}/command.sh`. For this example, there are two targets, `say_hey` and `say_bye`.
+2. Each bash script is executed, honoring any dependencies between each target. If there are no dependencies between targets, then they can be executed in parallel.
+
+One the goals (TODO: link) of smelt is simplicity -- any command that is run will map back to a shell script that can be executed interactively.

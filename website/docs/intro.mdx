@@ -10,14 +10,17 @@ hide_title: true
 </div>
 <br />
 
-SMELT is a task and test runner that aims to be a simple framework to declare, execute and analyze tests; SMELT was designed specifically designed to make the testing of digital circuits easy.
+Smelt is a task and test runner that aims to be a simple framework to declare, execute and analyze tests.
 
-Once [installed](/installation), you just need to describe your tasks
-using a simple [YAML][yaml] schema in a file called `test.smelt`:
+Smelt does this by providing an interface to define and run simple bash commands
+
+Smelt is distributed as a python package -- you can install it via:
+
+`pip install pysmelt`
+
+Once smelt is installed, describe a test list using a simple [YAML][yaml] schema in a file called `test.smelt`:
 
 ```yaml title="test.smelt"
-version: "3"
-
 - name: say_hey
   rule: raw_bash
   rule_args:
@@ -25,16 +28,19 @@ version: "3"
       - echo "hey"
 ```
 
-And call it by running `smelt-cli execute test.smelt` from your terminal.
+And call it by running `smelt execute test.smelt` from your terminal.
+
+✨ wow you just executed your first test list ✨ stay a while, pour a drink will you...
 
 ## Features
 
-- [Gradual adoption](/adoption): Gradually move your tests and build into SMELT
 - [Extensible](/writing-rules): Define your tests with a simple python interface
-- [Programatic test generation](/python-api): Programatically generate tests with python!Spin up 1000s of tests with 10 lines of code
-- [Run anywhere](/runners): Launch tests locally, in the cloud, dispatch them to SLURM or LSF.
+- [Procedural test generation](/python-api): Programatically generate tests with python
+- [Rerun on failure ](/python-api): Programatically generate tests with python
+- [Run anywhere](/runners): Launch tests locally, in docker, or dispatch them to SLURM or LSF.
 
 {/* prettier-ignore-start */}
 [make]: https://www.gnu.org/software/make/
+[taskfile]: https://taskfile.dev/
 [yaml]: http://yaml.org/
 {/* prettier-ignore-end */}
