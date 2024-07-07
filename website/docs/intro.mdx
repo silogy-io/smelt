@@ -12,8 +12,6 @@ hide_title: true
 
 Smelt is a task and test runner that aims to be a simple framework to declare, execute and analyze tests.
 
-Smelt does this by providing an interface to define and run simple bash commands
-
 Smelt is distributed as a python package -- you can install it via:
 
 `pip install pysmelt`
@@ -30,14 +28,14 @@ Once smelt is installed, describe a test list using a simple [YAML][yaml] schema
 
 And call it by running `smelt execute test.smelt` from your terminal.
 
-✨ wow you just executed your first test list ✨ stay a while, pour a drink will you...
+✨ wow you just executed your first test list ✨
 
 ## Features
 
 - [Extensible](/writing-rules): Define your tests with a simple python interface
 - [Procedural test generation](/python-api): Programatically generate tests with python
-- [Rerun on failure ](/python-api): Programatically generate tests with python
-- [Run anywhere](/runners): Launch tests locally, in docker, or dispatch them to SLURM or LSF.
+- [Rerun on failure ](/python-api): Describe the computation required re-run failing tests
+- [Analyze tests] (/analysis): Generic and sane API to analyze test results
 
 {/* prettier-ignore-start */}
 [make]: https://www.gnu.org/software/make/

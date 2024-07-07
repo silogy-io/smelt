@@ -4,6 +4,8 @@ slug: /getting-started
 
 # Getting started
 
+## Yaml test list
+
 Go to the root of your project and create a file named `testlist.smelt.yaml` with the following content:
 
 ```yaml
@@ -27,4 +29,87 @@ You can execute this testlist by executing `smelt execute testlist.smelt.yaml`. 
 1. Each target creates a bash script in your project root, at path `smelt-out/{target_name}/command.sh`. For this example, there are two targets, `say_hey` and `say_bye`.
 2. Each bash script is executed, honoring any dependencies between each target. If there are no dependencies between targets, then they can be executed in parallel.
 
-One the goals (TODO: link) of smelt is simplicity -- any command that is run will map back to a shell script that can be executed interactively.
+By default, each script will start executing in the same directory that the test list exists in -- e.g. executing a test list at path `a/b/c/testlist.smelt.yaml` will have each command in that test list executed at path `a/b/c`.
+
+## Procedural test lists
+
+Procedurally testlists can be very useful, particularly for constrained random testing or directed testing sweeps (e.g. sweeping a test from low to high load)
+
+smelt support procedural test generation using smelt's python interface; a simple example:
+
+```python
+procedural.py
+# test name
+from pysmelt.interfaces.procedural import import_as_target
+from pysmelt.default_targets import test_group, raw_bash
+
+for i in range(5):
+    raw_bash(name=f"my_test_{i}",cmds=[f'echo "howdy partner from test {i}"']
+```
+
+executing this file with `smelt execute procedural.py`
+
+```
+[11:55:09] Executed 5 commands, 5 commands passed
+           ┏━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+           ┃ Command Name ┃ Status ┃ Execution Time ┃
+           ┡━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+           │ my_test_2    │ PASSED │ 0.01ms         │
+           │ my_test_4    │ PASSED │ 0.01ms         │
+           │ my_test_1    │ PASSED │ 0.01ms         │
+           │ my_test_0    │ PASSED │ 0.01ms         │
+           │ my_test_3    │ PASSED │ 0.01ms         │
+           └──────────────┴────────┴────────────────┘
+```
+
+## Inspecting test results, manually
+
+Each command in smelt creates a directory at path `${GIT_ROOT}/smelt-out/{COMMAND_NAME}`, that will hold the following files
+
+- command.sh: The bash script that is executed to execute this command
+- command.out: the combined stderr and stdout of this command.
+
+The command will often generate outputs in this directory, but there is no enforcement of this policy.
+
+## Inspecting test results, programatically
+
+After executing a testlist, smelt will produce an invocation object at path `smelt-out/invocation.bin` that includes information on the commands that were just executed.
+
+Smelt's python interface has convience methods to interact with this invocation object -- the object is defined as a protobuf message, defined in the [smelt-data][https://github.com/silogy-io/smelt/blob/dev/crates/smelt-data/executed_tests.proto#L65] crate.
+
+For example, to inspect stdout from the `my_test_5` from the previous step, we could execute the following python script:
+
+```python
+
+from pysmelt.interfaces.analysis import IQL, TestResult
+iql = IQL.from_previous()
+log_content = iql.get_log_content()
+if log_content:
+    for line in log_content.split('\n'):
+        print(line)
+
+```
+
+## Non-local dependencies
+
+You can declare dependencies to other testlists in your project, relative to the smelt root. An example of this can be seen in `yves`
+
+```yaml
+# file exists at ${GIT_ROOT}/download_zig.smelt.yaml
+- name: "cpp_compiler"
+  rule: download_zig
+```
+
+```yaml
+# file exists at ${GIT_ROOT}/profilers/buildprof.smelt.yaml
+- name: profiler
+  rule: local_profiler
+  rule_args:
+    compiler_download: //download_zig.smelt.yaml:cpp_compiler
+    mac_sources:
+      - mac_profiler.c
+      - cJSON.c
+    linux_sources:
+      - linux_profiler.c
+      - cJSON.c
+```
