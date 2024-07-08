@@ -6,10 +6,42 @@ slug: /glossary
 
 This is a reference for foundational concepts in smelt, that are used throughout the codebase and documentation
 
-- Command
-- Target
-- smelt root
-- project root
-- output
-- artifact
-- smelt path
+### Command:
+
+A command is the lowest level unit of work.
+
+Each command describes:
+
+- A bash script that describes all the work this command contains
+- A `RuntimeRequirements` object to describe the CPU, memory and timeout requirements of this command
+- A list of dependencies of other commands, that this command depends on
+
+### Target:
+
+A target is python interface used to generate `Command`s. Each target can generate up to three commands:
+
+- the default command
+- the re-run command -- is executed if the default command fails
+- the rebuild command -- is executed if a dependent target's re-run command fails
+
+Test lists in smelt are composed of `Target`s, either yaml or python
+
+### Rule
+
+A rule is a target
+
+### Smelt-root
+
+Smelt root is the "root" which all smelt paths are relative to. By default, smelt-root will be `$GIT_ROOT`
+
+### smelt path
+
+A smelt path is a unix path that is relative to `smelt-root`. In commands, the bash variable `$SMELT_ROOT` will be present to interpret smelt paths.
+
+### Project root
+
+An alias for git root -- the path that is returned by `git rev-parse --show-toplevel`. Often in documentation and code, this will be referred to as `$GIT_ROOT`
+
+### Artifact
+
+An artifact is a file that is output from a command
