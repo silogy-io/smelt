@@ -10,7 +10,11 @@ use dice::{
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
-use futures::future::{self, BoxFuture};
+use futures::{
+    future::{self, BoxFuture},
+    stream::FuturesUnordered,
+    StreamExt,
+};
 
 use smelt_events::{
     self,
@@ -178,9 +182,6 @@ impl Key for CommandRef {
             return Ok(need_to_skip);
         }
 
-        //Currently, we do nothing with this. What we _should_ do is check if these guys fail --
-        //specifically, if build targets fail -- this would be Bad and should cause an abort
-
         let executor = ctx.global_data().get_executor();
 
         let output = executor
@@ -297,7 +298,13 @@ impl CommandExecutor for DiceComputations<'_> {
             )
         }));
 
-        future::join_all(futs).await
+        let mut rv = vec![];
+        let mut unordered = FuturesUnordered::from_iter(futs);
+
+        while let Some(result) = unordered.next().await {
+            rv.push(result);
+        }
+        rv
     }
 }
 
