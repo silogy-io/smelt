@@ -437,6 +437,7 @@ impl CommandGraph {
 
     pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), SmeltErr> {
         let mut ctx = self.dice.updater();
+        #[tracing::instrument(name = "checking_names", level = "debug")]
         fn check_unique_outputs_and_names(commands: &Vec<Command>) -> Result<(), SmeltErr> {
             let mut outputfiles = HashSet::new();
             let mut cmdnames = HashSet::new();
@@ -458,6 +459,7 @@ impl CommandGraph {
             }
             Ok(())
         }
+
         check_unique_outputs_and_names(&commands)?;
 
         let commands: Vec<CommandRef> = commands
