@@ -3,9 +3,7 @@ resolver = "2"
 members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-version = "0.4.0"
-
-
+version = "0.4.1"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
@@ -27,11 +25,6 @@ chrono = "0.4.37"
 hex = "0.4.3"
 anyhow = "1.0.82"
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = [
-  "registry",
-  "env-filter",
-] }
-
 
 [profile.opt-dev]
 inherits = "dev"
@@ -48,14 +41,16 @@ lto = "thin"
 codegen-units = 1
 lto = "fat"
 
+[workspace.dependencies.tracing-subscriber]
+version = "0.3.18"
+features = ["registry", "env-filter"]
+
 [workspace.dependencies.serde]
 version = "1.0.197"
 features = ["std", "derive"]
 
-
 [workspace.dependencies.regex]
 version = "1.10.5"
-
 
 [workspace.dependencies.dice]
 git = "https://github.com/facebook/buck2"
