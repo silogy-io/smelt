@@ -20,10 +20,8 @@ class raw_bash(Target):
     outputs: Dict[str, str] = field(default_factory=dict)
 
     def gen_script(self) -> List[str]:
-        if "debug" in self.injected_state and self.debug_cmds:
-            return self.debug_cmds
-        else:
-            return self.cmds
+
+        return self.cmds
 
     def get_dependencies(self) -> List[TargetRef]:
         return self.deps

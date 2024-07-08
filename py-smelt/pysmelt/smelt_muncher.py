@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import functools
 import yaml
 import pathlib
-from typing import ClassVar, Dict, Any, Iterable, Set, Tuple, Type, List
+from typing import ClassVar, Dict, Any, Iterable, Optional, Set, Tuple, Type, List
 from pydantic import BaseModel
 from pysmelt.generators.procedural import get_procedural_targets
 from pysmelt.importer import (
@@ -163,13 +163,20 @@ def create_universe(
     return SmeltUniverse(top_file=top_file, commands=all_commands)
 
 
-def target_to_command(target: Target, working_dir: str) -> Command:
+def target_to_command(
+    target: Target, working_dir: str
+) -> Tuple[Command, Optional[Command], Optional[Command]]:
     rc = SmeltRcHolder.current_rc()
     return Command.from_target(target, working_dir)
 
 
 def lower_targets_to_commands(targets: Iterable[Target], path: str) -> List[Command]:
-    return [target_to_command(target, path) for target in targets]
+    return [
+        command
+        for target in targets
+        for command in target_to_command(target, path)
+        if command
+    ]
 
 
 def smelt_contents_to_targets(

@@ -40,22 +40,6 @@ def default_cfg() -> ConfigureSmelt:
     return rv
 
 
-def default_target_rerun_callback(
-    target: Target, return_code: int
-) -> Tuple[Target, bool]:
-    """
-    First pass at re-run logic -- currently we just rerun all tests that are tagged as tests
-
-    Power users could supply their own logic, but we should define something that is robust and sane
-    """
-
-    requires_rerun = target.rule_type() == SmeltTargetType.Test and return_code != 0
-    
-    new_target = replace(target, name=f"{target.name}_rerun")
-    new_target.injected_state={"debug": "True"}
-
-    return (new_target, requires_rerun)
-
 
 def maybe_get_message(
     listener: PyEventStream, blocking: bool = False
@@ -200,7 +184,7 @@ class PyGraph:
 
     def rerun(
         self,
-        rerun_callback: RerunCallback = default_target_rerun_callback,
+
     ):
         raise NotImplementedError("Currently re-writing this -- please file an issue if this is load bearing!")
 
