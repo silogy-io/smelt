@@ -32,7 +32,7 @@ pub(crate) async fn prepare_workspace(
 ) -> anyhow::Result<Workspace> {
     // TODO -- maybe parameterize?
     let smeltoutdir = "smelt-out";
-    let env = &command.runtime.env;
+
     let working_dir = command.default_target_root(smelt_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
     let stdout_file = working_dir.join(Command::stdout_file());
@@ -52,10 +52,6 @@ pub(crate) async fn prepare_workspace(
         smeltoutdir,
         command.name
     );
-
-    for (env_name, env_val) in env.iter() {
-        writeln!(buf, "export {}={}", env_name, env_val)?;
-    }
 
     writeln!(buf, "cd {}", command_working_dir.to_string_lossy());
 
@@ -104,7 +100,7 @@ pub(crate) fn create_test_result(
         //TODO: smelt-out shouldn't be hardcoded here, sorry for sinning mom
         pointer: Some(Pointer::Path(format!(
             "{}/smelt-out/{}/command.out",
-            smelt_root.to_string_lossy().to_string(),
+            smelt_root.to_string_lossy(),
             command.name,
         ))),
     }];

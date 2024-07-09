@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import functools
 import yaml
 import pathlib
-from typing import ClassVar, Dict, Any, Iterable, Set, Tuple, Type, List
+from typing import ClassVar, Dict, Any, Iterable, Optional, Set, Tuple, Type, List
 from pydantic import BaseModel
 from pysmelt.generators.procedural import get_procedural_targets
 from pysmelt.importer import (
@@ -15,6 +15,7 @@ from pysmelt.interfaces.paths import SmeltPath, TempTarget
 from pysmelt.interfaces.target import TargetRef
 from pysmelt.rc import SmeltRC, SmeltRcHolder
 from pysmelt.path_utils import get_git_root
+from pysmelt.tracker import ImportTracker
 
 
 class SerYamlTarget(BaseModel):
@@ -29,19 +30,6 @@ class PreTarget:
     rule_args: Dict[str, Any]
 
 
-@dataclass
-class ImportTracker:
-    imported_commands: ClassVar[Dict[SmeltPath, List[Command]]] = {}
-
-    @staticmethod
-    def clear():
-        ImportTracker.imported_commands = {}
-
-    @staticmethod
-    def get_all_imported() -> Dict[SmeltPath, List[Command]]:
-        return ImportTracker.imported_commands
-
-
 def populate_rule_args(
     target_name: str,
     rule_payload: SerYamlTarget,
@@ -49,7 +37,6 @@ def populate_rule_args(
 ) -> PreTarget:
     rule_payload.rule_args["name"] = target_name
     if rule_payload.rule not in all_rules:
-        print(all_rules)
 
         # TODO: make a pretty error that
         #
@@ -88,10 +75,14 @@ def parse_smelt(
 ) -> Tuple[Dict[str, Target], List[Command]]:
     test_list_orig = test_list
     targets = get_targets(test_list, default_rules_only)
+    ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
+    ImportTracker.imported_targets[test_list] = targets
+
     command_list = lower_targets_to_commands(
         targets.values(), str(pathlib.Path(test_list_orig.to_abs_path()).parent)
     )
 
+    ImportTracker.imported_commands[test_list] = command_list
     return targets, command_list
 
 
@@ -120,7 +111,7 @@ def create_universe(
     all_commands = {}
 
     # Parse the "initial" file under consideration and all of the testlists seen to visible files
-    _, commands = parse_smelt(starting_file, default_rules_only)
+    targets, commands = parse_smelt(starting_file, default_rules_only)
     for comm in commands:
         for dep in comm.dependencies:
             tt = TempTarget.parse_string_smelt_target(dep, starting_file.to_abs_path())
@@ -163,13 +154,24 @@ def create_universe(
     return SmeltUniverse(top_file=top_file, commands=all_commands)
 
 
-def target_to_command(target: Target, working_dir: str) -> Command:
+def target_to_command(
+    target: Target, working_dir: str
+) -> Tuple[Command, Optional[Command], Optional[Command]]:
     rc = SmeltRcHolder.current_rc()
-    return Command.from_target(target, working_dir)
+    return (
+        target.to_command(working_dir),
+        target.to_rebuild_command(working_dir),
+        target.to_rerun_command(working_dir),
+    )
 
 
 def lower_targets_to_commands(targets: Iterable[Target], path: str) -> List[Command]:
-    return [target_to_command(target, path) for target in targets]
+    return [
+        command
+        for target in targets
+        for command in target_to_command(target, path)
+        if command
+    ]
 
 
 def smelt_contents_to_targets(

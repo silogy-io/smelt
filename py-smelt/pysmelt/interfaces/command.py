@@ -1,8 +1,6 @@
-from typing import List, Literal, Dict, Any
+from typing import List, Literal, Dict, Any, Optional, Tuple
 from enum import Enum
-from pysmelt.interfaces.paths import SmeltPath, TempTarget
 from pysmelt.interfaces.runtime import RuntimeRequirements
-from pysmelt.interfaces.target import SmeltTargetType, Target
 from dataclasses import dataclass, asdict
 
 
@@ -10,7 +8,8 @@ from pysmelt.rc import SmeltRcHolder
 
 CommandRef = str
 
-CommandLiterals = Literal["test", "stimulus", "build"]
+# TODO: make this automatic from the targettype enum
+CommandType = Literal["test", "stimulus", "build", "rebuild", "rerun"]
 
 
 @dataclass
@@ -22,7 +21,7 @@ class Command:
     """
 
     name: str
-    target_type: Literal["test", "stimulus", "build"]
+    target_type: CommandType
     script: List[str]
     """
     A list of bash commands that will be executed in sequence
@@ -38,28 +37,7 @@ class Command:
     outputs: List[str]
     runtime: RuntimeRequirements
     working_dir: str
-
-    @classmethod
-    def from_target(cls, target: Target, working_dir: str):
-        name = target.name
-        target_type = target.rule_type().value
-        script = target.gen_script()
-        runtime = target.runtime_requirements()
-        dependencies = target.get_dependencies()
-        dependent_files = target.get_dependent_files()
-
-        outputs = list(map(lambda path: str(path), target.get_outputs().values()))
-
-        return cls(
-            name=name,
-            target_type=target_type,
-            script=script,
-            runtime=runtime,
-            dependencies=dependencies,
-            dependent_files=dependent_files,
-            outputs=outputs,
-            working_dir=working_dir,
-        )
+    on_failure: Optional[CommandRef] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):

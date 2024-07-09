@@ -44,6 +44,8 @@ pub struct Command {
     pub runtime: Runtime,
     #[serde(default)]
     pub working_dir: PathBuf,
+    #[serde(default)]
+    pub on_failure: Option<CommandDependency>,
 }
 
 impl Command {
@@ -85,11 +87,7 @@ impl Command {
     }
 
     pub fn script_contents(&self) -> impl Iterator<Item = String> + '_ {
-        self.runtime
-            .env
-            .iter()
-            .map(|(env_name, env_val)| format!("export {}={}", env_name, env_val))
-            .chain(self.script.iter().cloned())
+        self.script.iter().cloned()
     }
 }
 
@@ -99,6 +97,8 @@ pub enum TargetType {
     Test,
     Stimulus,
     Build,
+    Rerun,
+    Rebuild,
 }
 
 impl FromStr for TargetType {
@@ -109,6 +109,8 @@ impl FromStr for TargetType {
             "test" => Ok(TargetType::Test),
             "stimulus" => Ok(TargetType::Stimulus),
             "build" => Ok(TargetType::Build),
+            "rebuild" => Ok(TargetType::Rebuild),
+            "rerun" => Ok(TargetType::Rerun),
             _ => Err(SmeltErr::BadTargetType(s.to_string())),
         }
     }
@@ -119,9 +121,6 @@ pub struct Runtime {
     pub num_cpus: u32,
     pub max_memory_mb: u32,
     pub timeout: u32,
-    pub env: std::collections::BTreeMap<String, String>,
-    #[serde(default)]
-    pub command_run_dir: Option<String>,
 }
 
 impl fmt::Display for Command {
@@ -140,6 +139,8 @@ impl fmt::Display for TargetType {
                 TargetType::Test => "test",
                 TargetType::Stimulus => "stimulus",
                 TargetType::Build => "build",
+                TargetType::Rerun => "rerun",
+                TargetType::Rebuild => "rebuild",
             }
         )
     }
@@ -149,8 +150,8 @@ impl fmt::Display for Runtime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Runtime {{ num_cpus: {}, max_memory_mb: {}, timeout: {}, env: {:?} }}",
-            self.num_cpus, self.max_memory_mb, self.timeout, self.env
+            "Runtime {{ num_cpus: {}, max_memory_mb: {}, timeout: {}, }}",
+            self.num_cpus, self.max_memory_mb, self.timeout
         )
     }
 }
