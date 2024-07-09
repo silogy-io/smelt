@@ -12,13 +12,13 @@ At its core, smelt is a test runner in the spirit of Make or Task. Each test is 
 
 ## Getting started
 
-First, install smelt with pip:
+Install smelt with pip:
 
 ```
 pip install pysmelt
 ```
 
-now create an smelt file, named `tests.smelt.yaml` -- below is an example
+Create an smelt file, named `tests.smelt.yaml` -- below is an example
 
 ```yaml
 # tests.smelt.yaml
@@ -42,6 +42,6 @@ now create an smelt file, named `tests.smelt.yaml` -- below is an example
       - echo "test3"
 ```
 
-smelt files can be validated via `smelt validaite tests.smelt.yaml #replace with the path to your command file`.
-
 To execute all tests in a file, execute `smelt execute tests.smelt.yaml`
+
+smelt files can be validated via `smelt validaite tests.smelt.yaml #replace with the path to your command file`.

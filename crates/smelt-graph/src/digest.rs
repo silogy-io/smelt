@@ -41,7 +41,7 @@ impl<Kind> CasDigest<Kind> {
         &self.payload
     }
 
-    fn from_str(value: impl AsRef<str>) -> Result<Self, DigestError> {
+    pub fn from_str(value: impl AsRef<str>) -> Result<Self, DigestError> {
         let str = value.as_ref();
         let val = hex::decode(str)?;
 

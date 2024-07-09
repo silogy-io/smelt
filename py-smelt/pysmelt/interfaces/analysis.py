@@ -1,3 +1,4 @@
+import pathlib
 from typing import List, Optional
 from pysmelt.proto.executed_tests import Invocation, TestResult
 from pysmelt.interfaces.paths import SmeltPath
@@ -51,6 +52,22 @@ class IQL:
             (test for test in self.inv.executed_tests if test.test_name == test_name),
             None,
         )
+
+    def get_log_content(self, test_name: str) -> Optional[str]:
+        test = self.get_test(test_name)
+        if test:
+            log_artifact = next(
+                (
+                    artifact
+                    for artifact in test.outputs.artifacts
+                    if artifact.artifact_name == "command.log"
+                ),
+                None,
+            )
+            if log_artifact:
+                logpath = pathlib.Path(log_artifact.path)
+                if logpath.exists():
+                    return logpath.read_text()
 
     def get_tests_from_testgroup(
         self, test_group_name: str
