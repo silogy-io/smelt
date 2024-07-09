@@ -100,7 +100,7 @@ pub(crate) fn create_test_result(
         //TODO: smelt-out shouldn't be hardcoded here, sorry for sinning mom
         pointer: Some(Pointer::Path(format!(
             "{}/smelt-out/{}/command.out",
-            smelt_root.to_string_lossy().to_string(),
+            smelt_root.to_string_lossy(),
             command.name,
         ))),
     }];

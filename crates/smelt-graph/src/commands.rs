@@ -45,7 +45,7 @@ pub struct Command {
     #[serde(default)]
     pub working_dir: PathBuf,
     #[serde(default)]
-    pub on_failure: PathBuf,
+    pub on_failure: Option<CommandDependency>,
 }
 
 impl Command {

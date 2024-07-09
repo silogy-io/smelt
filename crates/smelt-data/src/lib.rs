@@ -60,7 +60,7 @@ pub mod smelt_telemetry {
 
     tonic::include_proto!("smelt_telemetry");
 }
-use executed_tests::{TestOutputs, TestResult};
+use executed_tests::{TestResult};
 pub use smelt_telemetry::*;
 
 impl Event {

@@ -13,7 +13,7 @@ use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
     stream::FuturesUnordered,
-    StreamExt,
+    StreamExt, TryFutureExt,
 };
 
 use smelt_events::{
@@ -199,6 +199,30 @@ impl Key for CommandRef {
         let command_finished =
             Event::command_finished(tr, ctx.per_transaction_data().get_trace_id());
         let mut _handleme = tx.send(command_finished).await;
+        if output.failed() {
+            if let Some(ref failure_command) = self.0.on_failure {
+                let lookup = LookupCommand::from_str_ref(failure_command.get_command_name());
+                let dice_res = ctx.compute(&lookup).await;
+                match dice_res {
+                    Ok(actual_val) => match &actual_val {
+                        Ok(inner) => {
+                            let _rerun_result = ctx.compute(inner).await;
+                        }
+                        Err(err) => {
+                            tracing::error!(
+                        "Application level error when trying to access the on_failure command for {} with err {}", self.0.name, err 
+                );
+                        }
+                    },
+                    Err(err) => {
+                        tracing::error!(
+                            "Unexpected dice failure when trying to lookup the re-run value for {} with err {}",
+                            self.0.name, err
+                        );
+                    }
+                }
+            }
+        }
 
         Ok(Arc::new(output))
     }
@@ -290,7 +314,7 @@ impl CommandExecutor for DiceComputations<'_> {
                 move |ctx: &mut DiceComputations| -> BoxFuture<Result<Arc<ExecutedTestResult>, Arc<SmeltErr>>> {
                     ctx.compute(&val)
                         .map(|computed_val| match computed_val {
-                            Ok(val) => val,
+                            Ok(ival) => ival,
                             Err(err) => Err(Arc::new(SmeltErr::DiceFail(err))),
                         })
                         .boxed()
