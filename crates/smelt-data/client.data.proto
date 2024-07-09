@@ -40,6 +40,8 @@ message ConfigureSmelt {
   ProfilerCfg prof_cfg = 3;
   // If true, we ignore the non test commands
   bool test_only = 4;
+  // If true, we do not transmit stdout from the server
+  bool silent = 5;
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;

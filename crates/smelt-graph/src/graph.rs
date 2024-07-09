@@ -13,7 +13,7 @@ use dupe::Dupe;
 use futures::{
     future::{self, BoxFuture},
     stream::FuturesUnordered,
-    StreamExt, TryFutureExt,
+    StreamExt,
 };
 
 use smelt_events::{
@@ -672,6 +672,7 @@ pub fn spawn_graph_server(cfg: ConfigureSmelt) -> SmeltServerHandle {
 
 #[cfg(test)]
 mod tests {
+    use futures::TryFutureExt;
     use std::path::Path;
 
     use tokio::{
@@ -714,6 +715,7 @@ mod tests {
             }),
             smelt_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
             test_only: false,
+            silent: true,
             job_slots: 1,
             init_executor: Some(configure_smelt::InitExecutor::Local(CfgLocal {})),
         }

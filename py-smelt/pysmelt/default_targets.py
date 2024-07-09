@@ -4,7 +4,6 @@ from pysmelt.interfaces import Target, SmeltFilePath, SmeltTargetType, TargetRef
 from typing import Any, List, Dict, Optional
 
 from pysmelt.interfaces.runtime import RuntimeRequirements
-from pysmelt.interfaces.target import CGVar
 
 
 @dataclass

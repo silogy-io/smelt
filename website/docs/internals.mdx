@@ -6,7 +6,7 @@ slug: /internals
 
 ## Commands and Targets
 
-Smelt has two abstractions to represent "work", the Target interface and the Command interface. Semantically, moves through smelt in the following way:
+Smelt has two abstractions to represent "work", the Target interface and the Command interface. Semantically, the lifetime of "work" moves through smelt in the following way:
 
 ```
 
@@ -19,7 +19,9 @@ Smelt has two abstractions to represent "work", the Target interface and the Com
 
 This relationship generalizes to testlists -- a test list, after all, is just a list of targets. Each target is lowered to a set of Commands, and those Commands are executed on the smelt runtime.
 
-To be precise here, the target to command boundary is hard boundary -- the smelt runtime is completely agnostic to targets, and only interfaces with commands
+To be precise here, the target to command boundary is hard boundary -- the smelt runtime is completely agnostic to targets, and only interfaces with commands.
+
+In that way, when embedding smelt as a library, one could create a seperate mechanism
 
 ### Targets
 
@@ -63,6 +65,16 @@ Any time smelt executes one or more commands, the smelt runtime will create a ch
 
 The smelt runtime has a concept of [executors][Executors] that can execute each command -- for instance, you can use the docker executor and execute each command in a transient container.
 Executors are configured globally -- every command must use the same executor, but that may change in the future.
+
+### Events and subscribers
+
+As the smelt runtime executes commands, it broadcasts events describing how it is going.
+
+This events include information such as:
+
+- when a command starts and stops executing
+- profiling information for each command -- records how much memory and CPU load is being taken by each command
+- The artifacts created by each command
 
 ## Command re-running
 

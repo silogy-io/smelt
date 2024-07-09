@@ -5,7 +5,7 @@ import yaml
 from pysmelt.interfaces.paths import SmeltPath
 from pysmelt.output import smelt_console
 from pysmelt.interfaces import SmeltTargetType
-from pysmelt.proto.smelt_client.commands import ConfigureSmelt
+from pysmelt.proto.smelt_client.commands import CfgDocker, ConfigureSmelt
 from pysmelt.rc import SmeltRcHolder
 from pysmelt.smelt_muncher import parse_smelt
 from pysmelt.output_utils import pretty_print_tests
@@ -88,9 +88,6 @@ def execute(
     target_name: Optional[str] = typer.Option(
         None, help="Target name -- if not provided, runs all the tests"
     ),
-    rerun: bool = typer.Option(
-        False, help="Rerun the commands that failed", is_flag=True
-    ),
     test_only: bool = typer.Option(
         False,
         help="If set, assumes non-test commands have passed successfully and will not run them",
@@ -112,13 +109,54 @@ def execute(
     if target_name:
         graph.run_one_test_interactive(target_name)
     else:
-        graph.run_all_tests(tt)
-    if rerun:
-        graph.rerun()
+        graph.run_all_typed_commands(tt)
 
 
 @app.command(
-    help="Executes an smelt file",
+    help="Executes an smelt file using the docker executor",
+)
+def execute_docker(
+    smelt_file: TlPath,
+    img: str = typer.Option(
+        ..., help="Docker image that each command will run inside of"
+    ),
+    tt: Optional[str] = typer.Option(
+        "test", help="SMELT target type", callback=validate_type
+    ),
+    target_name: Optional[str] = typer.Option(
+        None, help="Target name -- if not provided, runs all the tests"
+    ),
+    test_only: bool = typer.Option(
+        False,
+        help="If set, assumes non-test commands have passed successfully and will not run them",
+        is_flag=True,
+    ),
+    jobs: Optional[int] = typer.Option(
+        None, "--jobs", help="max number of jobslots allowed"
+    ),
+):
+
+    if jobs:
+        SmeltRcHolder.set_jobs(jobs)
+
+    def configure_cb(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.test_only = test_only
+        cfg.docker = CfgDocker()
+        cfg.docker.image_name = img
+        cfg.docker.additional_mounts = {}
+        return cfg
+
+    graph = create_graph(str(smelt_file), cfg_init=configure_cb)
+    if target_name:
+        graph.run_one_test_interactive(target_name)
+    elif tt:
+        graph.run_all_typed_commands(tt)
+    else:
+        graph.run_all_commands()
+
+
+@app.command(
+    help="validates a file is well formed",
 )
 def validate(
     smelt_file: TlPath,

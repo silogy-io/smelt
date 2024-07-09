@@ -125,7 +125,6 @@ impl PyController {
         let resp = sync_chan.blocking_recv();
         handle_client_resp(resp).map(|val| match val.client_responses.unwrap() {
             ClientResponses::CurrentCfg(a) => to_bytes(a, py),
-            _ => unreachable!("Incorrect response coming from the server for get_current_cfg"),
         })
     }
 }

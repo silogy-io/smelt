@@ -6,7 +6,7 @@ slug: /glossary
 
 This is a reference for foundational concepts in smelt, that are used throughout the codebase and documentation
 
-### Command:
+### Command
 
 A command is the lowest level unit of work.
 
@@ -16,7 +16,7 @@ Each command describes:
 - A `RuntimeRequirements` object to describe the CPU, memory and timeout requirements of this command
 - A list of dependencies of other commands, that this command depends on
 
-### Target:
+### Target
 
 A target is python interface used to generate `Command`s. Each target can generate up to three commands:
 
@@ -28,7 +28,7 @@ Test lists in smelt are composed of `Target`s, either yaml or python
 
 ### Rule
 
-A rule is a target
+A rule is a common way of referring to a target definition -- this is inherited from the bazel and buck nomenclature
 
 ### Smelt-root
 
@@ -44,4 +44,19 @@ An alias for git root -- the path that is returned by `git rev-parse --show-topl
 
 ### Artifact
 
-An artifact is a file that is output from a command
+An artifact is a file that is generated from a command executing
+
+### [Events][SmeltEvent]
+
+Events are protobuf messages that are sent by the smelt runtime when tests are executed that inform the state of execution for each command
+
+{/* prettier-ignore-start */}
+[Command]:https://github.com/silogy-io/smelt/blob/dev/py-smelt/pysmelt/interfaces/command.py
+[Target]: https://github.com/silogy-io/smelt/blob/dev/py-smelt/pysmelt/interfaces/target.py
+[SmeltEvent]: https://github.com/silogy-io/smelt/blob/dev/crates/smelt-data/data.proto
+[Executors]: https://github.com/silogy-io/smelt/blob/dev/crates/smelt-graph/executor/mod.rs
+[bazel]: https://bazel.build
+[buck2]: https://buck2.build
+[dice]: https://buck2.build
+
+{/* prettier-ignore-end */}
