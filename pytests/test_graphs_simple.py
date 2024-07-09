@@ -189,4 +189,17 @@ def test_split_build():
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
 
 
-test_sanity_pygraph_new_build()
+def test_sanity_procedural():
+    test_list = f"{get_git_root()}/test_data/smelt_files/procedural.py"
+    graph = create_graph(test_list)
+    graph.run_all_tests("test")
+
+    expected_tests = 5
+    observed_reexec = graph.retcode_tracker.total_executed()
+
+    assert (
+        observed_reexec == expected_tests
+    ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
+
+
+test_sanity_procedural()

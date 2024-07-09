@@ -188,3 +188,6 @@ class Target(ABC):
                 outputs=outputs,
                 working_dir=working_dir,
             )
+
+    def __post_init__(self):
+        pass

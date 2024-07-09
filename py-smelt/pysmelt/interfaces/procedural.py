@@ -17,7 +17,7 @@ def import_as_target(target_path: str) -> Target:
     if tt.file_path not in ImportTracker.imported_commands:
         targets, commands = parse_smelt(tt.file_path)
         ImportTracker.imported_commands[tt.file_path] = commands
-    if chosen_name not in targets:
-        raise RuntimeError(f"Could not find command {target_path}")
+        if chosen_name not in targets:
+            raise RuntimeError(f"Could not find command {target_path}")
     dec_import_depth()
     return ImportTracker.imported_targets[tt.file_path][chosen_name]
