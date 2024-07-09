@@ -3,6 +3,7 @@ from abc import ABC
 from enum import Enum
 from functools import partial
 from typing import Any, List, Dict, Literal, Optional, TypedDict
+from pysmelt.interfaces.command import Command
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.paths import SmeltFilePath
 from pysmelt.rc import SmeltRcHolder
@@ -53,7 +54,9 @@ class Target(ABC):
     def ws_path(self) -> str:
         return f"$SMELT_ROOT/smelt-out/{self.name}"
 
-    def get_outputs(self, command_gen_type: CGVar = CGVar.base) -> NamedFiles:
+    def get_outputs(
+        self,
+    ) -> NamedFiles:
         return {}
 
     def gen_script(self) -> List[str]:
@@ -70,17 +73,21 @@ class Target(ABC):
         return SmeltTargetType.Test
 
     def runtime_requirements(
-        self, command_gen_type: CGVar = CGVar.base
+        self,
     ) -> RuntimeRequirements:
         return RuntimeRequirements.default()
 
-    def get_dependencies(self, command_gen_type: CGVar = CGVar.base) -> List[TargetRef]:
+    def get_dependencies(
+        self,
+    ) -> List[TargetRef]:
         """
         Returns the targets that this target depends on
         """
         return []
 
-    def get_dependent_files(self, command_gen_type: CGVar = CGVar.base) -> List[str]:
+    def get_dependent_files(
+        self,
+    ) -> List[str]:
         """
         Returns the files that this target depends on
         """
@@ -92,3 +99,76 @@ class Target(ABC):
         Currently refs are just the names of each target
         """
         return self.name
+
+    def _default_to_command(self, working_dir: str) -> Command:
+        name = self.name
+        target_type = self.rule_type().value
+        script = self.gen_script()
+        runtime = self.runtime_requirements()
+        dependencies = self.get_dependencies()
+        dependent_files = self.get_dependent_files()
+        rerun_command = self.to_rerun_command(working_dir)
+        outputs = list(map(lambda path: str(path), self.get_outputs().values()))
+        return Command(
+            name=name,
+            target_type=target_type,
+            script=script,
+            runtime=runtime,
+            dependencies=dependencies,
+            dependent_files=dependent_files,
+            outputs=outputs,
+            working_dir=working_dir,
+            on_failure=f"{rerun_command.name}" if rerun_command else None,
+        )
+
+    def to_command(self, working_dir: str) -> Command:
+        return self._default_to_command(working_dir)
+
+    def to_rerun_command(self, working_dir: str) -> Optional[Command]:
+        return self.default_rerun_command(working_dir)
+
+    def to_rebuild_command(self, working_dir: str) -> Optional[Command]:
+        return self.default_rebuild_command(working_dir)
+
+    def default_rerun_command(self, working_dir: str) -> Optional[Command]:
+        script = self.gen_rerun_script()
+        if script:
+            name = f"{self.name}@rerun"
+            target_type = SmeltTargetType.Rerun.value
+            runtime = self.runtime_requirements()
+
+            # TODO
+            dependencies = []
+            dependent_files = self.get_dependent_files()
+            outputs = list(map(lambda path: str(path), self.get_outputs().values()))
+            return Command(
+                name=name,
+                target_type=target_type,
+                script=script,
+                runtime=runtime,
+                dependencies=dependencies,
+                dependent_files=dependent_files,
+                outputs=outputs,
+                working_dir=working_dir,
+            )
+
+    def default_rebuild_command(self, working_dir: str) -> Optional[Command]:
+        script = self.gen_rebuild_script()
+        if script:
+            name = f"{self.name}@rebuild"
+            target_type = SmeltTargetType.Rebuild.value
+            runtime = self.runtime_requirements()
+            # TODO
+            dependencies = []
+            dependent_files = self.get_dependent_files()
+            outputs = list(map(lambda path: str(path), self.get_outputs().values()))
+            return Command(
+                name=name,
+                target_type=target_type,
+                script=script,
+                runtime=runtime,
+                dependencies=dependencies,
+                dependent_files=dependent_files,
+                outputs=outputs,
+                working_dir=working_dir,
+            )

@@ -15,6 +15,7 @@ from pysmelt.interfaces.paths import SmeltPath, TempTarget
 from pysmelt.interfaces.target import TargetRef
 from pysmelt.rc import SmeltRC, SmeltRcHolder
 from pysmelt.path_utils import get_git_root
+from pysmelt.tracker import ImportTracker
 
 
 class SerYamlTarget(BaseModel):
@@ -27,19 +28,6 @@ class SerYamlTarget(BaseModel):
 class PreTarget:
     target_typ: Type[Target]
     rule_args: Dict[str, Any]
-
-
-@dataclass
-class ImportTracker:
-    imported_commands: ClassVar[Dict[SmeltPath, List[Command]]] = {}
-
-    @staticmethod
-    def clear():
-        ImportTracker.imported_commands = {}
-
-    @staticmethod
-    def get_all_imported() -> Dict[SmeltPath, List[Command]]:
-        return ImportTracker.imported_commands
 
 
 def populate_rule_args(
@@ -120,7 +108,7 @@ def create_universe(
     all_commands = {}
 
     # Parse the "initial" file under consideration and all of the testlists seen to visible files
-    _, commands = parse_smelt(starting_file, default_rules_only)
+    targets, commands = parse_smelt(starting_file, default_rules_only)
     for comm in commands:
         for dep in comm.dependencies:
             tt = TempTarget.parse_string_smelt_target(dep, starting_file.to_abs_path())
@@ -128,6 +116,7 @@ def create_universe(
     all_commands[top_file] = commands
     all_commands.update(ImportTracker.imported_commands)
     ImportTracker.clear()
+    ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
 
     # Determine new files that are visible but not yet parsed
     new_files = visible_files - seen_files
@@ -167,7 +156,11 @@ def target_to_command(
     target: Target, working_dir: str
 ) -> Tuple[Command, Optional[Command], Optional[Command]]:
     rc = SmeltRcHolder.current_rc()
-    return Command.from_target(target, working_dir)
+    return (
+        target.to_command(working_dir),
+        target.to_rebuild_command(working_dir),
+        target.to_rerun_command(working_dir),
+    )
 
 
 def lower_targets_to_commands(targets: Iterable[Target], path: str) -> List[Command]:
