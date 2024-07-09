@@ -37,7 +37,6 @@ def populate_rule_args(
 ) -> PreTarget:
     rule_payload.rule_args["name"] = target_name
     if rule_payload.rule not in all_rules:
-        print(all_rules)
 
         # TODO: make a pretty error that
         #
@@ -76,6 +75,8 @@ def parse_smelt(
 ) -> Tuple[Dict[str, Target], List[Command]]:
     test_list_orig = test_list
     targets = get_targets(test_list, default_rules_only)
+    ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
+    ImportTracker.imported_targets[test_list] = targets
     command_list = lower_targets_to_commands(
         targets.values(), str(pathlib.Path(test_list_orig.to_abs_path()).parent)
     )
@@ -116,7 +117,6 @@ def create_universe(
     all_commands[top_file] = commands
     all_commands.update(ImportTracker.imported_commands)
     ImportTracker.clear()
-    ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
 
     # Determine new files that are visible but not yet parsed
     new_files = visible_files - seen_files

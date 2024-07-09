@@ -33,7 +33,7 @@ class raw_bash(Target):
         return self.debug_cmds
 
     def gen_rebuild_script(self) -> Optional[List[str]]:
-        return self.debug_cmds
+        return self.rebuild_cmds
 
     def get_dependencies(self) -> List[TargetRef]:
         return self.deps

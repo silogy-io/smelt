@@ -7,7 +7,7 @@ from pysmelt.interfaces.command import Command
 from pysmelt.interfaces.runtime import RuntimeRequirements
 from pysmelt.interfaces.paths import SmeltFilePath
 from pysmelt.rc import SmeltRcHolder
-from pysmelt.tracker import try_get_target
+from pysmelt.tracker import ImportTracker, try_get_target
 
 
 class SmeltTargetType(Enum):
@@ -138,12 +138,13 @@ class Target(ABC):
             target_type = SmeltTargetType.Rerun.value
             runtime = self.runtime_requirements()
             dependencies = [
-                dep.name
+                rebuild_command.name
                 for dep in (
-                    try_get_target(f"{idep}@rebuild")
-                    for idep in self.get_dependencies()
+                    try_get_target(f"{idep}") for idep in self.get_dependencies()
                 )
                 if dep is not None
+                for rebuild_command in [dep.to_rebuild_command(working_dir)]
+                if rebuild_command is not None
             ]
 
             dependent_files = self.get_dependent_files()
@@ -165,7 +166,16 @@ class Target(ABC):
             name = f"{self.name}@rebuild"
             target_type = SmeltTargetType.Rebuild.value
             runtime = self.runtime_requirements()
-            dependencies = self.get_dependencies()
+            dependencies = [
+                rebuild_command.name
+                for dep in (
+                    try_get_target(f"{idep}") for idep in self.get_dependencies()
+                )
+                if dep is not None
+                for rebuild_command in [dep.to_rebuild_command(working_dir)]
+                if rebuild_command is not None
+            ]
+
             dependent_files = self.get_dependent_files()
             outputs = list(map(lambda path: str(path), self.get_outputs().values()))
             return Command(
