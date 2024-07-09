@@ -77,10 +77,12 @@ def parse_smelt(
     targets = get_targets(test_list, default_rules_only)
     ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
     ImportTracker.imported_targets[test_list] = targets
+
     command_list = lower_targets_to_commands(
         targets.values(), str(pathlib.Path(test_list_orig.to_abs_path()).parent)
     )
 
+    ImportTracker.imported_commands[test_list] = command_list
     return targets, command_list
 
 
