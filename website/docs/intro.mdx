@@ -10,15 +10,14 @@ hide_title: true
 </div>
 <br />
 
-Smelt is a task and test runner that aims to be a simple framework to declare, execute and analyze tests.
-
-A goal of smelt is to make the task running mechanics as simple as possible; to achieve this each command under smelt creates a bash script that can be inspected, re-run, and modified.
+Smelt is a simple and extensible test and task runner designed and optimized for chip development workflows.
+Smelt makes it easy to programmatically define thousands of test variants, run those tests in parallel, and analyze their outputs.
 
 Smelt is distributed as a python package -- you can install it via:
 
 `pip install pysmelt`
 
-Once smelt is installed, describe a test list using a simple [YAML][yaml] schema in a file called `test.smelt`:
+Once smelt is installed, you can describe a test list using a simple [YAML][yaml] schema in a file called `test.smelt`:
 
 ```yaml title="test.smelt"
 - name: say_hey
@@ -32,7 +31,9 @@ And call it by running `smelt execute test.smelt` from your terminal.
 
 ## Features
 
-Built for EDA, smelt seeks to be all of the "best practices" for testing infrastructure:
+Smelt is designed to make running multiple tasks as simple as possible. To achieve this, each command under smelt creates a bash script that can be inspected, re-run, and modified.
+
+Built for EDA (electonic design automation), smelt seeks to unify the "best practices" for testing infrastructure:
 
 - Procedural test generation: Programatically generate tests with python
 - Automatic rerun on failure: Describe the computation required re-run failing tests
