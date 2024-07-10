@@ -17,7 +17,7 @@ import time
 
 
 from pysmelt.proto.smelt_telemetry import Event
-from pysmelt.proto.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt
+from pysmelt.proto.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt, ProfilerCfg, ProfilingSelection
 
 
 from pysmelt.subscribers.error_handler import SmeltErrorHandler
@@ -37,6 +37,11 @@ def default_cfg() -> ConfigureSmelt:
     rv.job_slots = rc.jobs
     rv.smelt_root = rc.smelt_root
     rv.local = CfgLocal()
+    rv.prof_cfg = ProfilerCfg()
+    # sample memory 
+    rv.prof_cfg.prof_type = ProfilingSelection.SIMPLE_PROF
+    # sample every 100 ms
+    rv.prof_cfg.sampling_period = 100
     return rv
 
 

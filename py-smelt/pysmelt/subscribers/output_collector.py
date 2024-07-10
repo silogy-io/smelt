@@ -2,6 +2,8 @@ import collections
 from datetime import datetime
 import enum
 from typing import Dict, List, Optional, Tuple
+
+from rich.text import Text
 from pysmelt.rc import SmeltRcHolder
 from rich.table import Table
 from typing_extensions import cast
@@ -14,6 +16,7 @@ from dataclasses import dataclass, field
 from pysmelt.proto.smelt_telemetry import (
     CommandEvent,
     CommandFinished,
+    CommandProfile,
     CommandStdout,
     Event,
 )
@@ -44,17 +47,50 @@ class StatusObj:
     status: Status
 
 
+def stringify_mem(num_bytes: float):
+    """
+    this function will convert bytes to MB.... GB... etc
+    """
+    for x in ["B", "KB", "MB", "GB", "TB"]:
+        if num_bytes < 1024.0:
+            return "%3.1f %s" % (num_bytes, x)
+        num_bytes /= 1024.0
+
+
 class RenderableTree(RenderableColumn):
+    """Tasks that are running"""
+
+    def render(self, task: Task):
+        """Show data completed."""
+        status_dict: Dict[str, Status] = task.fields["fields"]["status"]
+        profile_dict: Dict[str, CommandProfile] = task.fields["fields"]["profile"]
+
+        root = Tree("Running commands")
+        for command, status in status_dict.items():
+            profile = profile_dict[command] if command in profile_dict else None
+            if status == Status.started:
+                if profile:
+                    mem = stringify_mem(profile.memory_used)
+                    cpu_load = f"{profile.cpu_load:.2f}"
+                    sub1 = root.add(
+                        f"Running {command} -- {mem} memory used, {cpu_load} cpu load"
+                    )
+
+                else:
+                    sub1 = root.add(f"Running {command}")
+        return root
+
+
+class TotalTests(RenderableColumn):
     """Renders completed filesize."""
 
     def render(self, task: Task):
         """Show data completed."""
         status_dict: Dict[str, Status] = task.fields["fields"]["status"]
-        root = Tree("Running tasks")
-        for command, status in status_dict.items():
-            if status == Status.started:
-                sub1 = root.add(f"Running {command}")
-        return root
+        finished_keys = [k for k, v in status_dict.items() if v == Status.finished]
+        num_finished_keys = len(finished_keys)
+        total_keys = len(status_dict)
+        return Text(f"{num_finished_keys}/{total_keys} executed")
 
 
 def get_logs_from_command_name(command_name: str, num_lines_tail: int = 3) -> str:
@@ -77,7 +113,11 @@ class OutputConsole:
     total_run: int = 0
     total_executing: int = 0
     total_passed: int = 0
+    total_tests_passed: int = 0
+    total_tests_failed: int = 0
+    total_scheduled: int = 0
     status_dict: Dict[str, Status] = field(default_factory=dict)
+    profile_dict: Dict[str, CommandProfile] = field(default_factory=dict)
     progress: Optional[Progress] = None
     task: Optional[TaskID] = None
     finished_list: List[Tuple[CommandFinished, str, datetime]] = field(
@@ -92,12 +132,14 @@ class OutputConsole:
         self.progress = Progress(
             RenderableTree(),
             SpinnerColumn(),
+            TotalTests(),
             TimeElapsedColumn(),
         )
 
         self.progress.start()
         self.task = self.progress.add_task(
-            "Executing smelt...", fields={"status": self.status_dict}
+            "Executing smelt...",
+            fields={"status": self.status_dict, "profile": self.profile_dict},
         )
 
         return self
@@ -108,7 +150,7 @@ class OutputConsole:
             self.progress = None
 
         smelt_console.log(
-            f"Executed {self.total_run} tasks, {self.total_passed} tasks passed"
+            f"Executed {self.total_run} commands , {self.total_passed} commands passed"
         )
 
         table = Table(show_header=True, header_style="bold magenta")
@@ -169,11 +211,13 @@ class OutputConsole:
             smelt_console.log(fail_table)
 
         failed = self.total_run - self.total_passed
-        smelt_console.print(f"[green] {self.total_passed} commands passed ")
+        smelt_console.print(f"[green] {self.total_tests_passed} tests passed ")
         if len(self.skipped_list) != 0:
             smelt_console.print(f"[red] {len(self.skipped_list)} commands skipped")
         if failed != 0:
-            smelt_console.print(f"[red] {failed} commands failed")
+            smelt_console.print(
+                f"[red] {self.total_tests_failed} tests failed, {failed} commands failed"
+            )
 
     def process_message(self, message: Event):
         (variant, event_payload) = betterproto.which_one_of(message, "et")
@@ -186,6 +230,8 @@ class OutputConsole:
 
             if command_name != "stdout" and command_name != "profile":
                 self.status_dict[name] = Status(command_name)
+                if command_name == "scheduled":
+                    self.total_scheduled += 1
                 if command_name == "started":
                     self.processed_started(name, message.time)
 
@@ -195,10 +241,14 @@ class OutputConsole:
 
                 if command_name == "skipped":
                     self.process_skipped(name)
+            if command_name == "profile":
+                payload = cast(CommandProfile, payload)
+                self.profile_dict[name] = payload
 
             # we are processing stdout of a command
             else:
                 if self.progress and self.print_stdout:
+                    payload = cast(CommandStdout, payload)
                     self.progress.print(payload.output)
 
     def processed_started(self, name: str, time: datetime):
@@ -213,6 +263,13 @@ class OutputConsole:
         self.total_executing -= 1
         if obj.outputs.exit_code == 0:
             self.total_passed += 1
+            if obj.command_type == SmeltTargetType.Test.value:
+                self.total_tests_passed += 1
+        elif (
+            obj.outputs.exit_code != 0
+            and obj.command_type == SmeltTargetType.Test.value
+        ):
+            self.total_tests_failed += 1
         else:
             pass
         self.finished_list.append((obj, command_name, time))

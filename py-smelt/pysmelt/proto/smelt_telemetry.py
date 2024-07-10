@@ -73,6 +73,7 @@ class CommandStdout(betterproto.Message):
 @dataclass
 class CommandFinished(betterproto.Message):
     outputs: executed_tests.TestOutputs = betterproto.message_field(1)
+    command_type: str = betterproto.string_field(2)
 
 
 @dataclass
