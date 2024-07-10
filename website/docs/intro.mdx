@@ -6,7 +6,7 @@ hide_title: true
 ---
 
 <div align="center">
-  <img id="logo" src="/img/logo.svg" height="250px" width="250px" />
+  <img id="logo" src="/smelt/img/logo.svg" height="250px" width="250px" />
 </div>
 <br />
 
@@ -32,10 +32,12 @@ And call it by running `smelt execute test.smelt` from your terminal.
 
 ## Features
 
+Built for EDA, smelt seeks to be all of the "best practices" for testing infrastructure:
+
 - Procedural test generation: Programatically generate tests with python
-- Extensible: Define your tests with a simple python interface
 - Automatic rerun on failure: Describe the computation required re-run failing tests
-- Analysis: Sane API to analyze test results
+- Analysis APIs: All of the data needed to track and reproduce tests
+- Extensible: Define your tests with a simple python interface
 
 {/* prettier-ignore-start */}
 [make]: https://www.gnu.org/software/make/
