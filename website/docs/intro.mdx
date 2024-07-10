@@ -6,18 +6,22 @@ hide_title: true
 ---
 
 <div align="center">
-  <img id="logo" src="/smelt/img/logo.svg" height="250px" width="250px" />
+  <img id="logo" src="/smelt/img/logo.svg" height="200px" width="200px" />
 </div>
 <br />
 
-Smelt is a simple and extensible test and task runner designed and optimized for chip development workflows.
-Smelt makes it easy to programmatically define thousands of test variants, run those tests in parallel, and analyze their outputs.
+Smelt is a simple and extensible task runner optimized for chip development
+workflows. Smelt makes it easy to programmatically define arbitrarily many test
+variants, run those tests in parallel, and analyze their results. Smelt
+provides simple and efficient workflows to both localized and distributed
+compute contexts.
 
-Smelt is distributed as a python package—you can install it via:
+Smelt is distributed as a python package and can be installed via:
 
 `pip install pysmelt`
 
-Once smelt is installed, you can describe a test list using a simple [YAML][yaml] schema in a file called `test.smelt`:
+With smelt installed, you can describe a test list using a simple [YAML][yaml]
+schema in a file with a `.smelt` extension:
 
 ```yaml title="test.smelt"
 - name: say_hey
@@ -31,12 +35,16 @@ And call it by running `smelt execute test.smelt` from your terminal.
 
 ## Features
 
-Smelt is designed to make running multiple tasks as simple as possible. To achieve this, each command under smelt creates a bash script that can be inspected, re-run, and modified.
+Smelt is designed to make running multiple tasks as simple as possible. To
+achieve this, each command under smelt creates a bash script that can be
+inspected, re-run, and modified.
 
-Built for EDA (electonic design automation), smelt seeks to unify the "best practices" for testing infrastructure:
+Built for EDA (electonic design automation), smelt seeks to unify the "best
+practices" for testing infrastructure:
 
 - Procedural test generation: Programatically generate tests with python
-- Automatic rerun on failure: Describe the computation required re-run failing tests
+- Automatic rerun on failure: Describe the computation required re-run failing
+tests
 - Analysis APIs: All of the data needed to track and reproduce tests
 - Extensible: Define your tests with a simple python interface
 
