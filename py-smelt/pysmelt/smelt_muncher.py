@@ -129,7 +129,7 @@ def create_universe(
     targets, commands = parse_smelt(starting_file, default_rules_only)
     for comm in commands:
         for dep in comm.dependencies:
-            tt = TempTarget.parse_string_smelt_target(dep, starting_file.to_abs_path())
+            tt = TempTarget.parse_string_smelt_target(dep, starting_file.path)
             visible_files.add(tt.file_path)
     all_commands[top_file] = commands
     all_commands.update(ImportTracker.imported_commands)
@@ -151,9 +151,7 @@ def create_universe(
             # Add dependencies of new commands to new files if not seen
             for command in new_commands:
                 for dep in command.dependencies:
-                    tt = TempTarget.parse_string_smelt_target(
-                        dep, starting_file.to_abs_path()
-                    )
+                    tt = TempTarget.parse_string_smelt_target(dep, file.path)
                     if tt.file_path not in seen_files:
                         new_files.add(tt.file_path)
 
