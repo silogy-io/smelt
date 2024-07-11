@@ -4,11 +4,15 @@
 ![GitHub License](https://img.shields.io/github/license/silogy-io/smelt)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/silogy-io/smelt/postcommit.yml)
 
-smelt is a library for describing, running and tracking integration tests.
+Smelt is a simple and extensible task runner optimized for chip development
+workflows. Smelt makes it easy to programmatically define arbitrarily many test
+variants, run those tests in parallel, and analyze their results. Smelt
+provides simple and efficient workflows to both localized and distributed
+compute contexts.
 
-At its core, smelt is a test runner in the spirit of Make or Task. Each test is described as a series of bash commands. Smelt will take advantage of massive
+Smelt is distributed as a python package and can be installed via:
 
-⚠️ SMELT IS UNDER ACTIVE DEVELOPMENT⚠️ feel free to use it, but docs and features are still being created rapidly, so there are no guarantees of stability :)
+`pipx install pysmelt`
 
 ## Getting started
 
@@ -44,4 +48,4 @@ Create an smelt file, named `tests.smelt.yaml` -- below is an example
 
 To execute all tests in a file, execute `smelt execute tests.smelt.yaml`
 
-smelt files can be validated via `smelt validaite tests.smelt.yaml #replace with the path to your command file`.
+Learn more from the [docs](https://silogy-io.github.io/smelt/)
