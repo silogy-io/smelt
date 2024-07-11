@@ -11,7 +11,7 @@ use smelt_data::{
     Event,
 };
 use smelt_events::runtime_support::{
-    GetProfilingFreq, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
+    GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
 };
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -60,6 +60,7 @@ async fn execute_local_command(
     root: PathBuf,
     global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
+    let silent = global_data.get_smelt_cfg().silent;
     let _sem = global_data.lock_sem(command.runtime.num_cpus).await;
     let shell = "bash";
     let _handle_me = tx_chan
@@ -107,10 +108,10 @@ async fn execute_local_command(
     let cstatus: TestOutputs = loop {
         tokio::select!(
             Ok(Some(line)) = lines.next_line() => {
-                handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
+                handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout, silent).await;
             }
             Ok(Some(line)) = stderr_lines.next_line() => {
-                handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout).await;
+                handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout, silent).await;
             }
             status_code = comm_handle.wait() => {
                 break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![]});
@@ -125,7 +126,15 @@ async fn execute_local_command(
     }
 
     while let Ok(Some(line)) = lines.next_line().await {
-        handle_line(command, line, trace_id.clone(), &tx_chan, &mut stdout).await;
+        handle_line(
+            command,
+            line,
+            trace_id.clone(),
+            &tx_chan,
+            &mut stdout,
+            silent,
+        )
+        .await;
     }
 
     Ok(cstatus)

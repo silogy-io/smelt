@@ -3,7 +3,7 @@
   rule_args:
     cmds:
       - echo "dummy build"
-    debug_cmds:
+    rebuild_cmds:
       - echo "dummy debug build"
 
 - name: cmark

@@ -11,7 +11,7 @@ const config: Config = {
   url: "https://your-docusaurus-site.example.com",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: "/",
+  baseUrl: "/smelt",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -64,9 +64,9 @@ const config: Config = {
       },
       items: [
         {
-          to: "/overview",
+          to: "/getting-started",
           position: "left",
-          label: "Overview",
+          label: "Getting started",
         },
 
         {
@@ -83,8 +83,8 @@ const config: Config = {
           title: "Docs",
           items: [
             {
-              label: "Overview",
-              to: "/overview",
+              label: "Getting started",
+              to: "/getting-started",
             },
           ],
         },

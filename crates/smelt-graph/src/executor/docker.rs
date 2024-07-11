@@ -6,7 +6,7 @@ use futures::StreamExt;
 
 use smelt_data::{executed_tests::ExecutedTestResult, Event};
 
-use smelt_events::runtime_support::{GetSmeltRoot, GetTraceId, GetTxChannel};
+use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 use std::{collections::HashMap, sync::Arc};
 
 use bollard::container::LogOutput;
@@ -61,13 +61,13 @@ impl Executor for DockerExecutor {
             .to_string();
 
         let command_default_dir = command.working_dir.clone();
+        let silent = global_data.get_smelt_cfg().silent;
 
         // "Prepares" the workspace for this command -- creates a directory at path
         // {SMELT_ROOT}/smelt-out/{COMMAND_NAME}
         let Workspace {
             script_file,
             mut stdout,
-            working_dir: _,
         } = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
 
         // The "default" bind mount for all commands is smelt root -- in expectation, this should
@@ -145,8 +145,15 @@ impl Executor for DockerExecutor {
                 Ok(output) => match output {
                     LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
                         if let Ok(line) = String::from_utf8(message.to_vec()) {
-                            handle_line(command.as_ref(), line, trace_id.clone(), &tx, &mut stdout)
-                                .await;
+                            handle_line(
+                                command.as_ref(),
+                                line,
+                                trace_id.clone(),
+                                &tx,
+                                &mut stdout,
+                                silent,
+                            )
+                            .await;
                         }
                     }
 

@@ -38,10 +38,14 @@ message CommandStarted {}
 message CommandCancelled {}
 message CommandSkipped {}
 message CommandStdout { string output = 1; }
-message CommandFinished { executed_tests.TestOutputs outputs = 1; }
+message CommandFinished {
+  executed_tests.TestOutputs outputs = 1;
+  string command_type = 2;
+}
 message CommandProfile {
-  //memory used by the command, in bytes
+  // memory used by the command, in bytes
   uint64 memory_used = 1;
+  // cpu load as a fraction -- 1.0 is one cpu, 2.0 is 2 cpus, etc
   float cpu_load = 2;
 }
 

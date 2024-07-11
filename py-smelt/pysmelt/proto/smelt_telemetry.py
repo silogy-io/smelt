@@ -73,12 +73,14 @@ class CommandStdout(betterproto.Message):
 @dataclass
 class CommandFinished(betterproto.Message):
     outputs: executed_tests.TestOutputs = betterproto.message_field(1)
+    command_type: str = betterproto.string_field(2)
 
 
 @dataclass
 class CommandProfile(betterproto.Message):
     # memory used by the command, in bytes
     memory_used: int = betterproto.uint64_field(1)
+    # cpu load as a fraction -- 1.0 is one cpu, 2.0 is 2 cpus, etc
     cpu_load: float = betterproto.float_field(2)
 
 

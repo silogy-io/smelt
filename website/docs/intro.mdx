@@ -6,35 +6,94 @@ hide_title: true
 ---
 
 <div align="center">
-  <img id="logo" src="/img/logo.svg" height="250px" width="250px" />
+  <img id="logo" src="/smelt/img/logo.svg" height="200px" width="200px" />
 </div>
 <br />
 
-SMELT is a task and test runner that aims to be a simple framework to declare, execute and analyze tests; SMELT was designed specifically designed to make the testing of digital circuits easy.
+Smelt is a simple and extensible task runner optimized for chip development
+workflows. Smelt makes it easy to programmatically define arbitrarily many test
+variants, run those tests in parallel, and analyze their results. Smelt
+provides simple and efficient workflows to both local and distributed compute
+contexts.
 
-Once [installed](/installation), you just need to describe your tasks
-using a simple [YAML][yaml] schema in a file called `test.smelt`:
+Smelt is distributed as a python package and can be installed via:
 
-```yaml title="test.smelt"
-version: "3"
+`pipx install pysmelt`
 
-- name: say_hey
-  rule: raw_bash
-  rule_args:
-    cmds:
-      - echo "hey"
+With smelt installed, you can describe a test list using a simple [YAML][yaml]
+schema in a file with a `.smelt` extension or procedurally with python.
+A snippet of a python testlist from [yves][yves]:
+
+```py title="frontend_tl.py"
+num_branches = 1024
+bhist_iterations = 10000
+branch_tests = []
+for size in [2**n for n in range(12)]:
+    # This rule compiles a file and can be run in parallel
+    benchmark = compile_local_ubench_zig(
+        name=f"directional_branch_history_{size}",
+        compiler_path=compiler_path,
+        benchmark_path=branch_hist,
+        ubench_parameters={
+            "INNER_ITERATIONS": size,
+            "ITERATIONS": bhist_iterations,
+            "NUM_BRANCHES": num_branches,
+        },
+        compiler_target=cpp_compiler.as_ref,
+    )
+    bench_bin = benchmark.get_outputs()["binary"]
+    # This is a test that benchmarks the local system, and should exhibit no parallelism, to avoid crosstalk
+    bench = local_benchmark(
+        name=f"directional_branch_history_{size}_local",
+        profiler_path=profiler_bin,
+        benchmark_path=bench_bin,
+        metadata={
+            "BRANCHES_OBSERVED": size * num_branches * bhist_iterations,
+            "HISTORY": size,
+        },
+    )
+    branch_tests.append(bench)
+dbh = test_group(name="directional_branch_history_sweep", tests=branch_tests)
+ftcg = test_group(name="all_frontend_tests", tests=[dbh.as_ref])
 ```
 
-And call it by running `smelt-cli execute test.smelt` from your terminal.
+there is a hierarchal test group that depends on these tests and others:
+
+```yaml title="all.smelt.yaml"
+- name: all_tests
+  rule: test_group
+  rule_args:
+    tests:
+      - //benches/memory/loadtouse_tl.py:all_mem_tests
+      - //benches/midcore/bandwidths_etc.py:all_mc_tests
+      - //benches/frontend/frontend_tl.py:all_frontend_tests
+```
+
+Smelt will execute these tests with as much parallelism as possible:
+
+<div align="center">
+  <img src="/smelt/img/smelt-in-action.gif" />
+</div>
+<br />
 
 ## Features
 
-- [Gradual adoption](/adoption): Gradually move your tests and build into SMELT
-- [Extensible](/writing-rules): Define your tests with a simple python interface
-- [Programatic test generation](/python-api): Programatically generate tests with python!Spin up 1000s of tests with 10 lines of code
-- [Run anywhere](/runners): Launch tests locally, in the cloud, dispatch them to SLURM or LSF.
+Smelt is designed to make running multiple tasks as simple as possible. To
+achieve this, each command under smelt creates a bash script that can be
+inspected, re-run, and modified.
+
+Built for EDA (electronic design automation), smelt seeks to unify the "best
+practices" for testing infrastructure:
+
+- Procedural test generation: Programatically generate tests with python
+- Automatic rerun on failure: Describe the computation required re-run failing
+  tests
+- Analysis APIs: All of the data needed to track and reproduce tests
+- Extensible: Define your tests with a simple python interface
 
 {/* prettier-ignore-start */}
 [make]: https://www.gnu.org/software/make/
+[taskfile]: https://taskfile.dev/
 [yaml]: http://yaml.org/
+[yves]: https://github.com/silogy-io/yves
 {/* prettier-ignore-end */}
