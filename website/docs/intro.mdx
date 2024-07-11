@@ -21,12 +21,12 @@ Smelt is distributed as a python package and can be installed via:
 `pipx install pysmelt`
 
 With smelt installed, you can describe a test list using a simple [YAML][yaml]
-schema in a file with a `.smelt` extension or procedurally with python. A python testlist
-from [yves][yves]:
+schema in a file with a `.smelt` extension or procedurally with python.
+A snippet ofba python testlist from [yves][yves]:
 
 ```py title="frontend_tl.py"
 num_branches = 1024
-branch_tests = []
+bhist_iterations = 10000
 for size in [2**n for n in range(12)]:
     # This rule compiles a file, and can be run in parallel
     benchmark = compile_local_ubench_zig(
@@ -51,7 +51,6 @@ for size in [2**n for n in range(12)]:
             "HISTORY": size,
         },
     )
-    branch_tests.append(bench.as_ref)
 ```
 
 there is a hierarchal test group that depends on these tests:
