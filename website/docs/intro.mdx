@@ -16,13 +16,13 @@ variants, run those tests in parallel, and analyze their results. Smelt
 provides simple and efficient workflows to both local and distributed compute
 contexts.
 
-Smelt is distributed as a Python package and can be installed via:
+Smelt is distributed as a python package and can be installed via:
 
 `pipx install pysmelt`
 
 With smelt installed, you can describe a test list using a simple [YAML][yaml]
-schema in a file with a `.smelt.yaml` extension or procedurally with Python.
-A snippet of a Python testlist from [yves][yves]:
+schema in a file with a `.smelt` extension or procedurally with python.
+A snippet of a python testlist from [yves][yves]:
 
 ```py title="frontend_tl.py"
 num_branches = 1024
@@ -57,7 +57,7 @@ dbh = test_group(name="directional_branch_history_sweep", tests=branch_tests)
 ftcg = test_group(name="all_frontend_tests", tests=[dbh.as_ref])
 ```
 
-You can define a hierarchical test group that depends on these tests and others:
+there is a hierarchal test group that depends on these tests and others:
 
 ```yaml title="all.smelt.yaml"
 - name: all_tests
@@ -85,11 +85,11 @@ inspected, re-run, and modified.
 Built for EDA (electronic design automation), smelt seeks to unify the "best
 practices" for testing infrastructure:
 
-- Procedural test generation: Programatically generate tests with Python
-- Automatic rerun on failure: Describe the computation required to re-run
-  failing tests
+- Procedural test generation: Programatically generate tests with python
+- Automatic rerun on failure: Describe the computation required re-run failing
+  tests
 - Analysis APIs: All of the data needed to track and reproduce tests
-- Extensible: Define your tests with a simple Python interface
+- Extensible: Define your tests with a simple python interface
 
 {/* prettier-ignore-start */}
 [make]: https://www.gnu.org/software/make/
