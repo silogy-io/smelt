@@ -28,6 +28,11 @@ impl ExecutedTestResult {
     pub fn is_skipped(&self) -> bool {
         matches!(self, Self::Skipped)
     }
+
+    pub fn test_name(&self) -> String {
+        self.clone().to_test_result().test_name
+    }
+
     pub fn to_test_result(self) -> TestResult {
         match self {
             Self::Success(val) => val,
@@ -49,6 +54,20 @@ impl ExecutedTestResult {
                 );
                 -1
             }
+        }
+    }
+    pub fn failed(&self) -> bool {
+        match self {
+            Self::Success(val) => val.outputs.as_ref().map(|val| val.exit_code).unwrap() != 0,
+            Self::MissingFiles { test_result, .. } => {
+                test_result
+                    .outputs
+                    .as_ref()
+                    .map(|val| val.exit_code)
+                    .unwrap()
+                    != 0
+            }
+            Self::Skipped => false,
         }
     }
 }

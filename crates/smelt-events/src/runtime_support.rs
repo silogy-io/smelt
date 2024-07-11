@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 use crate::Event;
 use async_trait::async_trait;
 use dice::{DiceData, DiceDataBuilder, UserComputationData};
-use smelt_core::SmeltPath;
+
 use smelt_data::client_commands::ConfigureSmelt;
 use tokio::sync::{Semaphore, SemaphorePermit};
 use uuid::Uuid;
@@ -127,12 +127,12 @@ impl LockSemaphore for DiceData {
 
         let available = sem.available_permits();
         tracing::debug!("Acquiring semaphore {cnt}, max is {max_slots}, current is {available}");
-        let val = sem
+        
+
+        sem
             .acquire_many(slots)
             .await
-            .expect("We should NEVER close this semaphore");
-
-        val
+            .expect("We should NEVER close this semaphore")
     }
 }
 

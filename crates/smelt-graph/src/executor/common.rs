@@ -18,7 +18,6 @@ use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
 pub(crate) struct Workspace {
     pub(crate) script_file: PathBuf,
     pub(crate) stdout: File,
-    pub(crate) working_dir: PathBuf,
 }
 
 /// Creates all of the directory scaffolding expected by a command
@@ -32,7 +31,7 @@ pub(crate) async fn prepare_workspace(
 ) -> anyhow::Result<Workspace> {
     // TODO -- maybe parameterize?
     let smeltoutdir = "smelt-out";
-    let env = &command.runtime.env;
+
     let working_dir = command.default_target_root(smelt_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
     let stdout_file = working_dir.join(Command::stdout_file());
@@ -43,7 +42,7 @@ pub(crate) async fn prepare_workspace(
 
     let mut buf: Vec<u8> = Vec::new();
 
-    writeln!(buf, "export SMELT_ROOT={}", smelt_root.to_string_lossy());
+    writeln!(buf, "export SMELT_ROOT={}", smelt_root.to_string_lossy())?;
 
     writeln!(
         buf,
@@ -51,13 +50,9 @@ pub(crate) async fn prepare_workspace(
         smelt_root.to_string_lossy(),
         smeltoutdir,
         command.name
-    );
+    )?;
 
-    for (env_name, env_val) in env.iter() {
-        writeln!(buf, "export {}={}", env_name, env_val)?;
-    }
-
-    writeln!(buf, "cd {}", command_working_dir.to_string_lossy());
+    writeln!(buf, "cd {}", command_working_dir.to_string_lossy())?;
 
     for script_line in &command.script {
         writeln!(buf, "{}", script_line)?;
@@ -68,7 +63,6 @@ pub(crate) async fn prepare_workspace(
     Ok(Workspace {
         script_file,
         stdout,
-        working_dir,
     })
 }
 
@@ -78,14 +72,17 @@ pub(crate) async fn handle_line(
     trace_id: String,
     tx_chan: &Sender<Event>,
     stdout: &mut File,
+    avoid_message: bool,
 ) {
-    let _handleme = tx_chan
-        .send(Event::command_stdout(
-            command.name.clone(),
-            trace_id.clone(),
-            line.clone(),
-        ))
-        .await;
+    if !avoid_message {
+        let _handleme = tx_chan
+            .send(Event::command_stdout(
+                command.name.clone(),
+                trace_id.clone(),
+                line.clone(),
+            ))
+            .await;
+    }
     let bytes = line.as_str();
     let _unhandled = stdout.write(bytes.as_bytes()).await;
     let _unhandled = stdout.write(&[b'\n']).await;
@@ -104,7 +101,7 @@ pub(crate) fn create_test_result(
         //TODO: smelt-out shouldn't be hardcoded here, sorry for sinning mom
         pointer: Some(Pointer::Path(format!(
             "{}/smelt-out/{}/command.out",
-            smelt_root.to_string_lossy().to_string(),
+            smelt_root.to_string_lossy(),
             command.name,
         ))),
     }];

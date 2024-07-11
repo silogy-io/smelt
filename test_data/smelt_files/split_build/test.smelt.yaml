@@ -16,6 +16,6 @@
       - //test_data/smelt_files/split_build/build.smelt.yaml:verilator_build_dummy
     cmds:
       - echo "normal hello_world"
-
+      - exit 1
     debug_cmds:
-      - echo "we are re-running now . crazy"
+      - echo "trying "

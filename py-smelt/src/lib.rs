@@ -1,7 +1,6 @@
 use smelt_core::SmeltErr;
 use smelt_data::client_commands::{client_resp::ClientResponses, ClientCommand, ClientResp};
 use smelt_data::{client_commands::ConfigureSmelt, Event};
-
 mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 
@@ -125,7 +124,6 @@ impl PyController {
         let resp = sync_chan.blocking_recv();
         handle_client_resp(resp).map(|val| match val.client_responses.unwrap() {
             ClientResponses::CurrentCfg(a) => to_bytes(a, py),
-            _ => unreachable!("Incorrect response coming from the server for get_current_cfg"),
         })
     }
 }

@@ -9,7 +9,7 @@ from pysmelt.smelt_muncher import SmeltUniverse, create_universe, parse_smelt
 from pysmelt.path_utils import relatavize_inp_path
 from pysmelt.pysmelt import PyController, PyEventStream
 from pysmelt.rc import SmeltRcHolder
-from pysmelt.rerun import DerivedTarget, RerunCallback
+
 from pysmelt.subscribers import SmeltSub
 import yaml
 import time
@@ -17,7 +17,7 @@ import time
 
 
 from pysmelt.proto.smelt_telemetry import Event
-from pysmelt.proto.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt
+from pysmelt.proto.smelt_client.commands import CfgDocker, CfgLocal, ConfigureSmelt, ProfilerCfg, ProfilingSelection
 
 
 from pysmelt.subscribers.error_handler import SmeltErrorHandler
@@ -37,24 +37,13 @@ def default_cfg() -> ConfigureSmelt:
     rv.job_slots = rc.jobs
     rv.smelt_root = rc.smelt_root
     rv.local = CfgLocal()
+    rv.prof_cfg = ProfilerCfg()
+    # sample memory 
+    rv.prof_cfg.prof_type = ProfilingSelection.SIMPLE_PROF
+    # sample every 100 ms
+    rv.prof_cfg.sampling_period = 100
     return rv
 
-
-def default_target_rerun_callback(
-    target: Target, return_code: int
-) -> Tuple[Target, bool]:
-    """
-    First pass at re-run logic -- currently we just rerun all tests that are tagged as tests
-
-    Power users could supply their own logic, but we should define something that is robust and sane
-    """
-
-    requires_rerun = target.rule_type() == SmeltTargetType.Test and return_code != 0
-    
-    new_target = replace(target, name=f"{target.name}_rerun")
-    new_target.injected_state={"debug": "True"}
-
-    return (new_target, requires_rerun)
 
 
 def maybe_get_message(
@@ -133,7 +122,7 @@ class PyGraph:
                 if not message:
                     # add a little bit of backoff
                     time.sleep(0.01)
-        invbuilder.write_invocation_to_fs()
+        invbuilder.write_invocation_and_junit()
 
     def console_runloop(
             self, test_name: str, listener: PyEventStream, sink: StdoutSink
@@ -190,29 +179,29 @@ class PyGraph:
         listener = self.controller.run_many_tests(test_names)
         self.runloop(listener)
 
-    def run_all_tests(self, maybe_type: str):
+    def run_all_typed_commands(self, maybe_type: str):
         self.reset()
         listener = self.controller.run_all_tests(maybe_type)
         self.runloop(listener)
-        
 
-    
+    def run_all_commands(self):
+        self.reset() 
+        toptests = self.universe.top_level_commands
+        valid_commands = [command.name for command in toptests if command.target_type != "rebuild" and command.target_type != "rerun" ]
+        listener = self.controller.run_many_tests(valid_commands)
+        self.runloop(listener)
 
-    def rerun(
-        self,
-        rerun_callback: RerunCallback = default_target_rerun_callback,
-    ):
-        raise NotImplementedError("Currently re-writing this -- please file an issue if this is load bearing!")
 
     def set_commands(self):
-        commands = self.universe.all_commands
-        
-        
-        
+        """
+        Initializes the list of commands that are visible to the smelt runtime
 
+
+        If the list of commands are malformed -- e.g. syntax error in the yaml, then an error will be thrown 
+        """
+        commands = self.universe.all_commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
         self.controller.set_graph(commands_as_str)
-        
 
     @classmethod
     def init(cls, cfg : ConfigureSmelt, universe : SmeltUniverse):
@@ -224,7 +213,7 @@ class PyGraph:
         rv.set_commands()
         return rv
 
-    # This is a testing utility
+    
     @classmethod
     def init_commands_only(cls, commands: List[Command]):
         cfg = default_cfg()

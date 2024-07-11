@@ -1,5 +1,5 @@
 - name: fail_test_example_1
-  rule: raw_bash 
+  rule: raw_bash
   rule_args:
     cmds:
       - echo "test1"
@@ -9,16 +9,16 @@
   rule: raw_bash
   rule_args:
     cmds:
-      - echo "test2" 
-      - exit 0
+      - echo "test2"
+      - exit 1
     debug_cmds:
-      - echo "test2_rerun" 
+      - echo "test2_rerun"
 
 - name: fail_test_example_3
   rule: raw_bash
   rule_args:
     cmds:
-      - echo "test3" 
+      - echo "test3"
       - exit 1
     debug_cmds:
-      - echo "test3_rerun" 
+      - echo "test3_rerun"
