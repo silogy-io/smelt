@@ -1,13 +1,17 @@
 import collections
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 import enum
 from typing import Dict, List, Optional, Tuple
 
+import statistics
+
 from rich.text import Text
+from rich.columns import Columns
+
 from pysmelt.rc import SmeltRcHolder
 from rich.table import Table
 from typing_extensions import cast
-from rich.console import Group
+from rich.console import Group, RenderableType
 from rich.tree import Tree
 import rich
 from pysmelt.interfaces.target import SmeltTargetType, Target
@@ -47,6 +51,23 @@ class StatusObj:
     status: Status
 
 
+def format_time(total_seconds: float, rich_conformant: bool = False) -> str:
+    hours, minutes = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(total_seconds, 60)
+    time_str = ""
+    if rich_conformant:
+        return "{:01}:{:02}:{:02}".format(int(hours), int(minutes), int(seconds))
+
+    if hours > 0:
+        time_str += f"{int(hours)}h "
+    if minutes > 0:
+        time_str += f"{int(minutes)}m "
+    if seconds > 0:
+        time_str += f"{seconds:.3f}s "
+
+    return time_str.strip()
+
+
 def stringify_mem(num_bytes: float):
     """
     this function will convert bytes to MB.... GB... etc
@@ -55,6 +76,7 @@ def stringify_mem(num_bytes: float):
         if num_bytes < 1024.0:
             return "%3.1f %s" % (num_bytes, x)
         num_bytes /= 1024.0
+    return ""
 
 
 class RenderableTree(RenderableColumn):
@@ -64,33 +86,97 @@ class RenderableTree(RenderableColumn):
         """Show data completed."""
         status_dict: Dict[str, Status] = task.fields["fields"]["status"]
         profile_dict: Dict[str, CommandProfile] = task.fields["fields"]["profile"]
+        timedict: Dict[str, datetime] = task.fields["fields"]["start"]
 
-        root = Tree("Running commands")
+        just_size = 11
+        outer_just = 59
+        inner_just = 55
+
+        def get_total_tests():
+            finished_keys = [k for k, v in status_dict.items() if v == Status.finished]
+            num_finished_keys = len(finished_keys)
+            total_keys = len(status_dict)
+            return Text(
+                f"{num_finished_keys}/{total_keys} executed".ljust(outer_just),
+                style="bold",
+                justify="left",
+            )
+
+        total_tests = get_total_tests()
+
+        def get_elapsed():
+            elapsed = task.finished_time if task.finished else task.elapsed
+            if elapsed is None:
+                return Text("-:--:--", style="progress.elapsed")
+            delta = timedelta(seconds=max(0, int(elapsed)))
+            return Text(str(delta), style="progress.elapsed")
+
+        elapsed = get_elapsed()
+
+        def get_agg(task: Task):
+            profile_dict: Dict[str, CommandProfile] = task.fields["fields"]["profile"]
+            status_dict: Dict[str, Status] = task.fields["fields"]["status"]
+            max_load_and_mem: List[float] = task.fields["fields"]["max"]
+
+            mem = 0.0
+            load = 0.0
+            for command, status in status_dict.items():
+                profile = profile_dict[command] if command in profile_dict else None
+                if status == Status.started:
+                    if profile:
+
+                        mem += profile.memory_used
+                        load += profile.cpu_load
+            if mem > max_load_and_mem[0]:
+                max_load_and_mem[0] = mem
+            if load > max_load_and_mem[1]:
+                max_load_and_mem[1] = load
+            memstr = stringify_mem(mem)
+
+            return Text(f"{memstr.ljust(just_size)} " + f"{load:.2f}".ljust(just_size))
+
+        root = Tree(
+            Columns(("Total".ljust(outer_just), get_agg(task), elapsed), align="left")
+        )
         for command, status in status_dict.items():
             profile = profile_dict[command] if command in profile_dict else None
             if status == Status.started:
+                execution_time = datetime.now(UTC) - timedict[command]
+                total_seconds = execution_time.total_seconds()
+                timestr = format_time(total_seconds, rich_conformant=True)
+                name = Text(
+                    f"Running {command}".ljust(inner_just),
+                )
+
+                time = Text(f"{timestr}")
+
                 if profile:
                     mem = stringify_mem(profile.memory_used)
                     cpu_load = f"{profile.cpu_load:.2f}"
                     sub1 = root.add(
-                        f"Running {command} -- {mem} memory used, {cpu_load} cpu load"
+                        Columns(
+                            [
+                                name,
+                                Text(f"{mem}".ljust(just_size)),
+                                Text(f"{cpu_load}".ljust(just_size)),
+                                time,
+                            ],
+                            align="left",
+                        )
                     )
 
                 else:
-                    sub1 = root.add(f"Running {command}")
-        return root
+                    sub1 = root.add(Columns([name, "".ljust(just_size * 2 + 1), time]))
 
-
-class TotalTests(RenderableColumn):
-    """Renders completed filesize."""
-
-    def render(self, task: Task):
-        """Show data completed."""
-        status_dict: Dict[str, Status] = task.fields["fields"]["status"]
-        finished_keys = [k for k, v in status_dict.items() if v == Status.finished]
-        num_finished_keys = len(finished_keys)
-        total_keys = len(status_dict)
-        return Text(f"{num_finished_keys}/{total_keys} executed")
+        topper = Columns(
+            (
+                total_tests,
+                "memory".ljust(just_size),
+                "cpu load".ljust(just_size),
+                "elapsed".ljust(just_size),
+            )
+        )
+        return Columns((topper, root), column_first=True)
 
 
 def get_logs_from_command_name(command_name: str, num_lines_tail: int = 3) -> str:
@@ -123,6 +209,7 @@ class OutputConsole:
     finished_list: List[Tuple[CommandFinished, str, datetime]] = field(
         default_factory=list
     )
+    max_load_and_mem: List[float] = field(default_factory=list)
     skipped_list: List[str] = field(default_factory=list)
 
     start_time: Dict[str, datetime] = field(default_factory=dict)
@@ -131,15 +218,18 @@ class OutputConsole:
 
         self.progress = Progress(
             RenderableTree(),
-            SpinnerColumn(),
-            TotalTests(),
-            TimeElapsedColumn(),
         )
+        self.max_load_and_mem = [0, 0]
 
         self.progress.start()
         self.task = self.progress.add_task(
             "Executing smelt...",
-            fields={"status": self.status_dict, "profile": self.profile_dict},
+            fields={
+                "status": self.status_dict,
+                "profile": self.profile_dict,
+                "max": self.max_load_and_mem,
+                "start": self.start_time,
+            },
         )
 
         return self
@@ -150,7 +240,7 @@ class OutputConsole:
             self.progress = None
 
         smelt_console.log(
-            f"Executed {self.total_run} commands , {self.total_passed} commands passed"
+            f"Executed {self.total_run} commands, {self.total_passed} commands passed"
         )
 
         table = Table(show_header=True, header_style="bold magenta")
@@ -169,16 +259,7 @@ class OutputConsole:
         )[:topn]:
 
             total_seconds = execution_time.total_seconds()
-            minutes, seconds = divmod(total_seconds, 60)
-            int_seconds, milliseconds = divmod(seconds, 1)
-
-            time_str = ""
-            if minutes > 0:
-                time_str += f"{int(minutes)}m "
-            if int_seconds > 0:
-                time_str += f"{seconds:.2f}s"
-            elif milliseconds > 0:
-                time_str += f"{milliseconds:.2f}ms "
+            time_str = format_time(total_seconds)
 
             table.add_row(
                 command_name,
@@ -189,6 +270,7 @@ class OutputConsole:
                 ),
                 time_str,
             )
+
         if len(new_finished_list) > topn:
             unseen = len(new_finished_list) - topn
             table.add_row(f"and {unseen} other commands...", "")
@@ -218,6 +300,20 @@ class OutputConsole:
             smelt_console.print(
                 f"[red] {self.total_tests_failed} tests failed, {failed} commands failed"
             )
+        execution_times = [
+            x[2].total_seconds()
+            for x in new_finished_list
+            if x[0].command_type == SmeltTargetType.Test.value
+        ]
+
+        try:
+            average_time = sum(execution_times) / len(execution_times)
+            stdev_time = statistics.stdev(execution_times)
+            smelt_console.print(
+                f"avg test duration {average_time:.2f}s, stddev {stdev_time:.3f}s"
+            )
+        except Exception as _:
+            pass
 
     def process_message(self, message: Event):
         (variant, event_payload) = betterproto.which_one_of(message, "et")

@@ -103,8 +103,8 @@ fn profile_event(
 ) -> Event {
     let variant = CommandVariant::Profile(CommandProfile {
         memory_used: sample.memory_used,
-        cpu_load: ((sample.cpu_time_delta - prev.cpu_time_delta) as f32 / MILIS_TO_NANOS as f32)
-            as f32
+        cpu_load: ((sample.cpu_time_delta.saturating_sub(prev.cpu_time_delta)) as f32
+            / MILIS_TO_NANOS as f32) as f32
             / sample_freq_ms as f32,
     });
     Event::from_command_variant(command_ref.clone(), trace_id.clone(), variant)
