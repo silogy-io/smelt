@@ -27,18 +27,18 @@ with the following content:
 
 Execute this testlist by executing `smelt execute testlist.smelt.yaml`.
 
-Each command generated in a test list is executed in the directory that the test
-list is declared
+Each command generated in a test list is executed in the directory containing
+the test list.
 
 Smelt works by converting test lists to a series of bash commands, that are then
-executed by the smelt runtime
+executed by the smelt runtime in sequence.
 
 ## Procedural test lists
 
 Procedural testlists can be very useful, particularly for constrained random
-testing or directed testing sweeps (e.g. sweeping a test from low to high load)
+testing or directed testing sweeps (e.g. sweeping a test from low to high load).
 
-smelt supports procedural test generation using smelt's python interface; a
+Smelt supports procedural test generation using smelt's Python interface; a
 simple example:
 
 ```python
@@ -47,10 +47,10 @@ procedural.py
 from pysmelt.default_targets import raw_bash
 
 for i in range(5):
-    raw_bash(name=f"my_test_{i}",cmds=[f'echo "howdy partner from test {i}"']
+    raw_bash(name=f"my_test_{i}", cmds=[f'echo "howdy partner from test {i}"'])
 ```
 
-executing this file with `smelt execute procedural.py`
+Executing this file with `smelt execute procedural.py`
 
 ```
 [11:55:09] Executed 5 commands, 5 commands passed
@@ -67,8 +67,11 @@ executing this file with `smelt execute procedural.py`
 
 ## Inspecting test results, manually
 
+<!-- This is the first time GIT_ROOT is mentioned, or Git for that matter. Does
+the user have to define it? Can we just say it's the current working directory
+instead? -->
 Each command that is executed in smelt creates a directory at path
-`${GIT_ROOT}/smelt-out/{COMMAND_NAME}`, that will hold the following files
+`${GIT_ROOT}/smelt-out/${COMMAND_NAME}`, that will hold the following files
 
 - command.sh: The bash script that is executed to execute this command
 - command.out: the combined stderr and stdout of this command.
@@ -82,28 +85,27 @@ After executing a testlist, smelt will produce an invocation object at path
 `smelt-out/invocation.bin` that includes information on the commands that were
 just executed.
 
-Smelt's python interface has convenient methods to interact with this invocation
+Smelt's Python interface has convenient methods to interact with this invocation
 object -- the object is defined as a protobuf message, defined in the
-[smelt-data][https://github.com/silogy-io/smelt/blob/dev/crates/smelt-data/executed_tests.proto#L65]
+[smelt-data](https://github.com/silogy-io/smelt/blob/dev/crates/smelt-data/executed_tests.proto#L65)
 crate.
+<!-- Wouldn't it be better to link to the class definition of Invocation? -->
 
 For example, to inspect stdout from the `my_test_5` from the previous step, we
-could execute the following python script:
+could execute the following Python script:
 
 ```python
-
-from pysmelt.interfaces.analysis import IQL, TestResult
+from pysmelt.interfaces.analysis import IQL
 iql = IQL.from_previous()
 log_content = iql.get_log_content()
 if log_content:
     for line in log_content.split('\n'):
         print(line)
-
 ```
 
-## Running commands under a docker container
+## Running commands under a Docker container
 
-You can run each command in a testlist under a docker container with
+You can run each command in a testlist under a Docker container with
 `smelt execute-docker`.
 
 ## Non-local dependencies
@@ -139,14 +141,14 @@ To validate that a testlist is well formed, without executing the tests, execute
 smelt validate path/to/testlist.smelt.yaml
 ```
 
-This will print out all the commands present in the test list
+This will print out all the commands present in the test list.
 
 ## Automatic rerun failing commands
 
 Smelt supports automatic re-run of failing commands, if the [Target][Target]
-generates a rerun command
+generates a rerun command.
 
-A command fails if it returns a nonzero exit code
+A command fails if it returns a nonzero exit code.
 
 For example, executing this test list
 
@@ -164,16 +166,16 @@ example.smelt.yaml
 ```
 
 will execute two commands -- cmark, and cmark@rerun, after the previous command
-fails
+fails.
 
 For more complex rerun semantics -- e.g., rebuilding a binary with debug flags,
 and then running a new test with that binary, see details in the
-[internals][RerunInternals] page
+[internals][RerunInternals] page.
 
 ## Creating new targets
 
 Every example prior to this has used [default targets][DefaultRules] packaged
-with smelt
+with smelt, specifically `raw_bash` and `raw_bash_build`.
 
 End users can define their own smelt targets in their own repo by defining
 classes that inherit from the [Target][Target] class in your
@@ -214,7 +216,7 @@ example.smelt.yaml
 
 Then execute this testlist with with `smelt execute example.smelt.yaml`
 
-or procedural test lists
+To use the new target in a procedural test list, create:
 
 ```python
 # created at path new_rule.py
@@ -225,14 +227,14 @@ from seeded import seeded_simulator_test
 
 simulator_bin = "some_simulator"
 for i in range(50):
-    seeded_simulator_test(name=f"seed_{i}, seed=i,simulator_bin=simulator_bin)
+    seeded_simulator_test(name=f"seed_{i}, seed=i, simulator_bin=simulator_bin)
 ```
 
-and `smelt execute new_rule.py`
+and call `smelt execute new_rule.py`
 
 ## Using smelt as a library
 
-Smelt can be used as a python library; here's an example of reading and
+Smelt can be used as a Python library; here's an example of reading and
 executing a test list:
 
 ```python
