@@ -19,12 +19,6 @@ class SmeltTargetType(Enum):
     Rerun = "rerun"
 
 
-class CGVar(Enum):
-    base = "base"
-    rerun = "rerun"
-    rebuild = "rebuild"
-
-
 TargetRef = str
 
 
