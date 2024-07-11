@@ -10,6 +10,7 @@ dependencies = [
   "toml>=0.10.2",
   "betterproto[compiler]>=1.2.5",
   "rich>=13.7.1",
+  "junitparser>=3.1.2",
 ]
 [[project.authors]]
 name = "James Connolly"

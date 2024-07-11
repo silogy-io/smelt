@@ -122,7 +122,7 @@ class PyGraph:
                 if not message:
                     # add a little bit of backoff
                     time.sleep(0.01)
-        invbuilder.write_invocation_to_fs()
+        invbuilder.write_invocation_and_junit()
 
     def console_runloop(
             self, test_name: str, listener: PyEventStream, sink: StdoutSink
