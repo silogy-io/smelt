@@ -13,6 +13,14 @@ def most_recent_invoke_path() -> SmeltPath:
     return SmeltPath("smelt-out/invocation.bin")
 
 
+def most_recent_junit_path() -> SmeltPath:
+    """
+    By default, we push the most recent invocation to this path
+
+    """
+    return SmeltPath("smelt-out/tests.xml")
+
+
 def get_previous_invocation() -> Invocation:
     invbytes = open(most_recent_invoke_path().to_abs_path(), "rb").read()
     return Invocation.FromString(invbytes)
@@ -32,6 +40,21 @@ def read_log(test_result: TestResult) -> str:
         )
     )
     return open(log.path, "r").read()
+
+
+def read_log_from_result(test: TestResult) -> Optional[str]:
+    log_artifact = next(
+        (
+            artifact
+            for artifact in test.outputs.artifacts
+            if artifact.artifact_name == "command.log"
+        ),
+        None,
+    )
+    if log_artifact:
+        logpath = pathlib.Path(log_artifact.path)
+        if logpath.exists():
+            return logpath.read_text()
 
 
 @dataclass(frozen=True)
@@ -56,18 +79,7 @@ class IQL:
     def get_log_content(self, test_name: str) -> Optional[str]:
         test = self.get_test(test_name)
         if test:
-            log_artifact = next(
-                (
-                    artifact
-                    for artifact in test.outputs.artifacts
-                    if artifact.artifact_name == "command.log"
-                ),
-                None,
-            )
-            if log_artifact:
-                logpath = pathlib.Path(log_artifact.path)
-                if logpath.exists():
-                    return logpath.read_text()
+            return read_log_from_result(test)
 
     def get_tests_from_testgroup(
         self, test_group_name: str
