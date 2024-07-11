@@ -15,14 +15,14 @@ The goals of smelt are to provide:
 ## Non-goals
 
 - Being a build system
-- Sacrificing simplicty for performance
+- Sacrificing simplicity for performance
 
 # Roadmap
 
 Smelt is still a new tool -- we're actively adding features. Priority for feature work is as follows:
 
 1. Slurm executor -- execute commands on slurm the same way you would locally
-2. Passing arguments to procedural test lists -- this would allow end users to pass "seeds" or other such input to testlists, and would help with the ergonmoics of random test generation
+2. Passing arguments to procedural test lists -- this would allow end users to pass "seeds" or other such input to testlists, and would help with the ergonomics of random test generation
 3. Command Replay from Invocation object -- invocation messages should contain all of the information to replay a command
 4. Restructure command interface -- currently we have this as two mirrored structures in python and rust, it would be best to move this to protobuf
 5. Support for async test running -- workflows can be very lengthy, especially in EDA
