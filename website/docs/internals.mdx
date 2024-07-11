@@ -6,7 +6,7 @@ slug: /internals
 
 ## Commands and Targets
 
-Smelt has two abstractions to represent "work", the Target interface and the Command interface. Semantically, the lifetime of "work" moves through smelt in the following way:
+Smelt has two abstractions to represent "work," the Target interface and the Command interface. Semantically, the lifetime of "work" moves through smelt in the following way:
 
 ```
 
@@ -49,9 +49,9 @@ A [Command][Command] is the lowest level of work. It describes:
 - Dependencies -- these are names of other commands that must execute before this command can be executed
 - an `on_failure` field -- the name of a command that should be executed if this command fails
 
-While targets are implimented in python, commands are designed to be language agnostic and completely decoupled from the [Target][Target] interface.
+While targets are implemented in python, commands are designed to be language agnostic and completely decoupled from the [Target][Target] interface.
 
-The smelt runtime is only aware of commands -- it will receive a list of commands and then directions to execute all commands, or paticular sets of commands.
+The smelt runtime is only aware of commands -- it will receive a list of commands and then directions to execute all commands, or particular sets of commands.
 
 Each command will create a bash script that can be interactively re-run by end-users, outside of the smelt runtime
 
@@ -102,7 +102,7 @@ Lets consider an example to contextualize this feature:
       - build_simulator
 ```
 
-In the happy path, if we run the `simple_test` test, what will happen is:
+In the happy path if we run the `simple_test` test, what will happen is:
 
 1. The release simulator will be built
 2. The `simple_test` will execute successfully

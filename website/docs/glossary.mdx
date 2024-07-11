@@ -14,7 +14,7 @@ A command is the lowest level unit of work.
 Each command describes:
 
 - A bash script that describes all the work this command contains
-- A `RuntimeRequirements` object to describe the CPU, memory and timeout
+- A `RuntimeRequirements` object to describe the CPU, memory, and timeout
 requirements of this command
 - A list of dependencies of other commands, that this command depends on
 
@@ -37,7 +37,7 @@ from the bazel and buck nomenclature
 
 ### Smelt-root
 
-Smelt root is the "root" to which all smelt paths are relative. By default,
+smelt-root is the "root" to which all smelt paths are relative. By default,
 smelt-root will be `$GIT_ROOT`
 
 ### smelt path

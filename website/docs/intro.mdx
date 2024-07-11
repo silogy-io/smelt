@@ -29,7 +29,7 @@ num_branches = 1024
 bhist_iterations = 10000
 branch_tests = []
 for size in [2**n for n in range(12)]:
-    # This rule compiles a file, and can be run in parallel
+    # This rule compiles a file and can be run in parallel
     benchmark = compile_local_ubench_zig(
         name=f"directional_branch_history_{size}",
         compiler_path=compiler_path,
@@ -42,7 +42,7 @@ for size in [2**n for n in range(12)]:
         compiler_target=cpp_compiler.as_ref,
     )
     bench_bin = benchmark.get_outputs()["binary"]
-    # This is a test that benchmarks the local system, and should exhibit no parllelism, to avoid crosstalk
+    # This is a test that benchmarks the local system, and should exhibit no parallelism, to avoid crosstalk
     bench = local_benchmark(
         name=f"directional_branch_history_{size}_local",
         profiler_path=profiler_bin,
@@ -82,7 +82,7 @@ Smelt is designed to make running multiple tasks as simple as possible. To
 achieve this, each command under smelt creates a bash script that can be
 inspected, re-run, and modified.
 
-Built for EDA (electonic design automation), smelt seeks to unify the "best
+Built for EDA (electronic design automation), smelt seeks to unify the "best
 practices" for testing infrastructure:
 
 - Procedural test generation: Programatically generate tests with python
