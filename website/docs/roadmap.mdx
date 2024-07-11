@@ -1,0 +1,30 @@
+---
+slug: /roadmap-and-goals
+---
+
+# Goals
+
+The goals of smelt are to provide:
+
+- Expressive test generation
+- Easy failure reproduction
+- Simplicity -- users should be able to run a testlist interactively without knowledge of smelt internals
+- Modular runtimes -- running locally vs on a slurm should feel the same
+- Expose coarse grained parallelism
+
+## Non-goals
+
+- Being a build system
+- Sacrificing simplicty for performance
+
+# Roadmap
+
+Smelt is still a new tool -- we're actively adding features. Priority for feature work is as follows:
+
+1. Slurm executor -- execute commands on slurm the same way you would locally
+2. Passing arguments to procedural test lists -- this would allow end users to pass "seeds" or other such input to testlists, and would help with the ergonmoics of random test generation
+3. Command Replay from Invocation object -- invocation messages should contain all of the information to replay a command
+4. Restructure command interface -- currently we have this as two mirrored structures in python and rust, it would be best to move this to protobuf
+5. Support for async test running -- workflows can be very lengthy, especially in EDA
+6. REAPI Remote Caching of tests -- Add optional finger printing and remote caching for commands that declare inputs and outputs
+7. Starlark rules -- Add a starlark interface to generate commands

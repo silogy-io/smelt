@@ -18,20 +18,63 @@ compute contexts.
 
 Smelt is distributed as a python package and can be installed via:
 
-`pip install pysmelt`
+`pipx install pysmelt`
 
 With smelt installed, you can describe a test list using a simple [YAML][yaml]
-schema in a file with a `.smelt` extension:
+schema in a file with a `.smelt` extension or procedurally with python.
+A snippet ofba python testlist from [yves][yves]:
 
-```yaml title="test.smelt"
-- name: say_hey
-  rule: raw_bash
-  rule_args:
-    cmds:
-      - echo "hey"
+```py title="frontend_tl.py"
+num_branches = 1024
+bhist_iterations = 10000
+branch_tests = []
+for size in [2**n for n in range(12)]:
+    # This rule compiles a file, and can be run in parallel
+    benchmark = compile_local_ubench_zig(
+        name=f"directional_branch_history_{size}",
+        compiler_path=compiler_path,
+        benchmark_path=branch_hist,
+        ubench_parameters={
+            "INNER_ITERATIONS": size,
+            "ITERATIONS": bhist_iterations,
+            "NUM_BRANCHES": num_branches,
+        },
+        compiler_target=cpp_compiler.as_ref,
+    )
+    bench_bin = benchmark.get_outputs()["binary"]
+    # This is a test that benchmarks the local system, and should exhibit no parllelism, to avoid crosstalk
+    bench = local_benchmark(
+        name=f"directional_branch_history_{size}_local",
+        profiler_path=profiler_bin,
+        benchmark_path=bench_bin,
+        metadata={
+            "BRANCHES_OBSERVED": size * num_branches * bhist_iterations,
+            "HISTORY": size,
+        },
+    )
+    branch_tests.append(bench)
+dbh = test_group(name="directional_branch_history_sweep", tests=branch_tests)
+ftcg = test_group(name="all_frontend_tests", tests=[dbh.as_ref])
 ```
 
-And call it by running `smelt execute test.smelt` from your terminal.
+there is a hierarchal test group that depends on these tests and others:
+
+```yaml title="all.smelt.yaml"
+- name: all_tests
+  rule: test_group
+  rule_args:
+    tests:
+      - //benches/memory/loadtouse_tl.py:all_mem_tests
+      - //benches/midcore/bandwidths_etc.py:all_mc_tests
+      - //benches/frontend/frontend_tl.py:all_frontend_tests
+```
+
+Smelt will execute these tests with as much parallelism as possible:
+
+<div align="center">
+  <img src="/smelt/img/smelt-in-action.gif" />
+</div>
+<br />
 
 ## Features
 
@@ -44,7 +87,7 @@ practices" for testing infrastructure:
 
 - Procedural test generation: Programatically generate tests with python
 - Automatic rerun on failure: Describe the computation required re-run failing
-tests
+  tests
 - Analysis APIs: All of the data needed to track and reproduce tests
 - Extensible: Define your tests with a simple python interface
 
@@ -52,4 +95,5 @@ tests
 [make]: https://www.gnu.org/software/make/
 [taskfile]: https://taskfile.dev/
 [yaml]: http://yaml.org/
+[yves]: https://github.com/silogy-io/yves
 {/* prettier-ignore-end */}

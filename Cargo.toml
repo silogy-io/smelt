@@ -116,6 +116,7 @@ default-features = false
 path = "crates/smelt-data"
 default-features = false
 
+
 [workspace.dependencies.py-smelt]
 path = "py-smelt"
 default-features = false

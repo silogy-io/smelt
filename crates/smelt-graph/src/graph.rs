@@ -129,6 +129,13 @@ impl Key for CommandRef {
             .chain(file_command_deps.into_iter())
             .collect::<Result<Vec<CommandRef>, SmeltErr>>()?;
 
+        let tx = ctx.per_transaction_data().get_tx_channel();
+        let _ = tx
+            .send(Event::command_scheduled(
+                self.0.name.clone(),
+                ctx.per_transaction_data().get_trace_id(),
+            ))
+            .await;
         let futs = ctx.compute_many(all_deps.into_iter().map(|val| {
             DiceComputations::declare_closure(
                 move |ctx: &mut DiceComputations| -> BoxFuture<Self::Value> {
@@ -171,7 +178,6 @@ impl Key for CommandRef {
             }
         }
 
-        let tx = ctx.per_transaction_data().get_tx_channel();
         if let Some(need_to_skip) = exit {
             let _ = tx
                 .send(Event::command_skipped(
@@ -196,8 +202,11 @@ impl Key for CommandRef {
 
         let tr = output.clone().to_test_result();
 
-        let command_finished =
-            Event::command_finished(tr, ctx.per_transaction_data().get_trace_id());
+        let command_finished = Event::command_finished(
+            tr,
+            self.0.target_type.to_string(),
+            ctx.per_transaction_data().get_trace_id(),
+        );
         let mut _handleme = tx.send(command_finished).await;
         if output.failed() {
             if let Some(ref failure_command) = self.0.on_failure {
