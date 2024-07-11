@@ -1,5 +1,5 @@
 import collections
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
 import enum
 from typing import Dict, List, Optional, Tuple
 
@@ -141,7 +141,7 @@ class RenderableTree(RenderableColumn):
         for command, status in status_dict.items():
             profile = profile_dict[command] if command in profile_dict else None
             if status == Status.started:
-                execution_time = datetime.now(UTC) - timedict[command]
+                execution_time = datetime.now(timezone.utc) - timedict[command]
                 total_seconds = execution_time.total_seconds()
                 timestr = format_time(total_seconds, rich_conformant=True)
                 name = Text(
