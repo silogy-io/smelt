@@ -1,18 +1,21 @@
-import subprocess
 import math
+import subprocess
+from tempfile import NamedTemporaryFile
 from typing import Generator
+
+import pytest
+import yaml
+
+from pysmelt.interfaces import Command
+from pysmelt.path_utils import get_git_root
 from pysmelt.proto.smelt_client.commands import (
     ConfigureSmelt,
     ProfilerCfg,
     ProfilingSelection,
+    CfgDocker,
+    Ulimit,
 )
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pysmelt.path_utils import get_git_root
-from pysmelt.interfaces import Command
-
-
-import yaml
-import pytest
 
 
 @pytest.fixture(scope="session")
@@ -97,7 +100,15 @@ def test_sanity_pygraph_docker(simple_docker_image):
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
 
-    graph = create_graph_with_docker(test_list, docker_img=simple_docker_image)
+    graph = create_graph_with_docker(
+        test_list,
+        CfgDocker(
+            image_name=simple_docker_image,
+            additional_mounts={},
+            ulimits=[],
+            mac_address=None,
+        ),
+    )
 
     expected_passed = 3
 
@@ -106,6 +117,68 @@ def test_sanity_pygraph_docker(simple_docker_image):
     assert (
         passed_commands == expected_passed
     ), f"Expected to see {expected_passed} tasks passed, saw {passed_commands} tests"
+
+
+def test_pygraph_docker_mac_addr(simple_docker_image):
+    """
+    Test mac address setting functionality
+    """
+    with NamedTemporaryFile(mode='w+') as tmp_file:
+        mac_address = "de:ad:be:ef:02:01"
+        tmp_file.write(
+            f"""
+- name: print_mac_address
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - '[[ $(< /sys/class/net/eth0/address) == "{mac_address}" ]]'
+        """
+        )
+        tmp_file.flush()
+        graph = create_graph_with_docker(
+            tmp_file.name,
+            CfgDocker(
+                image_name=simple_docker_image,
+                additional_mounts={},
+                ulimits=[],
+                mac_address=mac_address,
+            ),
+        )
+        graph.run_all_commands()
+        assert graph.retcode_tracker.total_passed() == 1
+
+
+def test_pygraph_docker_ulimit(simple_docker_image):
+    """
+    Test ulimit setting functionality
+    """
+    with NamedTemporaryFile('w+') as tmp_file:
+        tmp_file.write(
+            f"""
+- name: print_stack_limit_hard
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - '[[ $(ulimit -Hs) == "65536" ]]'
+- name: print_stack_limit_soft
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - '[[ $(ulimit -Ss) == "65536" ]]'
+"""
+        )
+        tmp_file.flush()
+        graph = create_graph_with_docker(
+            tmp_file.name,
+            CfgDocker(
+                image_name=simple_docker_image,
+                additional_mounts={},
+                ulimits=[Ulimit(name="stack", soft=67108880, hard=67108880)],
+                mac_address=None,
+            ),
+        )
+        graph.run_all_commands()
+        assert graph.retcode_tracker.total_passed() == 2
 
 
 def test_profiler():

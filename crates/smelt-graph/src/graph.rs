@@ -386,6 +386,8 @@ impl CommandGraph {
                     DockerExecutor::new(
                         docker_cfg.image_name.clone(),
                         docker_cfg.additional_mounts.clone(),
+                        docker_cfg.ulimits.clone(),
+                        docker_cfg.mac_address.clone(),
                     )
                     .expect("Could not create docker executor"),
                 ),

@@ -1,20 +1,22 @@
-use crate::executor::Executor;
-use crate::Command;
-use async_trait::async_trait;
-use dice::{DiceData, UserComputationData};
-use futures::StreamExt;
-
-use smelt_data::{executed_tests::ExecutedTestResult, Event};
-
-use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 use std::{collections::HashMap, sync::Arc};
 
-use bollard::container::LogOutput;
+use async_trait::async_trait;
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
     container::{Config, CreateContainerOptions, StartContainerOptions},
     service::HostConfig,
 };
+use bollard::container::LogOutput;
+use bollard::models::ResourcesUlimits;
+use dice::{DiceData, UserComputationData};
+use futures::StreamExt;
+
+use smelt_data::{Event, executed_tests::ExecutedTestResult};
+use smelt_data::client_commands::Ulimit;
+use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
+
+use crate::Command;
+use crate::executor::Executor;
 
 use super::common::{create_test_result, handle_line, prepare_workspace, Workspace};
 
@@ -25,12 +27,17 @@ pub struct DockerExecutor {
     /// Default mounts for the docker executor
     /// these should be in the form
     additional_mounts: HashMap<String, String>,
+    /// Additional flags to pass into the Docker run command
+    ulimits: Vec<Ulimit>,
+    mac_address: Option<String>,
 }
 
 impl DockerExecutor {
     pub fn new(
         image_name: String,
         additional_mounts: HashMap<String, String>,
+        ulimits: Vec<Ulimit>,
+        mac_address: Option<String>,
     ) -> anyhow::Result<Self> {
         let docker_client = Docker::connect_with_socket_defaults()?;
 
@@ -38,6 +45,8 @@ impl DockerExecutor {
             image_name,
             docker_client,
             additional_mounts,
+            ulimits,
+            mac_address,
         })
     }
 }
@@ -90,13 +99,23 @@ impl Executor for DockerExecutor {
 
         let binds = if !binds.is_empty() { Some(binds) } else { None };
 
+        let ulimits = self.ulimits.iter().map(|ulimit| {
+                ResourcesUlimits {
+                    name: ulimit.name.clone(),
+                    soft: ulimit.soft,
+                    hard: ulimit.hard,
+                }
+        }).collect::<Vec<_>>();
+
         // Define the container options
         let container_config: Config<String> = Config {
             image: Some(self.image_name.clone()),
             working_dir: Some(root_as_str),
             cmd: Some(cmd),
+            mac_address: self.mac_address.clone(),
             host_config: Some(HostConfig {
                 binds,
+                ulimits: Some(ulimits),
                 ..Default::default()
             }),
 

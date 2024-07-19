@@ -2,7 +2,7 @@
 # sources: client.data.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import betterproto
 
@@ -92,8 +92,21 @@ class CfgLocal(betterproto.Message):
 
 
 @dataclass
+class Ulimit(betterproto.Message):
+    """Clone of Bollard proto message Ulimit"""
+
+    name: Optional[str] = betterproto.string_field(1, optional=True, group="_name")
+    soft: Optional[int] = betterproto.int64_field(2, optional=True, group="_soft")
+    hard: Optional[int] = betterproto.int64_field(3, optional=True, group="_hard")
+
+
+@dataclass
 class CfgDocker(betterproto.Message):
     image_name: str = betterproto.string_field(1)
     additional_mounts: Dict[str, str] = betterproto.map_field(
         2, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+    )
+    ulimits: List["Ulimit"] = betterproto.message_field(3)
+    mac_address: Optional[str] = betterproto.string_field(
+        4, optional=True, group="_mac_address"
     )

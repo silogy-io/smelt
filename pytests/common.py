@@ -1,19 +1,13 @@
 from dataclasses import replace
-from pysmelt.rc import SmeltRC
 from typing import Dict
 
-from pysmelt.importer import get_all_targets, DocumentedTarget
-import pytest
-import subprocess
-from typing import Generator
-import pytest
-
-from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pysmelt.path_utils import get_git_root
-from pysmelt.interfaces import Command
-
-
 import yaml
+
+from pysmelt.importer import get_all_targets, DocumentedTarget
+from pysmelt.interfaces import Command
+from pysmelt.path_utils import get_git_root
+from pysmelt.pygraph import PyGraph
+from pysmelt.rc import SmeltRC
 
 
 def get_test_rc() -> SmeltRC:
