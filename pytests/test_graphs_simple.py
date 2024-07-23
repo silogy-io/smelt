@@ -16,6 +16,7 @@ from pysmelt.proto.smelt_client.commands import (
     Ulimit,
 )
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
+from pytests.common import MockRemoteSmeltFileStorage
 
 
 @pytest.fixture(scope="session")
@@ -123,7 +124,7 @@ def test_pygraph_docker_mac_addr(simple_docker_image):
     """
     Test mac address setting functionality
     """
-    with NamedTemporaryFile(mode='w+') as tmp_file:
+    with NamedTemporaryFile(mode="w+") as tmp_file:
         mac_address = "de:ad:be:ef:02:01"
         tmp_file.write(
             f"""
@@ -152,7 +153,7 @@ def test_pygraph_docker_ulimit(simple_docker_image):
     """
     Test ulimit setting functionality
     """
-    with NamedTemporaryFile('w+') as tmp_file:
+    with NamedTemporaryFile("w+") as tmp_file:
         tmp_file.write(
             f"""
 - name: print_stack_limit_hard
@@ -179,6 +180,25 @@ def test_pygraph_docker_ulimit(simple_docker_image):
         )
         graph.run_all_commands()
         assert graph.retcode_tracker.total_passed() == 2
+
+
+def test_smelt_path_fetcher():
+    mock_storage = MockRemoteSmeltFileStorage(
+        {
+            "/home/user/code/testlist.yml": f"""
+- name: dummy_test
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - exit 0"""
+        }
+    )
+
+    graph = create_graph(
+        "/home/user/code/testlist.yml", file_fetcher=mock_storage.fetch_smelt_path
+    )
+    graph.run_all_commands()
+    assert graph.retcode_tracker.total_passed() == 1
 
 
 def test_profiler():

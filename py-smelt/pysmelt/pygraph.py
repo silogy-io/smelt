@@ -6,7 +6,7 @@ import yaml
 from pysmelt.pysmelt import PyController, PyEventStream
 
 from pysmelt.interfaces import Command
-from pysmelt.interfaces.paths import SmeltPath
+from pysmelt.interfaces.paths import SmeltPath, SmeltPathFetcher
 from pysmelt.proto.smelt_client.commands import (
     CfgDocker,
     CfgLocal,
@@ -228,11 +228,14 @@ def _create_cfg() -> ConfigureSmelt:
 def create_graph(
     smelt_test_list: str,
     cfg_init: Optional[Callable[[ConfigureSmelt], ConfigureSmelt]] = None,
+    file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> PyGraph:
     cfg = _create_cfg()
     if cfg_init:
         cfg = cfg_init(cfg)
-    universe = create_universe(SmeltPath.from_str(smelt_test_list))
+    universe = create_universe(
+        SmeltPath.from_str(smelt_test_list), file_fetcher=file_fetcher
+    )
     rv = PyGraph.init(cfg, universe)
     return rv
 

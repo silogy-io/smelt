@@ -2,7 +2,7 @@ from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
 import pathlib
-from typing import Optional
+from typing import Optional, Callable
 
 from pysmelt import rc
 
@@ -32,7 +32,7 @@ class SmeltPath:
     def translate(in_path: str) -> str:
         return SmeltPath.from_str(in_path).to_abs_path()
 
-    def to_abs_path(self):
+    def to_abs_path(self) -> str:
         smelt_root = rc.SmeltRcHolder.current_smelt_root()
         if Path(self.path).is_absolute():
             return f"{self.path}"
@@ -48,6 +48,8 @@ class SmeltFilePath:
     for instance, if we have an output "foo"
 
     """
+
+    # TODO Need to clarify what the distinction is between SmeltPath and SmeltFilePath.
 
     path_type: SmeltPathType
     path: str
@@ -74,6 +76,19 @@ class SmeltFilePath:
             return f"{self.path}"
         else:
             raise NotImplementedError(f"Unhandled variant {self.path_type}")
+
+
+# Type of a callback that fetches the contents of a SmeltPathFetcher. This is
+# meant for scenarios where the Smelt file data is located somewhere other than
+# the local filesystem, and custom logic is needed to fetch it.
+type SmeltPathFetcher = Callable[[SmeltPath], str]
+
+
+def local_smelt_path_fetcher(smelt_path: SmeltPath) -> str:
+    """The default SmeltPathFetcher, which fetches the smelt path from the local filesystem."""
+    abs_path = smelt_path.to_abs_path()
+    with open(abs_path, "r") as f:
+        return f.read()
 
 
 @dataclass(frozen=True)

@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-import functools
-import yaml
 import pathlib
-from typing import ClassVar, Dict, Any, Iterable, Optional, Set, Tuple, Type, List
+from dataclasses import dataclass
+from typing import Dict, Any, Iterable, Optional, Tuple, Type, List
+
+import yaml
 from pydantic import BaseModel
+
 from pysmelt.generators.procedural import get_procedural_targets
 from pysmelt.importer import (
     DocumentedTarget,
@@ -11,10 +12,13 @@ from pysmelt.importer import (
     get_default_targets,
 )
 from pysmelt.interfaces import Target, Command
-from pysmelt.interfaces.paths import SmeltPath, TempTarget
-from pysmelt.interfaces.target import TargetRef
+from pysmelt.interfaces.paths import (
+    SmeltPath,
+    TempTarget,
+    SmeltPathFetcher,
+    local_smelt_path_fetcher,
+)
 from pysmelt.rc import SmeltRC, SmeltRcHolder
-from pysmelt.path_utils import get_git_root
 from pysmelt.tracker import ImportTracker
 
 
@@ -53,25 +57,36 @@ def to_target(pre_target: PreTarget) -> Target:
 
 
 def get_targets(
-    test_list: SmeltPath, default_rules_only: bool = False
+    test_list: SmeltPath,
+    default_rules_only: bool = False,
+    file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> Dict[str, Target]:
 
-    test_list2 = test_list.to_abs_path()
+    abs_path = test_list.to_abs_path()
 
-    if pathlib.Path(test_list2).suffix == ".py":
-        targets = get_procedural_targets(test_list2)
+    if pathlib.Path(abs_path).suffix == ".py":
+        if file_fetcher is not None:
+            raise RuntimeError(
+                "Custom Smelt file fetchers are not yet supported for procedural targets"
+            )
+        targets = get_procedural_targets(abs_path)
 
         return {target.name: target for target in targets}
 
     else:
-        yaml_content = open(test_list2).read()
+        if file_fetcher is None:
+            yaml_content = local_smelt_path_fetcher(test_list)
+        else:
+            yaml_content = file_fetcher(test_list)
         return smelt_contents_to_targets(
             yaml_content, default_rules_only=default_rules_only
         )
 
 
 def parse_smelt(
-    test_list: SmeltPath, default_rules_only: bool = False
+    test_list: SmeltPath,
+    default_rules_only: bool = False,
+    file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> Tuple[Dict[str, Target], List[Command]]:
     """
     Parses a single test list, and returns the targets and generated commands from the test list
@@ -79,7 +94,7 @@ def parse_smelt(
 
     """
     test_list_orig = test_list
-    targets = get_targets(test_list, default_rules_only)
+    targets = get_targets(test_list, default_rules_only, file_fetcher=file_fetcher)
     ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
     ImportTracker.imported_targets[test_list] = targets
 
@@ -118,6 +133,7 @@ class SmeltUniverse:
 def create_universe(
     starting_file: SmeltPath,
     default_rules_only: bool = False,
+    file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> SmeltUniverse:
     # Initialize the top file, seen files, visible files, and all commands
     top_file = starting_file
@@ -126,7 +142,9 @@ def create_universe(
     all_commands = {}
 
     # Parse the "initial" file under consideration and all of the testlists seen to visible files
-    targets, commands = parse_smelt(starting_file, default_rules_only)
+    targets, commands = parse_smelt(
+        starting_file, default_rules_only, file_fetcher=file_fetcher
+    )
     for comm in commands:
         for dep in comm.dependencies:
             tt = TempTarget.parse_string_smelt_target(dep, starting_file.path)
@@ -146,6 +164,7 @@ def create_universe(
             _, new_commands = parse_smelt(
                 file,
                 default_rules_only,
+                file_fetcher=file_fetcher,
             )
 
             # Add dependencies of new commands to new files if not seen
