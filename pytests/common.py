@@ -1,10 +1,10 @@
-from dataclasses import replace
+from dataclasses import replace, dataclass
 from typing import Dict
 
 import yaml
 
 from pysmelt.importer import get_all_targets, DocumentedTarget
-from pysmelt.interfaces import Command
+from pysmelt.interfaces import Command, SmeltPath
 from pysmelt.path_utils import get_git_root
 from pysmelt.pygraph import PyGraph
 from pysmelt.rc import SmeltRC
@@ -34,3 +34,11 @@ def create_command_list_graph(cl_name: str) -> PyGraph:
     commands = [Command.from_dict(obj) for obj in lod]
     graph = PyGraph.init_commands_only(commands)
     return graph
+
+
+@dataclass
+class MockRemoteSmeltFileStorage:
+    data: Dict[str, str]
+
+    def fetch_smelt_path(self, smelt_path: SmeltPath) -> str:
+        return self.data.get(smelt_path.to_abs_path(), "")
