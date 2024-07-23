@@ -81,7 +81,7 @@ class SmeltFilePath:
 # Type of a callback that fetches the contents of a SmeltPathFetcher. This is
 # meant for scenarios where the Smelt file data is located somewhere other than
 # the local filesystem, and custom logic is needed to fetch it.
-type SmeltPathFetcher = Callable[[SmeltPath], str]
+SmeltPathFetcher = Callable[[SmeltPath], str]
 
 
 def local_smelt_path_fetcher(smelt_path: SmeltPath) -> str:
