@@ -268,9 +268,7 @@ def test_split_build():
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/split_build/test.smelt.yaml"
 
-    graph = create_graph(
-        test_list,
-    )
+    graph = create_graph(test_list)
 
     expected_passed = 3
 
