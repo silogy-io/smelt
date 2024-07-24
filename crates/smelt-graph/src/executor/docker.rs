@@ -39,7 +39,7 @@ impl DockerExecutor {
         ulimits: Vec<Ulimit>,
         mac_address: Option<String>,
     ) -> anyhow::Result<Self> {
-        let docker_client = Docker::connect_with_socket_defaults()?;
+        let docker_client = Docker::connect_with_defaults()?;
 
         Ok(Self {
             image_name,
