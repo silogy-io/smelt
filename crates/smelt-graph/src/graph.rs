@@ -33,7 +33,7 @@ use smelt_events::{
 use crate::{
     CommandDependency,
     commands::{Command, TargetType},
-    executor::{DockerExecutor, DockerRunMode, Executor, GetExecutor, LocalExecutor, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
     utils::invoke_start_message,
 };
 
@@ -382,14 +382,7 @@ impl CommandGraph {
             Some(ref exec_val) => match exec_val {
                 configure_smelt::InitExecutor::Local(_) => Arc::new(LocalExecutor {}),
                 configure_smelt::InitExecutor::Docker(docker_cfg) => Arc::new(
-                    DockerExecutor::new(
-                        docker_cfg.image_name.clone(),
-                        docker_cfg.additional_mounts.clone(),
-                        docker_cfg.ulimits.clone(),
-                        docker_cfg.mac_address.clone(),
-                        // TODO Make this configurable:
-                        DockerRunMode::Remote,
-                    )
+                    DockerExecutor::new(docker_cfg)
                     .expect("Could not create docker executor"),
                 ),
             },

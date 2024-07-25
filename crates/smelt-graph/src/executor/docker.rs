@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use std::cmp::PartialEq;
-
+use anyhow::Error;
 use async_trait::async_trait;
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
@@ -12,21 +11,15 @@ use bollard::models::ResourcesUlimits;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 use tokio::fs::File;
-
+use smelt_core::SmeltErr;
 use smelt_data::{Event, executed_tests::ExecutedTestResult};
-use smelt_data::client_commands::Ulimit;
+use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
 use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
 use crate::Command;
 use crate::executor::Executor;
 
 use super::common::{create_test_result, handle_line, prepare_workspace};
-
-#[derive(Eq, PartialEq)]
-pub enum DockerRunMode {
-    Local,
-    Remote,
-}
 
 pub struct DockerExecutor {
     docker_client: Docker,
@@ -38,26 +31,28 @@ pub struct DockerExecutor {
     /// Additional flags to pass into the Docker run command
     ulimits: Vec<Ulimit>,
     mac_address: Option<String>,
-    docker_run_mode: DockerRunMode,
+    run_mode: RunMode,
 }
 
 impl DockerExecutor {
     pub fn new(
-        image_name: String,
-        additional_mounts: HashMap<String, String>,
-        ulimits: Vec<Ulimit>,
-        mac_address: Option<String>,
-        run_mode: DockerRunMode,
+        cfg_docker: &CfgDocker,
     ) -> anyhow::Result<Self> {
         let docker_client = Docker::connect_with_defaults()?;
+        let run_mode = match RunMode::from_i32(cfg_docker.run_mode) {
+            Some(mode) => mode,
+            None => {
+                return Err(Error::from(SmeltErr::InvalidConfig { reason: format!("Unknown docker run_mode: {}", cfg_docker.run_mode) }))
+            }
+        };
 
         Ok(Self {
-            image_name,
+            image_name: cfg_docker.image_name.clone(),
             docker_client,
-            additional_mounts,
-            ulimits,
-            mac_address,
-            docker_run_mode: run_mode,
+            additional_mounts: cfg_docker.additional_mounts.clone(),
+            ulimits: cfg_docker.ulimits.clone(),
+            mac_address: cfg_docker.mac_address.clone(),
+            run_mode,
         })
     }
 }
@@ -87,13 +82,13 @@ impl Executor for DockerExecutor {
         // {SMELT_ROOT}/smelt-out/{COMMAND_NAME}
         let mut stdout = File::open("/dev/null").await?;
 
-        let cmd = match self.docker_run_mode {
-            DockerRunMode::Local => {
+        let cmd = match self.run_mode {
+            RunMode::Local => {
                 let workspace = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
                 stdout = workspace.stdout;
                 vec![shell.to_string(), workspace.script_file.to_str().unwrap().to_string()]
             }
-            DockerRunMode::Remote => {
+            RunMode::Remote => {
                 vec!["bash".to_string(), "-c".to_string(), command.script.clone().join(" && ")]
             }
         };
@@ -101,8 +96,8 @@ impl Executor for DockerExecutor {
         // we can derive platform info from inspecting the image, but we don't need to do that
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
-        let binds = match self.docker_run_mode {
-            DockerRunMode::Local => {
+        let binds = match self.run_mode {
+            RunMode::Local => {
                 // The "default" bind mount for all commands is smelt root -- in expectation, this should
                 // mount the git root in to the container, at the same path as it has on the host
                 // filesystem
@@ -115,8 +110,8 @@ impl Executor for DockerExecutor {
                         val
                     }))
             }
-            DockerRunMode::Remote => None
-            // TODO Add an error if mode is Remote and self.additional_mounts.len() > 0
+            RunMode::Remote => None
+            // TODO Add an error if mode is remote and self.additional_mounts.len() > 0
         };
 
         let ulimits = self.ulimits.iter().map(|ulimit| {
