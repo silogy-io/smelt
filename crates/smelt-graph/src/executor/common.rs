@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -20,6 +21,11 @@ pub(crate) struct Workspace {
     pub(crate) stdout: File,
 }
 
+pub(crate) fn get_target_root<T: Display, S: Display>(smelt_root: T, command_name: S) -> String {
+    // TODO -- maybe parameterize "smelt-out"?
+    format!("{}/{}/{}", smelt_root, "smelt-out", command_name)
+}
+
 /// Creates all of the directory scaffolding expected by a command
 ///
 /// This function is currently used across all executors, and is always executed in the host
@@ -29,9 +35,6 @@ pub(crate) async fn prepare_workspace(
     smelt_root: PathBuf,
     command_working_dir: &Path,
 ) -> anyhow::Result<Workspace> {
-    // TODO -- maybe parameterize?
-    let smeltoutdir = "smelt-out";
-
     let working_dir = command.default_target_root(smelt_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
     let stdout_file = working_dir.join(Command::stdout_file());
@@ -46,10 +49,8 @@ pub(crate) async fn prepare_workspace(
 
     writeln!(
         buf,
-        "export TARGET_ROOT={}/{}/{}",
-        smelt_root.to_string_lossy(),
-        smeltoutdir,
-        command.name
+        "export TARGET_ROOT={}",
+        get_target_root(smelt_root.to_string_lossy(), &command.name)
     )?;
 
     writeln!(buf, "cd {}", command_working_dir.to_string_lossy())?;
@@ -98,11 +99,9 @@ pub(crate) fn create_test_result(
     let mut missing_artifacts = vec![];
     let mut artifacts = vec![ArtifactPointer {
         artifact_name: "smelt_log".into(),
-        //TODO: smelt-out shouldn't be hardcoded here, sorry for sinning mom
         pointer: Some(Pointer::Path(format!(
-            "{}/smelt-out/{}/command.out",
-            smelt_root.to_string_lossy(),
-            command.name,
+            "{}/command.out",
+            get_target_root(smelt_root.to_string_lossy(), &command.name),
         ))),
     }];
 

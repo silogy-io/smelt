@@ -19,7 +19,7 @@ use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTx
 use crate::Command;
 use crate::executor::Executor;
 
-use super::common::{create_test_result, handle_line, prepare_workspace};
+use super::common::{create_test_result, get_target_root, handle_line, prepare_workspace};
 
 pub struct DockerExecutor {
     docker_client: Docker,
@@ -91,7 +91,14 @@ impl Executor for DockerExecutor {
                 vec![shell.to_string(), workspace.script_file.to_str().unwrap().to_string()]
             }
             RunMode::Remote => {
-                vec!["bash".to_string(), "-c".to_string(), command.script.clone().join(" && ")]
+                vec![
+                    "mkdir".to_string(),
+                    "-p".to_string(),
+                    get_target_root(root_as_str, &command.name),
+                    "&&".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    command.script.clone().join(" && ")]
             }
         };
 
@@ -131,7 +138,7 @@ impl Executor for DockerExecutor {
             cmd: Some(cmd),
             env: Some(vec![
                 format!("SMELT_ROOT={}", root_as_str),
-                format!("TARGET_ROOT={}/{}/{}", root_as_str, "smelt-out", command.name),
+                format!("TARGET_ROOT={}", get_target_root(root_as_str, &command.name)),
             ]),
             mac_address: self.mac_address.clone(),
             host_config: Some(HostConfig {
