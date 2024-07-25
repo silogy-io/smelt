@@ -14,7 +14,7 @@ mod profiler;
 
 use async_trait::async_trait;
 #[cfg(feature = "docker")]
-pub use docker::DockerExecutor;
+pub use docker::{DockerExecutor, DockerRunMode};
 pub use local::LocalExecutor;
 
 #[async_trait]

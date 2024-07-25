@@ -1,9 +1,7 @@
-use allocative::Allocative;
-use smelt_data::{
-    client_commands::{client_command::ClientCommands, client_resp::ClientResponses, *},
-    executed_tests::ExecutedTestResult,
-};
+use std::{collections::HashSet, str::FromStr, sync::Arc};
 
+use allocative::Allocative;
+use async_trait::async_trait;
 use derive_more::Display;
 use dice::{
     CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
@@ -15,28 +13,29 @@ use futures::{
     stream::FuturesUnordered,
     StreamExt,
 };
-
-use smelt_events::{
-    self,
-    runtime_support::{
-        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
-    },
-    ClientCommandBundle, Event,
-};
-
 use futures::FutureExt;
-use std::{collections::HashSet, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
-use crate::{
-    commands::{Command, TargetType},
-    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
-    utils::invoke_start_message,
-    CommandDependency,
-};
-use async_trait::async_trait;
 use smelt_core::CommandDefPath;
 use smelt_core::SmeltErr;
+use smelt_data::{
+    client_commands::{*, client_command::ClientCommands, client_resp::ClientResponses},
+    executed_tests::ExecutedTestResult,
+};
+use smelt_events::{
+    self,
+    ClientCommandBundle,
+    Event, runtime_support::{
+        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
+    },
+};
+
+use crate::{
+    CommandDependency,
+    commands::{Command, TargetType},
+    executor::{DockerExecutor, DockerRunMode, Executor, GetExecutor, LocalExecutor, SetExecutor},
+    utils::invoke_start_message,
+};
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
 pub struct CommandRef(Arc<Command>);
@@ -388,6 +387,8 @@ impl CommandGraph {
                         docker_cfg.additional_mounts.clone(),
                         docker_cfg.ulimits.clone(),
                         docker_cfg.mac_address.clone(),
+                        // TODO Make this configurable:
+                        DockerRunMode::Remote,
                     )
                     .expect("Could not create docker executor"),
                 ),
@@ -683,13 +684,12 @@ pub fn spawn_graph_server(cfg: ConfigureSmelt) -> SmeltServerHandle {
 
 #[cfg(test)]
 mod tests {
-    use futures::TryFutureExt;
     use std::path::Path;
 
     use tokio::{
         fs::File,
         io::AsyncReadExt,
-        sync::mpsc::{channel, unbounded_channel, Receiver},
+        sync::mpsc::{channel, Receiver, unbounded_channel},
     };
 
     use super::*;

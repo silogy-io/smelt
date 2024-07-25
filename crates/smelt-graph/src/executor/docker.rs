@@ -1,4 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
+use std::cmp::PartialEq;
 
 use async_trait::async_trait;
 use bollard::{container::LogsOptions, Docker};
@@ -10,6 +11,7 @@ use bollard::container::LogOutput;
 use bollard::models::ResourcesUlimits;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
+use tokio::fs::File;
 
 use smelt_data::{Event, executed_tests::ExecutedTestResult};
 use smelt_data::client_commands::Ulimit;
@@ -18,7 +20,13 @@ use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTx
 use crate::Command;
 use crate::executor::Executor;
 
-use super::common::{create_test_result, handle_line, prepare_workspace, Workspace};
+use super::common::{create_test_result, handle_line, prepare_workspace};
+
+#[derive(Eq, PartialEq)]
+pub enum DockerRunMode {
+    Local,
+    Remote,
+}
 
 pub struct DockerExecutor {
     docker_client: Docker,
@@ -30,6 +38,7 @@ pub struct DockerExecutor {
     /// Additional flags to pass into the Docker run command
     ulimits: Vec<Ulimit>,
     mac_address: Option<String>,
+    docker_run_mode: DockerRunMode,
 }
 
 impl DockerExecutor {
@@ -38,6 +47,7 @@ impl DockerExecutor {
         additional_mounts: HashMap<String, String>,
         ulimits: Vec<Ulimit>,
         mac_address: Option<String>,
+        run_mode: DockerRunMode,
     ) -> anyhow::Result<Self> {
         let docker_client = Docker::connect_with_defaults()?;
 
@@ -47,12 +57,14 @@ impl DockerExecutor {
             additional_mounts,
             ulimits,
             mac_address,
+            docker_run_mode: run_mode,
         })
     }
 }
 
 #[async_trait]
 impl Executor for DockerExecutor {
+
     async fn execute_commands(
         &self,
         command: Arc<Command>,
@@ -66,38 +78,46 @@ impl Executor for DockerExecutor {
         let root = global_data.get_smelt_root();
         let root_as_str = root
             .to_str()
-            .expect("Smelt root couldnt be converted to string ")
-            .to_string();
+            .expect("Smelt root couldnt be converted to string ");
 
         let command_default_dir = command.working_dir.clone();
         let silent = global_data.get_smelt_cfg().silent;
 
         // "Prepares" the workspace for this command -- creates a directory at path
         // {SMELT_ROOT}/smelt-out/{COMMAND_NAME}
-        let Workspace {
-            script_file,
-            mut stdout,
-        } = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
+        let mut stdout = File::open("/dev/null").await?;
 
-        // The "default" bind mount for all commands is smelt root -- in expectation, this should
-        // mount the git root in to the container, at the same path as it has on the host
-        // filesystem
-        let base_binds = vec![format!("{}:{}", root_as_str, root_as_str)];
-        let binds = self
-            .additional_mounts
-            .iter()
-            .fold(base_binds, |mut val, b| {
-                val.push(format!("{}:{}", b.0, b.1));
-
-                val
-            });
-
-        let cmd = vec![shell.to_string(), script_file.to_str().unwrap().to_string()];
+        let cmd = match self.docker_run_mode {
+            DockerRunMode::Local => {
+                let workspace = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
+                stdout = workspace.stdout;
+                vec![shell.to_string(), workspace.script_file.to_str().unwrap().to_string()]
+            }
+            DockerRunMode::Remote => {
+                vec!["bash".to_string(), "-c".to_string(), command.script.clone().join(" && ")]
+            }
+        };
 
         // we can derive platform info from inspecting the image, but we don't need to do that
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
-        let binds = if !binds.is_empty() { Some(binds) } else { None };
+        let binds = match self.docker_run_mode {
+            DockerRunMode::Local => {
+                // The "default" bind mount for all commands is smelt root -- in expectation, this should
+                // mount the git root in to the container, at the same path as it has on the host
+                // filesystem
+                let base_binds = vec![format!("{}:{}", root_as_str, root_as_str)];
+                Some(self
+                    .additional_mounts
+                    .iter()
+                    .fold(base_binds, |mut val, b| {
+                        val.push(format!("{}:{}", b.0, b.1));
+                        val
+                    }))
+            }
+            DockerRunMode::Remote => None
+            // TODO Add an error if mode is Remote and self.additional_mounts.len() > 0
+        };
 
         let ulimits = self.ulimits.iter().map(|ulimit| {
                 ResourcesUlimits {
@@ -110,8 +130,12 @@ impl Executor for DockerExecutor {
         // Define the container options
         let container_config: Config<String> = Config {
             image: Some(self.image_name.clone()),
-            working_dir: Some(root_as_str),
+            working_dir: Some(root_as_str.to_string()),
             cmd: Some(cmd),
+            env: Some(vec![
+                format!("SMELT_ROOT={}", root_as_str),
+                format!("TARGET_ROOT={}/{}/{}", root_as_str, "smelt-out", command.name),
+            ]),
             mac_address: self.mac_address.clone(),
             host_config: Some(HostConfig {
                 binds,
