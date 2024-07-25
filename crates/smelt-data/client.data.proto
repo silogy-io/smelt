@@ -79,4 +79,5 @@ message CfgDocker {
   repeated Ulimit ulimits = 3;
   optional string mac_address = 4;
   RunMode run_mode = 5;
+  string artifact_bind_directory = 6;
 }

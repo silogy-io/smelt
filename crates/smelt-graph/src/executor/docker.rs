@@ -32,6 +32,7 @@ pub struct DockerExecutor {
     ulimits: Vec<Ulimit>,
     mac_address: Option<String>,
     run_mode: RunMode,
+    artifact_bind_directory: String,
 }
 
 impl DockerExecutor {
@@ -53,6 +54,7 @@ impl DockerExecutor {
             ulimits: cfg_docker.ulimits.clone(),
             mac_address: cfg_docker.mac_address.clone(),
             run_mode,
+            artifact_bind_directory: cfg_docker.artifact_bind_directory.clone(),
         })
     }
 }
@@ -96,12 +98,13 @@ impl Executor for DockerExecutor {
         // we can derive platform info from inspecting the image, but we don't need to do that
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
+        let artifact_bind = format!("{}:{}", self.artifact_bind_directory, "/tmp/artifacts/");
         let binds = match self.run_mode {
             RunMode::Local => {
                 // The "default" bind mount for all commands is smelt root -- in expectation, this should
                 // mount the git root in to the container, at the same path as it has on the host
                 // filesystem
-                let base_binds = vec![format!("{}:{}", root_as_str, root_as_str)];
+                let base_binds = vec![format!("{}:{}", root_as_str, root_as_str), artifact_bind];
                 Some(self
                     .additional_mounts
                     .iter()
@@ -110,8 +113,7 @@ impl Executor for DockerExecutor {
                         val
                     }))
             }
-            RunMode::Remote => None
-            // TODO Add an error if mode is remote and self.additional_mounts.len() > 0
+            RunMode::Remote => Some(vec![artifact_bind])
         };
 
         let ulimits = self.ulimits.iter().map(|ulimit| {
