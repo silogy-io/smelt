@@ -105,7 +105,7 @@ impl Executor for DockerExecutor {
         // we can derive platform info from inspecting the image, but we don't need to do that
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
-        let artifact_bind = format!("{}:{}", self.artifact_bind_directory, "/tmp/artifacts/");
+        let artifact_bind = format!("{}:{}", format!("{}/{}", &self.artifact_bind_directory, &command.name), "/tmp/artifacts/");
         let binds = match self.run_mode {
             RunMode::Local => {
                 // The "default" bind mount for all commands is smelt root -- in expectation, this should
