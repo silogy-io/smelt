@@ -91,14 +91,14 @@ impl Executor for DockerExecutor {
                 vec![shell.to_string(), workspace.script_file.to_str().unwrap().to_string()]
             }
             RunMode::Remote => {
+                // Create the target root before running any commands
+                let mut sub_command = vec![format!("mkdir -p {}", get_target_root(root_as_str, &command.name))];
+                sub_command.append(&mut command.script.clone());
                 vec![
-                    "mkdir".to_string(),
-                    "-p".to_string(),
-                    get_target_root(root_as_str, &command.name),
-                    "&&".to_string(),
                     "bash".to_string(),
                     "-c".to_string(),
-                    command.script.clone().join(" && ")]
+                    sub_command.join(" && "),
+                ]
             }
         };
 
