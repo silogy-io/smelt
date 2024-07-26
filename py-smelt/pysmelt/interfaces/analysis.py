@@ -22,7 +22,8 @@ def most_recent_junit_path() -> SmeltPath:
 
 
 def get_previous_invocation() -> Invocation:
-    invbytes = open(most_recent_invoke_path().to_abs_path(), "rb").read()
+    with open(most_recent_invoke_path().to_abs_path(), "rb") as f:
+        invbytes = f.read()
     return Invocation.FromString(invbytes)
 
 
@@ -39,7 +40,8 @@ def read_log(test_result: TestResult) -> str:
             if artifact.artifact_name == log_name
         )
     )
-    return open(log.path, "r").read()
+    with open(log.path, "r") as f:
+        return f.read()
 
 
 def read_log_from_result(test: TestResult) -> Optional[str]:

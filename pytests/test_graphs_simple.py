@@ -28,7 +28,8 @@ def simple_docker_image() -> Generator[str, None, None]:
 
 def test_sanity_pygraph():
     test_list = f"{get_git_root()}/test_data/command_lists/cl1.yaml"
-    lod = yaml.safe_load(open(test_list))
+    with open(test_list) as f:
+        lod = yaml.safe_load(f)
     commands = [Command.from_dict(obj) for obj in lod]
     graph = PyGraph.init_commands_only(commands)
     graph.run_all_commands()
