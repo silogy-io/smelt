@@ -26,7 +26,7 @@ def get_git_root() -> str:
         raise RuntimeError("This directory is not a git repository.")
 
 
-def relatavize_inp_path(smelt_root: str, inp_path: str) -> str:
+def relativize_inp_path(smelt_root: str, inp_path: str) -> str:
     """
     This function converts the input path, which is relative to the current working directory to be relative to `abs_path`
     """
