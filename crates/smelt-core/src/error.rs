@@ -41,6 +41,8 @@ pub enum SmeltErr {
     },
     #[error("Artifact name cannot be parsed out")]
     BadArtifactName,
+    #[error("Invalid config: {reason}")]
+    InvalidConfig { reason: String }
 }
 
 impl Allocative for SmeltErr {
