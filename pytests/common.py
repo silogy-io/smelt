@@ -30,7 +30,8 @@ def get_test_rules() -> Dict[str, DocumentedTarget]:
 
 def create_command_list_graph(cl_name: str) -> PyGraph:
     test_list = f"{get_git_root()}/test_data/command_lists/{cl_name}"
-    lod = yaml.safe_load(open(test_list))
+    with open(test_list) as f:
+        lod = yaml.safe_load(f)
     commands = [Command.from_dict(obj) for obj in lod]
     graph = PyGraph.init_commands_only(commands)
     return graph
