@@ -1,8 +1,9 @@
 import math
 import subprocess
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Generator
 
+import betterproto
 import pytest
 import yaml
 
@@ -14,8 +15,11 @@ from pysmelt.proto.smelt_client.commands import (
     ProfilingSelection,
     CfgDocker,
     Ulimit,
+    RunMode,
 )
+from pysmelt.proto.smelt_telemetry import Event
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
+from pysmelt.subscribers import SmeltSub
 from pytests.common import MockRemoteSmeltFileStorage
 
 
@@ -181,6 +185,37 @@ def test_pygraph_docker_ulimit(simple_docker_image):
         )
         graph.run_all_commands()
         assert graph.retcode_tracker.total_passed() == 2
+
+
+def test_pygraph_docker_rerun(simple_docker_image):
+    """
+    Test ulimit setting functionality
+    """
+    with NamedTemporaryFile("w+") as tmp_file:
+        tmp_file.write(
+            f"""
+- name: test_pygraph_docker_rerun
+  rule: raw_bash
+  rule_args:
+    cmds:
+      - 'exit 1'
+    debug_cmds:
+      - 'echo hello'
+"""
+        )
+        tmp_file.flush()
+        with TemporaryDirectory() as dir_name:
+            graph = create_graph_with_docker(
+                tmp_file.name,
+                CfgDocker(
+                    image_name=simple_docker_image,
+                    artifact_bind_directory=dir_name,
+                    run_mode=RunMode.Remote,
+                ),
+            )
+            graph.run_all_commands()
+        assert graph.retcode_tracker.total_executed() == 2
+        assert graph.retcode_tracker.total_passed() == 1
 
 
 def test_smelt_path_fetcher():

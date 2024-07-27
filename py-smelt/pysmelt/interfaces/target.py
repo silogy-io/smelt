@@ -128,7 +128,7 @@ class Target(ABC):
     def default_rerun_command(self, working_dir: str) -> Optional[Command]:
         script = self.gen_rerun_script()
         if script:
-            name = f"{self.name}@rerun"
+            name = f"{self.name}--rerun"
             target_type = SmeltTargetType.Rerun.value
             runtime = self.runtime_requirements()
             dependencies = [
@@ -157,7 +157,7 @@ class Target(ABC):
     def default_rebuild_command(self, working_dir: str) -> Optional[Command]:
         script = self.gen_rebuild_script()
         if script:
-            name = f"{self.name}@rebuild"
+            name = f"{self.name}--rebuild"
             target_type = SmeltTargetType.Rebuild.value
             runtime = self.runtime_requirements()
             dependencies = [

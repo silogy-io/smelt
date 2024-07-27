@@ -92,7 +92,7 @@ impl Executor for DockerExecutor {
             }
             RunMode::Remote => {
                 // Create the target root before running any commands
-                let rerun_target_name = format!("{}@rerun", &command.name);
+                let rerun_target_name = format!("{}--rerun", &command.name);
                 let mut sub_command = vec![
                     format!(
                         "mkdir -p {} {}",
@@ -113,6 +113,7 @@ impl Executor for DockerExecutor {
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
         let artifact_bind = format!("{}:{}", format!("{}/{}", &self.artifact_bind_directory, &command.name), "/tmp/artifacts/");
+
         let binds = match self.run_mode {
             RunMode::Local => {
                 // The "default" bind mount for all commands is smelt root -- in expectation, this should
