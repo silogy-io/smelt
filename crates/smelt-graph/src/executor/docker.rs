@@ -92,13 +92,8 @@ impl Executor for DockerExecutor {
             }
             RunMode::Remote => {
                 // Create the target root before running any commands
-                let rerun_target_name = format!("{}--rerun", &command.name);
                 let mut sub_command = vec![
-                    format!(
-                        "mkdir -p {} {}",
-                        get_target_root(root_as_str, &command.name),
-                        get_target_root(root_as_str, rerun_target_name),
-                    )
+                    format!("mkdir -p {}", get_target_root(root_as_str, &command.name))
                 ];
                 sub_command.append(&mut command.script.clone());
                 vec![
