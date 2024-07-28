@@ -1,9 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
+
 use anyhow::Error;
 use async_trait::async_trait;
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
     container::{Config, CreateContainerOptions, StartContainerOptions},
+    errors::Error as BollardError,
     service::HostConfig,
 };
 use bollard::container::LogOutput;
@@ -11,13 +13,15 @@ use bollard::models::ResourcesUlimits;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 use tokio::fs::File;
+
 use smelt_core::SmeltErr;
 use smelt_data::{Event, executed_tests::ExecutedTestResult};
 use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
-use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
+use smelt_events::runtime_support::{GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
 use crate::Command;
 use crate::executor::Executor;
+use crate::executor::profiler::profile_cmd_docker;
 
 use super::common::{create_test_result, get_target_root, handle_line, prepare_workspace};
 
@@ -189,6 +193,22 @@ impl Executor for DockerExecutor {
         };
         let mut output = docker.logs(&container.id, Some(attach_options));
 
+        let sample_task = global_data.get_profiling_freq().map(|freq| {
+            let docker_clone = docker.clone();
+            let tx_clone = tx.clone();
+            let command_name_clone = command.name.clone();
+            let trace_id_clone = trace_id.clone();
+            tokio::spawn(async move {
+                profile_cmd_docker(
+                    tx_clone,
+                    docker_clone,
+                    freq,
+                    command_name_clone,
+                    trace_id_clone,
+                ).await;
+            })
+        });
+
         // Stream the stdout and stderr ouput from the docker container via Event messages
         while let Some(message) = output.next().await {
             match message {
@@ -220,16 +240,32 @@ impl Executor for DockerExecutor {
             }
         }
 
-        // get status code from the container, which should be exited at this point
-        let status_code = docker
-            .inspect_container(container_name.as_str(), None)
-            .await?
-            .state
-            .and_then(|state| state.exit_code)
-            .unwrap_or(1) as i32;
+        // Need to explicitly wait for container to exit. The closing of output is not a reliable
+        // signal for the container having exited.
+        let status_code = match docker.wait_container::<&str>(container_name.as_str(), None).next().await {
+            Some(Ok(response)) => response.status_code,
+            Some(Err(BollardError::DockerContainerWaitError { error: _, code })) => {
+                // This is how wait_container returns a non-zero exit code from the container, as
+                // well as if waiting for the container returned an error.
+                code
+            },
+            Some(Err(e)) => {
+                eprintln!("Unhandled error from docker wait: {}", e);
+                1
+            },
+            None => {
+                eprintln!("Container {} returned no exit code", container_name);
+                1
+            },
+        };
+
+        if let Some(task) = sample_task {
+            task.abort()
+        }
+
         Ok(create_test_result(
             command.as_ref(),
-            status_code,
+            status_code.try_into().unwrap(),
             global_data,
         ))
     }

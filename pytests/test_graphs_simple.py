@@ -198,7 +198,7 @@ def test_pygraph_docker_rerun(simple_docker_image):
   rule: raw_bash
   rule_args:
     cmds:
-      - 'exit 1'
+      - '[[ 1 == 2 ]]'
     debug_cmds:
       - 'echo hello'
 """
