@@ -1,8 +1,13 @@
 use std::time::Duration;
 
+use bollard::container::StatsOptions;
+use bollard::Docker;
+use futures::TryStreamExt;
 use libproc::{self, pid_rusage::PIDRUsage, processes};
-use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
 use tokio::{sync::mpsc::Sender, time::Instant};
+
+use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
+
 const MILIS_TO_NANOS: u64 = 1_000;
 #[derive(Debug)]
 struct SampleStruct {
@@ -57,6 +62,27 @@ fn sample_memory_and_load(ppid: u32) -> Option<SampleStruct> {
         memory_used: memused,
         cpu_time_delta: timeused,
     })
+}
+
+pub async fn profile_cmd_docker(
+    tx: Sender<Event>,
+    docker_client: Docker,
+    sample_freq_ms: u64,
+    command_ref: String,
+    trace_id: String,
+) -> i32 {
+    println!("In profile_cmd_docker.");
+    let stats = docker_client.stats(&command_ref, Some(StatsOptions {
+        stream: false,
+        ..Default::default()
+    })).try_collect::<Vec<_>>().await.unwrap();
+    for stat in stats {
+        println!("{} - mem total: {:?} | mem usage: {:?}",
+                 stat.name,
+                 stat.memory_stats.max_usage,
+                 stat.memory_stats.usage);
+    }
+    return 5;
 }
 
 pub async fn profile_cmd(
