@@ -17,7 +17,6 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::Sender,
 };
-
 use super::{
     common::{create_test_result, prepare_workspace, Workspace},
     profiler::profile_cmd,

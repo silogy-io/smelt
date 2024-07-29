@@ -1,8 +1,13 @@
 use std::time::Duration;
 
+use bollard::container::StatsOptions;
+use bollard::Docker;
+use futures::TryStreamExt;
 use libproc::{self, pid_rusage::PIDRUsage, processes};
-use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
 use tokio::{sync::mpsc::Sender, time::Instant};
+
+use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
+
 const MILIS_TO_NANOS: u64 = 1_000;
 #[derive(Debug)]
 struct SampleStruct {
@@ -57,6 +62,73 @@ fn sample_memory_and_load(ppid: u32) -> Option<SampleStruct> {
         memory_used: memused,
         cpu_time_delta: timeused,
     })
+}
+
+
+async fn docker_sample(
+    docker_client: &Docker,
+    command_ref: &String,
+) -> Option<SampleStruct> {
+    let stats = docker_client.stats(&command_ref, Some(StatsOptions {
+        stream: false,
+        ..Default::default()
+    })).try_collect::<Vec<_>>().await.unwrap();
+
+    for stat in stats {
+        return Some(SampleStruct {
+            memory_used: stat.memory_stats.usage.unwrap_or(0),
+            cpu_time_delta: stat.cpu_stats.cpu_usage.total_usage - stat.precpu_stats.cpu_usage.total_usage
+        });
+    }
+    None
+}
+
+
+pub async fn profile_cmd_docker(
+    tx: Sender<Event>,
+    docker_client: Docker,
+    sample_freq_ms: u64,
+    command_ref: String,
+    trace_id: String,
+) {
+    if sample_freq_ms < 1000 {
+        tracing::warn!(
+            "Sampling Docker always takes at least one second, so the time between samples will \
+            always be at least 1000ms."
+        );
+    }
+
+    let mut prev_sample = None;
+    let mut prev_sample_time = Instant::now();
+
+    loop {
+        let new_sample_time = Instant::now();
+        let new_sample = docker_sample(&docker_client, &command_ref).await;
+        let sampling_duration = u64::try_from(
+            Instant::now().duration_since(new_sample_time).as_millis()).unwrap_or(0);
+
+        if let Some(ref sample) = new_sample {
+            if let Some(ref _prev) = prev_sample {
+                let time_since = (new_sample_time - prev_sample_time).as_micros() as u64;
+                let _ = tx
+                    .send(profile_event(
+                        &trace_id,
+                        &command_ref,
+                        &sample,
+                        &_prev,
+                        time_since,
+                    ))
+                    .await;
+            }
+
+            prev_sample = new_sample;
+        }
+
+        prev_sample_time = new_sample_time;
+
+        let time_to_wait = sample_freq_ms.saturating_sub(sampling_duration);
+        tokio::time::sleep(Duration::from_millis(time_to_wait)).await;
+    }
 }
 
 pub async fn profile_cmd(
