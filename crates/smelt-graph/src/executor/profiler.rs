@@ -91,6 +91,13 @@ pub async fn profile_cmd_docker(
     command_ref: String,
     trace_id: String,
 ) {
+    if sample_freq_ms < 1000 {
+        tracing::warn!(
+            "Sampling Docker always takes at least one second, so the time between samples will \
+            always be at least 1000ms."
+        );
+    }
+
     let mut prev_sample = None;
     let mut prev_sample_time = Instant::now();
 
@@ -119,12 +126,8 @@ pub async fn profile_cmd_docker(
 
         prev_sample_time = new_sample_time;
 
-        let time_to_wait = if sample_freq_ms > sampling_duration {
-            sample_freq_ms - sampling_duration
-        } else {
-            0
-        };
-        tokio::time::sleep(Duration::from_millis(sample_freq_ms - time_to_wait)).await;
+        let time_to_wait = sample_freq_ms.saturating_sub(sampling_duration);
+        tokio::time::sleep(Duration::from_millis(time_to_wait)).await;
     }
 }
 

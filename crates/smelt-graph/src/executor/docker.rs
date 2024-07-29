@@ -250,11 +250,11 @@ impl Executor for DockerExecutor {
                 code
             },
             Some(Err(e)) => {
-                eprintln!("Unhandled error from docker wait: {}", e);
+                tracing::error!("Unhandled error from docker wait: {}", e);
                 1
             },
             None => {
-                eprintln!("Container {} returned no exit code", container_name);
+                tracing::error!("Container {} returned no exit code", container_name);
                 1
             },
         };
