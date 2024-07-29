@@ -3,7 +3,7 @@ use std::time::Duration;
 use libproc::{self, pid_rusage::PIDRUsage, processes};
 use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
 use tokio::{sync::mpsc::Sender, time::Instant};
-const MILIS_TO_NANOS: u64 = 1_000;
+
 #[derive(Debug)]
 struct SampleStruct {
     /// Memory used by a command in bytes
@@ -74,7 +74,7 @@ pub async fn profile_cmd(
         let new_sample_time = Instant::now();
         if let Some(ref sample) = new_sample {
             if let Some(ref _prev) = prev_sample {
-                let time_since = (new_sample_time - prev_sample_time).as_micros() as u64;
+                let time_since = (new_sample_time - prev_sample_time).as_nanos() as u64;
                 let _ = tx
                     .send(profile_event(
                         &trace_id,
@@ -99,13 +99,12 @@ fn profile_event(
     command_ref: &String,
     sample: &SampleStruct,
     prev: &SampleStruct,
-    sample_freq_ms: u64,
+    time_delta: u64, // The time passed since the previous sample, in nanoseconds
 ) -> Event {
     let variant = CommandVariant::Profile(CommandProfile {
         memory_used: sample.memory_used,
-        cpu_load: ((sample.cpu_time_delta.saturating_sub(prev.cpu_time_delta)) as f32
-            / MILIS_TO_NANOS as f32) as f32
-            / sample_freq_ms as f32,
+        cpu_load: (sample.cpu_time_delta.saturating_sub(prev.cpu_time_delta) as f32)
+            / time_delta as f32,
     });
     Event::from_command_variant(command_ref.clone(), trace_id.clone(), variant)
 }
