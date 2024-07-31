@@ -1,14 +1,15 @@
 use std::time::Duration;
 
-use bollard::container::StatsOptions;
+use bollard::container::{MemoryStatsStats, Stats, StatsOptions};
 use bollard::Docker;
+use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
 use libproc::{self, pid_rusage::PIDRUsage, processes};
 use tokio::{sync::mpsc::Sender, time::Instant};
 
 use smelt_data::{command_event::CommandVariant, CommandProfile, Event};
 
-const MILIS_TO_NANOS: u64 = 1_000;
+const NANOS_TO_MICROS: u64 = 1_000;
 #[derive(Debug)]
 struct SampleStruct {
     /// Memory used by a command in bytes
@@ -68,17 +69,14 @@ fn sample_memory_and_load(ppid: u32) -> Option<SampleStruct> {
 async fn docker_sample(
     docker_client: &Docker,
     command_ref: &String,
-) -> Option<SampleStruct> {
+) -> Option<Stats> {
     let stats = docker_client.stats(&command_ref, Some(StatsOptions {
         stream: false,
         ..Default::default()
     })).try_collect::<Vec<_>>().await.unwrap();
 
     for stat in stats {
-        return Some(SampleStruct {
-            memory_used: stat.memory_stats.usage.unwrap_or(0),
-            cpu_time_delta: stat.cpu_stats.cpu_usage.total_usage - stat.precpu_stats.cpu_usage.total_usage
-        });
+        return Some(stat);
     }
     None
 }
@@ -87,48 +85,74 @@ async fn docker_sample(
 pub async fn profile_cmd_docker(
     tx: Sender<Event>,
     docker_client: Docker,
-    sample_freq_ms: u64,
     command_ref: String,
     trace_id: String,
+    profile_start_time_millis: u64,
 ) {
-    if sample_freq_ms < 1000 {
-        tracing::warn!(
-            "Sampling Docker always takes at least one second, so the time between samples will \
-            always be at least 1000ms."
-        );
-    }
-
-    let mut prev_sample = None;
-    let mut prev_sample_time = Instant::now();
-
     loop {
-        let new_sample_time = Instant::now();
+        // TODO This should instead use the streaming version of the stats endpoint
         let new_sample = docker_sample(&docker_client, &command_ref).await;
-        let sampling_duration = u64::try_from(
-            Instant::now().duration_since(new_sample_time).as_millis()).unwrap_or(0);
 
-        if let Some(ref sample) = new_sample {
-            if let Some(ref _prev) = prev_sample {
-                let time_since = (new_sample_time - prev_sample_time).as_micros() as u64;
-                let _ = tx
-                    .send(profile_event(
-                        &trace_id,
-                        &command_ref,
-                        &sample,
-                        &_prev,
-                        time_since,
-                    ))
-                    .await;
+        if let Some(ref stats) = new_sample {
+            let sample_timestamp_millis: u64 = stats
+                .read
+                .parse::<DateTime<Utc>>()
+                .expect("failed to parse datetime")
+                .timestamp_millis()
+                .try_into().unwrap();
+            let maybe_event = docker_profile_event(
+                &trace_id,
+                &command_ref,
+                stats,
+                sample_timestamp_millis.saturating_sub(profile_start_time_millis),
+            );
+            match maybe_event {
+                Some(event) => {
+                    let _ = tx.send(event).await;
+                }
+                None => {}
             }
 
-            prev_sample = new_sample;
         }
-
-        prev_sample_time = new_sample_time;
-
-        let time_to_wait = sample_freq_ms.saturating_sub(sampling_duration);
-        tokio::time::sleep(Duration::from_millis(time_to_wait)).await;
     }
+}
+
+fn docker_profile_event(
+    trace_id: &String,
+    command_ref: &String,
+    stats: &Stats,
+    time_since_start_ms: u64,
+) -> Option<Event> {
+    // Calculations based on https://docs.docker.com/engine/api/v1.45/#tag/Container/operation/ContainerStats
+    let cpu_delta_us = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+    let system_cpu_delta_us = match (stats.cpu_stats.system_cpu_usage, stats.precpu_stats.system_cpu_usage) {
+        (None, _) => return None,
+        (_, None) => return None,
+        (Some(system_cpu_usage), Some(prev_system_cpu_usage)) => system_cpu_usage.saturating_sub(prev_system_cpu_usage)
+    };
+
+    let number_cpus = match (stats.cpu_stats.online_cpus, stats.cpu_stats.cpu_usage.percpu_usage.clone()) {
+        (Some(cpus), _) => cpus,
+        (_, Some(percpu_usage)) => percpu_usage.len().try_into().unwrap(),
+        (_, _) => return None,
+    };
+    let cpu_load = cpu_delta_us as f32 / system_cpu_delta_us as f32 * number_cpus as f32;
+
+    let memory_stats = stats.memory_stats;
+    let memory_used = match (memory_stats.usage, memory_stats.stats) {
+        (None, _) => return None,
+        (Some(usage), None) => usage,
+        (Some(usage), Some(MemoryStatsStats::V1(mem_stats_v1))) => usage - mem_stats_v1.cache,
+        // TODO not sure what to do here:
+        (Some(usage), Some(MemoryStatsStats::V2(_))) => usage,
+    };
+
+    let variant = CommandVariant::Profile(CommandProfile {
+        memory_used,
+        cpu_load,
+        time_since_start_ms,
+    });
+    Some(Event::from_command_variant(command_ref.clone(), trace_id.clone(), variant))
 }
 
 pub async fn profile_cmd(
@@ -138,6 +162,7 @@ pub async fn profile_cmd(
     command_ref: String,
     trace_id: String,
 ) {
+    let start_sample_time = Instant::now();
     let mut prev_sample = None;
     let mut prev_sample_time = Instant::now();
 
@@ -146,14 +171,16 @@ pub async fn profile_cmd(
         let new_sample_time = Instant::now();
         if let Some(ref sample) = new_sample {
             if let Some(ref _prev) = prev_sample {
-                let time_since = (new_sample_time - prev_sample_time).as_micros() as u64;
+                let time_since_previous = (new_sample_time - prev_sample_time).as_micros() as u64;
+                let time_since_start = (new_sample_time - start_sample_time).as_millis() as u64;
                 let _ = tx
                     .send(profile_event(
                         &trace_id,
                         &command_ref,
                         &sample,
                         &_prev,
-                        time_since,
+                        time_since_previous,
+                        time_since_start,
                     ))
                     .await;
             }
@@ -171,13 +198,19 @@ fn profile_event(
     command_ref: &String,
     sample: &SampleStruct,
     prev: &SampleStruct,
-    sample_freq_ms: u64,
+    time_since_previous_us: u64,
+    time_since_start_ms: u64
 ) -> Event {
     let variant = CommandVariant::Profile(CommandProfile {
         memory_used: sample.memory_used,
+        // TODO This can't be right? Suppose:
+        // * The subtraction yields 1 billion
+        // * It was one second since the last read
+        // Double check this!
         cpu_load: ((sample.cpu_time_delta.saturating_sub(prev.cpu_time_delta)) as f32
-            / MILIS_TO_NANOS as f32) as f32
-            / sample_freq_ms as f32,
+            / NANOS_TO_MICROS as f32) as f32
+            / time_since_previous_us as f32,
+        time_since_start_ms,
     });
     Event::from_command_variant(command_ref.clone(), trace_id.clone(), variant)
 }

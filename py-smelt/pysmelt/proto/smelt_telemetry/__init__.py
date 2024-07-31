@@ -94,6 +94,8 @@ class CommandProfile(betterproto.Message):
     cpu_load: float = betterproto.float_field(2)
     """cpu load as a fraction -- 1.0 is one cpu, 2.0 is 2 cpus, etc"""
 
+    time: datetime = betterproto.message_field(3)
+
 
 @dataclass(eq=False, repr=False)
 class InvokeEvent(betterproto.Message):

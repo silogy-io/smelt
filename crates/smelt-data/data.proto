@@ -47,6 +47,8 @@ message CommandProfile {
   uint64 memory_used = 1;
   // cpu load as a fraction -- 1.0 is one cpu, 2.0 is 2 cpus, etc
   float cpu_load = 2;
+  // Number of milliseconds since profiling began
+  uint64 time_since_start_ms = 3;
 }
 
 // InvokeEvent demarcates the start of a graph execution.
