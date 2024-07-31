@@ -82,32 +82,48 @@ async fn docker_sample(
 }
 
 
+fn docker_stats_to_event(
+    trace_id: &String,
+    command_ref: &String,
+    stats: &Stats,
+    profile_start_time_ms: u64,
+) -> Option<Event> {
+    let parsed = stats
+        .read
+        .parse::<DateTime<Utc>>();
+    // Sometimes the first Stats object returned by the library has everything zeroed out, with a
+    // date of 0001-01-01T00:00:00Z, which corresponds to a negative timestamp. We ignore these.
+    let sample_timestamp_ms: u64 = parsed
+        .expect("failed to parse datetime")
+        .timestamp_millis()
+        .try_into().ok()?;
+
+    docker_profile_event(
+        &trace_id,
+        &command_ref,
+        stats,
+        sample_timestamp_ms.saturating_sub(profile_start_time_ms),
+    )
+}
+
+
 pub async fn profile_cmd_docker(
     tx: Sender<Event>,
     docker_client: Docker,
     command_ref: String,
     trace_id: String,
-    profile_start_time_millis: u64,
+    profile_start_time_ms: u64,
 ) {
     loop {
         // TODO This should instead use the streaming version of the stats endpoint
         let new_sample = docker_sample(&docker_client, &command_ref).await;
 
         if let Some(ref stats) = new_sample {
-            let sample_timestamp_millis: u64 = stats
-                .read
-                .parse::<DateTime<Utc>>()
-                .expect("failed to parse datetime")
-                .timestamp_millis()
-                .try_into().unwrap();
-            let maybe_event = docker_profile_event(
-                &trace_id,
-                &command_ref,
-                stats,
-                sample_timestamp_millis.saturating_sub(profile_start_time_millis),
-            );
-            match maybe_event {
+            match docker_stats_to_event(&trace_id, &command_ref, &stats, profile_start_time_ms) {
                 Some(event) => {
+                    println!("event: {:?}", event);
+                    println!();
+                    println!();
                     let _ = tx.send(event).await;
                 }
                 None => {}

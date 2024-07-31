@@ -94,7 +94,8 @@ class CommandProfile(betterproto.Message):
     cpu_load: float = betterproto.float_field(2)
     """cpu load as a fraction -- 1.0 is one cpu, 2.0 is 2 cpus, etc"""
 
-    time: datetime = betterproto.message_field(3)
+    time_since_start_ms: int = betterproto.uint64_field(3)
+    """Number of milliseconds since profiling began"""
 
 
 @dataclass(eq=False, repr=False)
