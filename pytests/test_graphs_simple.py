@@ -198,6 +198,7 @@ def test_pygraph_docker_rerun(simple_docker_image):
   rule: raw_bash
   rule_args:
     cmds:
+      - "for i in $(seq 1 10); do echo $i; done"
       - '[[ 1 == 2 ]]'
     debug_cmds:
       - 'echo hello'

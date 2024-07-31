@@ -75,7 +75,10 @@ pub(crate) async fn handle_line(
     stdout: &mut File,
     avoid_message: bool,
 ) {
+    println!("");
+    println!("");
     if !avoid_message {
+        tracing::warn!("silent: {}, line: {}", avoid_message, line);
         let _handleme = tx_chan
             .send(Event::command_stdout(
                 command.name.clone(),
@@ -84,6 +87,8 @@ pub(crate) async fn handle_line(
             ))
             .await;
     }
+    println!("");
+    println!("");
     let bytes = line.as_str();
     let _unhandled = stdout.write(bytes.as_bytes()).await;
     let _unhandled = stdout.write(&[b'\n']).await;
