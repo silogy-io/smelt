@@ -10,6 +10,7 @@ use bollard::{
 };
 use bollard::container::LogOutput;
 use bollard::models::ResourcesUlimits;
+use chrono::Utc;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 use tokio::fs::File;
@@ -17,7 +18,7 @@ use tokio::fs::File;
 use smelt_core::SmeltErr;
 use smelt_data::{Event, executed_tests::ExecutedTestResult};
 use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
-use smelt_events::runtime_support::{GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
+use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
 use crate::Command;
 use crate::executor::Executor;
@@ -193,23 +194,21 @@ impl Executor for DockerExecutor {
         };
         let mut output = docker.logs(&container.id, Some(attach_options));
 
-        let sample_task = global_data.get_profiling_freq().map(|freq| {
-            let docker_clone = docker.clone();
-            let tx_clone = tx.clone();
-            let command_name_clone = command.name.clone();
-            let trace_id_clone = trace_id.clone();
-            tokio::spawn(async move {
-                profile_cmd_docker(
-                    tx_clone,
-                    docker_clone,
-                    freq,
-                    command_name_clone,
-                    trace_id_clone,
-                ).await;
-            })
+        let profile_start_time_millis: u64 = Utc::now().timestamp_millis().try_into().unwrap();
+        let docker_clone = docker.clone();
+        let tx_clone = tx.clone();
+        let command_name_clone = command.name.clone();
+        let trace_id_clone = trace_id.clone();
+        let sample_task = tokio::spawn(async move {
+            profile_cmd_docker(
+                tx_clone,
+                docker_clone,
+                command_name_clone,
+                trace_id_clone,
+                profile_start_time_millis,
+            ).await;
         });
 
-        // Stream the stdout and stderr ouput from the docker container via Event messages
         while let Some(message) = output.next().await {
             match message {
                 Ok(output) => match output {
@@ -259,9 +258,7 @@ impl Executor for DockerExecutor {
             },
         };
 
-        if let Some(task) = sample_task {
-            task.abort()
-        }
+        sample_task.abort();
 
         Ok(create_test_result(
             command.as_ref(),
