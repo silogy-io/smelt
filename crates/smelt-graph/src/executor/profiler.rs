@@ -70,6 +70,14 @@ async fn docker_sample(
     docker_client: &Docker,
     command_ref: &String,
 ) -> Option<Stats> {
+    // TODO This should return a stream of stats. AFAIK the way Docker stats
+    //  works is that the daemon constantly polls each container once per
+    //  second for statistics. The /stats/ API call, once it starts, waits for
+    //  the daemon to poll twice in order to gather data for two consecutive
+    //  ticks, and returns data from both; this is to allow the client to
+    //  compute rate-related information such as CPU load. This means that if
+    //  we set stream=False, our rate of fetching stats is limited to once
+    //  every _two_ seconds.
     let stats = docker_client.stats(&command_ref, Some(StatsOptions {
         stream: false,
         ..Default::default()
@@ -121,9 +129,6 @@ pub async fn profile_cmd_docker(
         if let Some(ref stats) = new_sample {
             match docker_stats_to_event(&trace_id, &command_ref, &stats, profile_start_time_ms) {
                 Some(event) => {
-                    println!("event: {:?}", event);
-                    println!();
-                    println!();
                     let _ = tx.send(event).await;
                 }
                 None => {}
@@ -158,9 +163,12 @@ fn docker_profile_event(
     let memory_used = match (memory_stats.usage, memory_stats.stats) {
         (None, _) => return None,
         (Some(usage), None) => usage,
+        // From https://docs.docker.com/reference/cli/docker/container/stats/:
+        // See On Docker 19.03 and older, the cache usage was defined as the
+        // value of cache field. On cgroup v2 hosts, the cache usage is defined
+        // as the value of inactive_file field.
         (Some(usage), Some(MemoryStatsStats::V1(mem_stats_v1))) => usage - mem_stats_v1.cache,
-        // TODO not sure what to do here:
-        (Some(usage), Some(MemoryStatsStats::V2(_))) => usage,
+        (Some(usage), Some(MemoryStatsStats::V2(mem_stats_v2))) => usage - mem_stats_v2.inactive_file,
     };
 
     let variant = CommandVariant::Profile(CommandProfile {
@@ -219,10 +227,7 @@ fn profile_event(
 ) -> Event {
     let variant = CommandVariant::Profile(CommandProfile {
         memory_used: sample.memory_used,
-        // TODO This can't be right? Suppose:
-        // * The subtraction yields 1 billion
-        // * It was one second since the last read
-        // Double check this!
+        // Microseconds of CPU time / microseconds of wall time
         cpu_load: ((sample.cpu_time_delta.saturating_sub(prev.cpu_time_delta)) as f32
             / NANOS_TO_MICROS as f32) as f32
             / time_since_previous_us as f32,
