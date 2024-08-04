@@ -1,6 +1,6 @@
 [project]
 name = "pysmelt"
-version = "0.5.1"
+version = "0.6.0"
 description = "smelt is a system to describe, run, and analyze integration tests"
 requires-python = ">=3.8"
 dependencies = [
@@ -38,7 +38,11 @@ typer = "^0.9.0"
 pyyaml = "^6.0.1"
 pydantic = "^2.6.0"
 toml = "^0.10.2"
-betterproto = { git = "https://github.com/danielgtaylor/python-betterproto", tag = "v.2.0.0b6", extras = ["compiler"] }
 rich = "^13.7.1"
 junitparser = "^3.1.2"
 pytest = "^8.3.1"
+
+[tool.poetry.dependencies.betterproto]
+git = "https://github.com/danielgtaylor/python-betterproto"
+tag = "v.2.0.0b6"
+extras = ["compiler"]
