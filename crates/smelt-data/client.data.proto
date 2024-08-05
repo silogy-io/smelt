@@ -61,7 +61,23 @@ enum ProfilingSelection {
 
 message CfgLocal {}
 
+// Clone of Bollard proto message Ulimit
+message Ulimit {
+  optional string name = 1;
+  optional int64 soft = 2;
+  optional int64 hard = 3;
+}
+
+enum RunMode {
+  Local = 0;
+  Remote = 1;
+}
+
 message CfgDocker {
   string image_name = 1;
   map<string, string> additional_mounts = 2;
+  repeated Ulimit ulimits = 3;
+  optional string mac_address = 4;
+  RunMode run_mode = 5;
+  string artifact_bind_directory = 6;
 }

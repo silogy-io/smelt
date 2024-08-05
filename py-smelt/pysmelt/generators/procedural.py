@@ -32,6 +32,10 @@ def dec_import_depth():
 
 @contextlib.contextmanager
 def capture_targets():
+    """
+    Patch the __post_init__ method of `Target` to append new instances of
+    Target to the yielded list.
+    """
     instances: List[Target] = []
 
     original_init = Target.__post_init__
@@ -52,10 +56,12 @@ def capture_targets():
 
 def get_procedural_targets(py_path: str) -> List[Target]:
 
-    with capture_targets() as a:
-        mod = import_procedural_testlist(py_path)
+    with capture_targets() as target_instances:
+        # Import procedural testlist py_path for the side effect of adding
+        # instances of Target to target_instances.
+        import_procedural_testlist(py_path)
 
-    return a
+    return target_instances
 
 
 def init_local_rules():

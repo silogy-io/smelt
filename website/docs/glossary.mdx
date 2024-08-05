@@ -7,7 +7,7 @@ slug: /glossary
 This is a reference for foundational concepts in smelt, that are used throughout
 the codebase and documentation
 
-### Command
+### [Command][Command]
 
 A command is the lowest level unit of work.
 
@@ -18,34 +18,19 @@ Each command describes:
 requirements of this command
 - A list of dependencies of other commands, that this command depends on
 
-### Target
+### [Target][Target]
 
-A target is python interface used to generate `Command`s. Each target can
+A target is Python interface used to generate `Command`s. Each target can
 generate up to three commands:
 
 - the default command
 - the re-run command -- is executed if the default command fails
-- the rebuild command -- is executed if a dependent target's re-run command
-fails
+- the rebuild command -- is executed prior to the re-run command if a dependent
+target's re-run command fails
 
-Test lists in smelt are composed of `Target`s, either yaml or python
+Test lists in smelt are composed of `Target`s, either yaml or Python.
 
-### Rule
-
-A rule is a common way of referring to a target definition -- this is inherited
-from the bazel and buck nomenclature
-
-### Smelt-root
-
-smelt-root is the "root" to which all smelt paths are relative. By default,
-smelt-root will be `$GIT_ROOT`
-
-### smelt path
-
-A smelt path is a unix path that is relative to `smelt-root`. In commands, the
-bash variable `$SMELT_ROOT` will be present to interpret smelt paths.
-
-### Project root
+### Project root (i.e. `$GIT_ROOT`)
 
 An alias for git root -- the path that is returned by
 `git rev-parse --show-toplevel`. Often in documentation and code, this will be
@@ -53,20 +38,21 @@ referred to as `$GIT_ROOT`
 
 ### Artifact
 
-An artifact is a file that is generated from a command executing
+An artifact is a file that is generated from a command executing.
 
 ### [Events][SmeltEvent]
 
 Events are protobuf messages that are sent by the smelt runtime when tests are
-executed that inform the state of execution for each command
+executed. Events inform clients about the state of execution for each command.
+
+### [Executors][Executors]
+
+Executors are ... 
 
 {/* prettier-ignore-start */}
 [Command]:https://github.com/silogy-io/smelt/blob/dev/py-smelt/pysmelt/interfaces/command.py
 [Target]: https://github.com/silogy-io/smelt/blob/dev/py-smelt/pysmelt/interfaces/target.py
 [SmeltEvent]: https://github.com/silogy-io/smelt/blob/dev/crates/smelt-data/data.proto
 [Executors]: https://github.com/silogy-io/smelt/blob/dev/crates/smelt-graph/executor/mod.rs
-[bazel]: https://bazel.build
-[buck2]: https://buck2.build
-[dice]: https://buck2.build
 
 {/* prettier-ignore-end */}

@@ -1,19 +1,13 @@
-from dataclasses import replace
-from pysmelt.rc import SmeltRC
+from dataclasses import replace, dataclass
 from typing import Dict
 
-from pysmelt.importer import get_all_targets, DocumentedTarget
-import pytest
-import subprocess
-from typing import Generator
-import pytest
-
-from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pysmelt.path_utils import get_git_root
-from pysmelt.interfaces import Command
-
-
 import yaml
+
+from pysmelt.importer import get_all_targets, DocumentedTarget
+from pysmelt.interfaces import Command, SmeltPath
+from pysmelt.path_utils import get_git_root
+from pysmelt.pygraph import PyGraph
+from pysmelt.rc import SmeltRC
 
 
 def get_test_rc() -> SmeltRC:
@@ -36,7 +30,16 @@ def get_test_rules() -> Dict[str, DocumentedTarget]:
 
 def create_command_list_graph(cl_name: str) -> PyGraph:
     test_list = f"{get_git_root()}/test_data/command_lists/{cl_name}"
-    lod = yaml.safe_load(open(test_list))
+    with open(test_list) as f:
+        lod = yaml.safe_load(f)
     commands = [Command.from_dict(obj) for obj in lod]
     graph = PyGraph.init_commands_only(commands)
     return graph
+
+
+@dataclass
+class MockRemoteSmeltFileStorage:
+    data: Dict[str, str]
+
+    def fetch_smelt_path(self, smelt_path: SmeltPath) -> str:
+        return self.data.get(smelt_path.to_abs_path(), "")

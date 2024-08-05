@@ -1,22 +1,23 @@
-use crate::executor::{common::handle_line, Executor};
-use dice::{DiceData, UserComputationData};
-use std::process::Stdio;
 use std::{path::PathBuf, sync::Arc};
+use std::process::Stdio;
 
-use crate::Command;
 use async_trait::async_trait;
-
-use smelt_data::{
-    executed_tests::{ExecutedTestResult, TestOutputs},
-    Event,
-};
-use smelt_events::runtime_support::{
-    GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
-};
+use dice::{DiceData, UserComputationData};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::mpsc::Sender,
 };
+
+use smelt_data::{
+    Event,
+    executed_tests::{ExecutedTestResult, TestOutputs},
+};
+use smelt_events::runtime_support::{
+    GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
+};
+
+use crate::Command;
+use crate::executor::{common::handle_line, Executor};
 
 use super::{
     common::{create_test_result, prepare_workspace, Workspace},

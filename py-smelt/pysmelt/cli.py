@@ -76,7 +76,8 @@ def lower(
     typer.echo(f"Validating: {smelt_file}")
 
     _, commands = parse_smelt(test_list=SmeltPath.from_str(str(smelt_file)))
-    yaml.dump(commands, open(output, "w"), Dumper=SafeDataclassDumper, sort_keys=False)
+    with open(output, "w") as f:
+        yaml.dump(commands, f, Dumper=SafeDataclassDumper, sort_keys=False)
 
 
 @app.command(
