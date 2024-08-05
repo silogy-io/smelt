@@ -18,6 +18,5 @@ class your_rule(Target):
 
 
 def create_rule_target_from_template(filename: str):
-    f = open(filename, "w")
-    f.write(_template_fn)
-    f.close()
+    with open(filename, "w") as f:
+        f.write(_template_fn)

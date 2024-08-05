@@ -1,22 +1,30 @@
-use crate::executor::Executor;
-use crate::Command;
-use async_trait::async_trait;
-use dice::{DiceData, UserComputationData};
-use futures::StreamExt;
-
-use smelt_data::{executed_tests::ExecutedTestResult, Event};
-
-use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 use std::{collections::HashMap, sync::Arc};
 
-use bollard::container::LogOutput;
+use anyhow::Error;
+use async_trait::async_trait;
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
     container::{Config, CreateContainerOptions, StartContainerOptions},
+    errors::Error as BollardError,
     service::HostConfig,
 };
+use bollard::container::LogOutput;
+use bollard::models::ResourcesUlimits;
+use chrono::Utc;
+use dice::{DiceData, UserComputationData};
+use futures::StreamExt;
+use tokio::fs::File;
 
-use super::common::{create_test_result, handle_line, prepare_workspace, Workspace};
+use smelt_core::SmeltErr;
+use smelt_data::{Event, executed_tests::ExecutedTestResult};
+use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
+use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
+
+use crate::Command;
+use crate::executor::Executor;
+use crate::executor::profiler::profile_cmd_docker;
+
+use super::common::{create_test_result, get_target_root, handle_line, prepare_workspace};
 
 pub struct DockerExecutor {
     docker_client: Docker,
@@ -25,25 +33,40 @@ pub struct DockerExecutor {
     /// Default mounts for the docker executor
     /// these should be in the form
     additional_mounts: HashMap<String, String>,
+    /// Additional flags to pass into the Docker run command
+    ulimits: Vec<Ulimit>,
+    mac_address: Option<String>,
+    run_mode: RunMode,
+    artifact_bind_directory: String,
 }
 
 impl DockerExecutor {
     pub fn new(
-        image_name: String,
-        additional_mounts: HashMap<String, String>,
+        cfg_docker: &CfgDocker,
     ) -> anyhow::Result<Self> {
-        let docker_client = Docker::connect_with_socket_defaults()?;
+        let docker_client = Docker::connect_with_defaults()?;
+        let run_mode = match RunMode::from_i32(cfg_docker.run_mode) {
+            Some(mode) => mode,
+            None => {
+                return Err(Error::from(SmeltErr::InvalidConfig { reason: format!("Unknown docker run_mode: {}", cfg_docker.run_mode) }))
+            }
+        };
 
         Ok(Self {
-            image_name,
+            image_name: cfg_docker.image_name.clone(),
             docker_client,
-            additional_mounts,
+            additional_mounts: cfg_docker.additional_mounts.clone(),
+            ulimits: cfg_docker.ulimits.clone(),
+            mac_address: cfg_docker.mac_address.clone(),
+            run_mode,
+            artifact_bind_directory: cfg_docker.artifact_bind_directory.clone(),
         })
     }
 }
 
 #[async_trait]
 impl Executor for DockerExecutor {
+
     async fn execute_commands(
         &self,
         command: Arc<Command>,
@@ -57,46 +80,78 @@ impl Executor for DockerExecutor {
         let root = global_data.get_smelt_root();
         let root_as_str = root
             .to_str()
-            .expect("Smelt root couldnt be converted to string ")
-            .to_string();
+            .expect("Smelt root couldnt be converted to string ");
 
         let command_default_dir = command.working_dir.clone();
         let silent = global_data.get_smelt_cfg().silent;
 
         // "Prepares" the workspace for this command -- creates a directory at path
         // {SMELT_ROOT}/smelt-out/{COMMAND_NAME}
-        let Workspace {
-            script_file,
-            mut stdout,
-        } = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
+        let mut stdout = File::open("/dev/null").await?;
 
-        // The "default" bind mount for all commands is smelt root -- in expectation, this should
-        // mount the git root in to the container, at the same path as it has on the host
-        // filesystem
-        let base_binds = vec![format!("{}:{}", root_as_str, root_as_str)];
-        let binds = self
-            .additional_mounts
-            .iter()
-            .fold(base_binds, |mut val, b| {
-                val.push(format!("{}:{}", b.0, b.1));
-
-                val
-            });
-
-        let cmd = vec![shell.to_string(), script_file.to_str().unwrap().to_string()];
+        let cmd = match self.run_mode {
+            RunMode::Local => {
+                let workspace = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
+                stdout = workspace.stdout;
+                vec![shell.to_string(), workspace.script_file.to_str().unwrap().to_string()]
+            }
+            RunMode::Remote => {
+                // Create the target root before running any commands
+                let mut sub_command = vec![
+                    format!("mkdir -p {}", get_target_root(root_as_str, &command.name))
+                ];
+                sub_command.append(&mut command.script.clone());
+                vec![
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    sub_command.join(" && "),
+                ]
+            }
+        };
 
         // we can derive platform info from inspecting the image, but we don't need to do that
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
-        let binds = if !binds.is_empty() { Some(binds) } else { None };
+        let artifact_bind = format!("{}:{}", format!("{}/{}", &self.artifact_bind_directory, &command.name), "/tmp/artifacts/");
+
+        let binds = match self.run_mode {
+            RunMode::Local => {
+                // The "default" bind mount for all commands is smelt root -- in expectation, this should
+                // mount the git root in to the container, at the same path as it has on the host
+                // filesystem
+                let base_binds = vec![format!("{}:{}", root_as_str, root_as_str), artifact_bind];
+                Some(self
+                    .additional_mounts
+                    .iter()
+                    .fold(base_binds, |mut val, b| {
+                        val.push(format!("{}:{}", b.0, b.1));
+                        val
+                    }))
+            }
+            RunMode::Remote => Some(vec![artifact_bind])
+        };
+
+        let ulimits = self.ulimits.iter().map(|ulimit| {
+                ResourcesUlimits {
+                    name: ulimit.name.clone(),
+                    soft: ulimit.soft,
+                    hard: ulimit.hard,
+                }
+        }).collect::<Vec<_>>();
 
         // Define the container options
         let container_config: Config<String> = Config {
             image: Some(self.image_name.clone()),
-            working_dir: Some(root_as_str),
+            working_dir: Some(root_as_str.to_string()),
             cmd: Some(cmd),
+            env: Some(vec![
+                format!("SMELT_ROOT={}", root_as_str),
+                format!("TARGET_ROOT={}", get_target_root(root_as_str, &command.name)),
+            ]),
+            mac_address: self.mac_address.clone(),
             host_config: Some(HostConfig {
                 binds,
+                ulimits: Some(ulimits),
                 ..Default::default()
             }),
 
@@ -139,7 +194,21 @@ impl Executor for DockerExecutor {
         };
         let mut output = docker.logs(&container.id, Some(attach_options));
 
-        // Stream the stdout and stderr ouput from the docker container via Event messages
+        let profile_start_time_millis: u64 = Utc::now().timestamp_millis().try_into().unwrap();
+        let docker_clone = docker.clone();
+        let tx_clone = tx.clone();
+        let command_name_clone = command.name.clone();
+        let trace_id_clone = trace_id.clone();
+        let sample_task = tokio::spawn(async move {
+            profile_cmd_docker(
+                tx_clone,
+                docker_clone,
+                command_name_clone,
+                trace_id_clone,
+                profile_start_time_millis,
+            ).await;
+        });
+
         while let Some(message) = output.next().await {
             match message {
                 Ok(output) => match output {
@@ -170,16 +239,30 @@ impl Executor for DockerExecutor {
             }
         }
 
-        // get status code from the container, which should be exited at this point
-        let status_code = docker
-            .inspect_container(container_name.as_str(), None)
-            .await?
-            .state
-            .and_then(|state| state.exit_code)
-            .unwrap_or(1) as i32;
+        // Need to explicitly wait for container to exit. The closing of output is not a reliable
+        // signal for the container having exited.
+        let status_code = match docker.wait_container::<&str>(container_name.as_str(), None).next().await {
+            Some(Ok(response)) => response.status_code,
+            Some(Err(BollardError::DockerContainerWaitError { error: _, code })) => {
+                // This is how wait_container returns a non-zero exit code from the container, as
+                // well as if waiting for the container returned an error.
+                code
+            },
+            Some(Err(e)) => {
+                tracing::error!("Unhandled error from docker wait: {}", e);
+                1
+            },
+            None => {
+                tracing::error!("Container {} returned no exit code", container_name);
+                1
+            },
+        };
+
+        sample_task.abort();
+
         Ok(create_test_result(
             command.as_ref(),
-            status_code,
+            status_code.try_into().unwrap(),
             global_data,
         ))
     }

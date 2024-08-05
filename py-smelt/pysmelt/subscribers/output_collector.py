@@ -182,8 +182,9 @@ class RenderableTree(RenderableColumn):
 def get_logs_from_command_name(command_name: str, num_lines_tail: int = 3) -> str:
     root = SmeltRcHolder.current_rc().smelt_root
     try:
-        log = open(f"{root}/smelt-out/{command_name}/command.out", "r")
-        return "\n".join(collections.deque(log, num_lines_tail))
+        with open(f"{root}/smelt-out/{command_name}/command.out", "r") as f:
+            lines = collections.deque(f, num_lines_tail)
+        return "\n".join(lines)
     except Exception as e:
         return f"Could not read {command_name}'s log"
 

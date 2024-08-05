@@ -4,7 +4,11 @@ from typing import List, TypedDict, Dict, Type, Optional
 from pysmelt.interfaces import Target
 from pathlib import Path
 from pysmelt.interfaces.command import Command
-from pysmelt.interfaces.paths import TempTarget
+from pysmelt.interfaces.paths import (
+    TempTarget,
+    SmeltPathFetcher,
+    local_smelt_path_fetcher,
+)
 from pysmelt.rc import SmeltRC
 from pysmelt.path_utils import get_git_root
 import sys

@@ -149,7 +149,8 @@ class InvocationBuilder:
     def write_invocation_and_junit(self):
         try:
             inv_obj = self.create_invocation_object().SerializeToString()
-            open(most_recent_invoke_path().to_abs_path(), ("wb")).write(inv_obj)
+            with open(most_recent_invoke_path().to_abs_path(), "wb") as f:
+                f.write(inv_obj)
             xml = self.create_junit()
             xml.write(most_recent_junit_path().to_abs_path(), pretty=True)
         except Exception as e:
