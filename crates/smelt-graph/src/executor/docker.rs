@@ -13,6 +13,8 @@ use bollard::models::ResourcesUlimits;
 use chrono::Utc;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use tokio::fs::File;
 
 use smelt_core::SmeltErr;
@@ -160,7 +162,17 @@ impl Executor for DockerExecutor {
 
         // TODO: we will probably need to inspect the image and set the platform for robust macos support
         let platform = None;
-        let container_name = command.name.clone();
+        // 11 * lg(62) = 65.5 bits of randomness. According to
+        // https://en.wikipedia.org/wiki/Birthday_problem#Probability_table
+        // the probability of a collision for one million samples is less than one in a million
+        let suffix_length = 11;
+        let container_name_prefix: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(suffix_length)
+            .map(char::from)
+            .collect();
+
+        let container_name = format!("{}_{}", command.name, container_name_prefix);
 
         let _ = docker.remove_container(container_name.as_ref(), None).await;
         // Create the container
