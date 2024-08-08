@@ -226,17 +226,16 @@ impl Executor for DockerExecutor {
             match message {
                 Ok(output) => match output {
                     LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
-                        if let Ok(line) = String::from_utf8(message.to_vec()) {
-                            handle_line(
-                                command.as_ref(),
-                                line,
-                                trace_id.clone(),
-                                &tx,
-                                &mut stdout,
-                                silent,
-                            )
-                            .await;
-                        }
+                        let line = String::from_utf8_lossy(&*message);
+                        handle_line(
+                            command.as_ref(),
+                            line.to_string(),
+                            trace_id.clone(),
+                            &tx,
+                            &mut stdout,
+                            silent,
+                        )
+                        .await;
                     }
 
                     // From looking at the code, console messages are docker telemetry that come
