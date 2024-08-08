@@ -1,28 +1,36 @@
 [project]
 name = "pysmelt"
-version = "0.7.0"
+version = "0.7.1"
 description = "smelt is a system to describe, run, and analyze integration tests"
 requires-python = ">=3.8"
-dependencies = [ "typer>=0.9.0", "pyyaml>=6.0.1", "pydantic>=2.6.0", "toml>=0.10.2", "betterproto[compiler]==2.0.0b6", "rich>=13.7.1", "junitparser>=3.1.2",]
+dependencies = [
+  "typer>=0.9.0",
+  "pyyaml>=6.0.1",
+  "pydantic>=2.6.0",
+  "toml>=0.10.2",
+  "betterproto[compiler]==2.0.0b6",
+  "rich>=13.7.1",
+  "junitparser>=3.1.2",
+]
 [[project.authors]]
 name = "James Connolly"
 email = "james@silogy.io"
 
 [build-system]
-requires = [ "maturin>=1.5,<2.0",]
+requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
 [project.scripts]
 smelt = "pysmelt.cli:main"
 
 [tool.maturin]
-features = [ "pyo3/extension-module",]
+features = ["pyo3/extension-module"]
 
 [tool.poetry]
 name = "pysmelt"
 version = "0.5.1"
 description = "smelt is a system to describe, run, and analyze integration tests"
-authors = [ "James Connolly <james@silogy.io>",]
+authors = ["James Connolly <james@silogy.io>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -37,4 +45,4 @@ pytest = "^8.3.1"
 [tool.poetry.dependencies.betterproto]
 git = "https://github.com/danielgtaylor/python-betterproto"
 tag = "v.2.0.0b6"
-extras = [ "compiler",]
+extras = ["compiler"]
