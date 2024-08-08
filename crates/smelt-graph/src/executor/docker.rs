@@ -202,6 +202,7 @@ impl Executor for DockerExecutor {
         let attach_options: LogsOptions<String> = LogsOptions {
             stdout: true,
             stderr: true,
+            follow: true,
             ..LogsOptions::default()
         };
         let mut output = docker.logs(&container.id, Some(attach_options));
