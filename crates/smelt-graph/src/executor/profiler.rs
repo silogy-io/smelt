@@ -118,13 +118,14 @@ fn docker_stats_to_event(
 pub async fn profile_cmd_docker(
     tx: Sender<Event>,
     docker_client: Docker,
+    container_name: &String,
     command_ref: String,
     trace_id: String,
     profile_start_time_ms: u64,
 ) {
     loop {
         // TODO This should instead use the streaming version of the stats endpoint
-        let new_sample = docker_sample(&docker_client, &command_ref).await;
+        let new_sample = docker_sample(&docker_client, container_name).await;
 
         if let Some(ref stats) = new_sample {
             match docker_stats_to_event(&trace_id, &command_ref, &stats, profile_start_time_ms) {

@@ -197,18 +197,10 @@ impl Executor for DockerExecutor {
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await?;
 
-        // attach to docker logs -- this will also pick up any output that was emitted between the
-        // container being started and the "attaching"
-        let attach_options: LogsOptions<String> = LogsOptions {
-            stdout: true,
-            stderr: true,
-            follow: true,
-            ..LogsOptions::default()
-        };
-        let mut output = docker.logs(&container.id, Some(attach_options));
 
         let profile_start_time_millis: u64 = Utc::now().timestamp_millis().try_into().unwrap();
         let docker_clone = docker.clone();
+        let container_name_clone = container_name.clone();
         let tx_clone = tx.clone();
         let command_name_clone = command.name.clone();
         let trace_id_clone = trace_id.clone();
@@ -216,40 +208,53 @@ impl Executor for DockerExecutor {
             profile_cmd_docker(
                 tx_clone,
                 docker_clone,
+                &container_name_clone,
                 command_name_clone,
                 trace_id_clone,
                 profile_start_time_millis,
             ).await;
         });
 
-        while let Some(message) = output.next().await {
-            match message {
-                Ok(output) => match output {
-                    LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
-                        let line = String::from_utf8_lossy(&*message);
-                        handle_line(
-                            command.as_ref(),
-                            line.to_string(),
-                            trace_id.clone(),
-                            &tx,
-                            &mut stdout,
-                            silent,
-                        )
-                        .await;
-                    }
-
-                    // From looking at the code, console messages are docker telemetry that come
-                    // from decoding messages from the docker socket
-                    LogOutput::Console { message } => {
-                        if let Ok(line) = String::from_utf8(message.to_vec()) {
-                            eprintln!("Not handling console output right now: {}", line)
+        let command_clone = command.clone();
+        let docker_clone = docker.clone();
+        let log_task = tokio::spawn(async move {
+            // attach to docker logs -- this will also pick up any output that was emitted between the
+            // container being started and the "attaching"
+            let attach_options: LogsOptions<String> = LogsOptions {
+                stdout: true,
+                stderr: true,
+                follow: true,
+                ..LogsOptions::default()
+            };
+            let mut output = docker_clone.logs(&container.id, Some(attach_options));
+            while let Some(message) = output.next().await {
+                match message {
+                    Ok(output) => match output {
+                        LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
+                            let line = String::from_utf8_lossy(&*message);
+                            handle_line(
+                                &command_clone,
+                                line.to_string(),
+                                trace_id.clone(),
+                                &tx,
+                                &mut stdout,
+                                silent,
+                            ).await;
                         }
-                    }
-                    LogOutput::StdIn { message: _ } => {}
-                },
-                Err(e) => eprintln!("Error: {}", e),
-            }
-        }
+
+                        // From looking at the code, console messages are docker telemetry that come
+                        // from decoding messages from the docker socket
+                        LogOutput::Console { message } => {
+                            if let Ok(line) = String::from_utf8(message.to_vec()) {
+                                eprintln!("Not handling console output right now: {}", line)
+                            }
+                        }
+                        LogOutput::StdIn { message: _ } => {}
+                    },
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+            };
+        });
 
         // Need to explicitly wait for container to exit. The closing of output is not a reliable
         // signal for the container having exited.
@@ -270,6 +275,7 @@ impl Executor for DockerExecutor {
             },
         };
 
+        log_task.abort();
         sample_task.abort();
 
         Ok(create_test_result(
