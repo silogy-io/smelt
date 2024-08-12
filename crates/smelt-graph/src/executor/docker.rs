@@ -197,14 +197,6 @@ impl Executor for DockerExecutor {
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await?;
 
-        // attach to docker logs -- this will also pick up any output that was emitted between the
-        // container being started and the "attaching"
-        let attach_options: LogsOptions<String> = LogsOptions {
-            stdout: true,
-            stderr: true,
-            follow: true,
-            ..LogsOptions::default()
-        };
 
         let profile_start_time_millis: u64 = Utc::now().timestamp_millis().try_into().unwrap();
         let docker_clone = docker.clone();
@@ -221,22 +213,31 @@ impl Executor for DockerExecutor {
             ).await;
         });
 
+        let command_clone = command.clone();
+        let docker_clone = docker.clone();
         let log_task = tokio::spawn(async move {
-            let mut output = docker.logs(&container.id, Some(attach_options));
+            // attach to docker logs -- this will also pick up any output that was emitted between the
+            // container being started and the "attaching"
+            let attach_options: LogsOptions<String> = LogsOptions {
+                stdout: true,
+                stderr: true,
+                follow: true,
+                ..LogsOptions::default()
+            };
+            let mut output = docker_clone.logs(&container.id, Some(attach_options));
             while let Some(message) = output.next().await {
                 match message {
                     Ok(output) => match output {
                         LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
                             let line = String::from_utf8_lossy(&*message);
                             handle_line(
-                                command.as_ref(),
+                                &command_clone,
                                 line.to_string(),
                                 trace_id.clone(),
                                 &tx,
                                 &mut stdout,
                                 silent,
-                            )
-                                .await;
+                            ).await;
                         }
 
                         // From looking at the code, console messages are docker telemetry that come
@@ -250,8 +251,7 @@ impl Executor for DockerExecutor {
                     },
                     Err(e) => eprintln!("Error: {}", e),
                 }
-            }
-
+            };
         });
 
         // Need to explicitly wait for container to exit. The closing of output is not a reliable
