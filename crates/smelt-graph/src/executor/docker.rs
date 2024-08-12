@@ -200,6 +200,7 @@ impl Executor for DockerExecutor {
 
         let profile_start_time_millis: u64 = Utc::now().timestamp_millis().try_into().unwrap();
         let docker_clone = docker.clone();
+        let container_name_clone = container_name.clone();
         let tx_clone = tx.clone();
         let command_name_clone = command.name.clone();
         let trace_id_clone = trace_id.clone();
@@ -207,6 +208,7 @@ impl Executor for DockerExecutor {
             profile_cmd_docker(
                 tx_clone,
                 docker_clone,
+                &container_name_clone,
                 command_name_clone,
                 trace_id_clone,
                 profile_start_time_millis,
