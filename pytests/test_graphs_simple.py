@@ -3,7 +3,6 @@ import subprocess
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Generator
 
-import betterproto
 import pytest
 import yaml
 
@@ -17,9 +16,7 @@ from pysmelt.proto.smelt_client.commands import (
     Ulimit,
     RunMode,
 )
-from pysmelt.proto.smelt_telemetry import Event
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pysmelt.subscribers import SmeltSub
 from pytests.common import MockRemoteSmeltFileStorage
 
 
@@ -106,19 +103,21 @@ def test_sanity_pygraph_docker(simple_docker_image):
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
 
-    graph = create_graph_with_docker(
-        test_list,
-        CfgDocker(
-            image_name=simple_docker_image,
-            additional_mounts={},
-            ulimits=[],
-            mac_address=None,
-        ),
-    )
+    with TemporaryDirectory() as dir_name:
+        graph = create_graph_with_docker(
+            test_list,
+            CfgDocker(
+                image_name=simple_docker_image,
+                additional_mounts={},
+                ulimits=[],
+                mac_address=None,
+                artifact_bind_directory=dir_name,
+            ),
+        )
 
-    expected_passed = 3
+        expected_passed = 3
 
-    graph.run_all_typed_commands("test")
+        graph.run_all_typed_commands("test")
     passed_commands = graph.retcode_tracker.total_passed()
     assert (
         passed_commands == expected_passed
@@ -141,16 +140,18 @@ def test_pygraph_docker_mac_addr(simple_docker_image):
         """
         )
         tmp_file.flush()
-        graph = create_graph_with_docker(
-            tmp_file.name,
-            CfgDocker(
-                image_name=simple_docker_image,
-                additional_mounts={},
-                ulimits=[],
-                mac_address=mac_address,
-            ),
-        )
-        graph.run_all_commands()
+        with TemporaryDirectory() as dir_name:
+            graph = create_graph_with_docker(
+                tmp_file.name,
+                CfgDocker(
+                    image_name=simple_docker_image,
+                    additional_mounts={},
+                    ulimits=[],
+                    mac_address=mac_address,
+                    artifact_bind_directory=dir_name,
+                ),
+            )
+            graph.run_all_commands()
         assert graph.retcode_tracker.total_passed() == 1
 
 
@@ -174,16 +175,18 @@ def test_pygraph_docker_ulimit(simple_docker_image):
 """
         )
         tmp_file.flush()
-        graph = create_graph_with_docker(
-            tmp_file.name,
-            CfgDocker(
-                image_name=simple_docker_image,
-                additional_mounts={},
-                ulimits=[Ulimit(name="stack", soft=67108880, hard=67108880)],
-                mac_address=None,
-            ),
-        )
-        graph.run_all_commands()
+        with TemporaryDirectory() as dir_name:
+            graph = create_graph_with_docker(
+                tmp_file.name,
+                CfgDocker(
+                    image_name=simple_docker_image,
+                    additional_mounts={},
+                    ulimits=[Ulimit(name="stack", soft=67108880, hard=67108880)],
+                    mac_address=None,
+                    artifact_bind_directory=dir_name,
+                ),
+            )
+            graph.run_all_commands()
         assert graph.retcode_tracker.total_passed() == 2
 
 
