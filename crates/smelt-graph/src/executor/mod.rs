@@ -10,6 +10,8 @@ mod common;
 #[cfg(feature = "docker")]
 mod docker;
 mod local;
+mod remote;
+
 mod profiler;
 
 use async_trait::async_trait;

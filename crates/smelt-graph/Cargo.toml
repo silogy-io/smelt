@@ -10,6 +10,7 @@ edition.workspace = true
 smelt-core = { workspace = true }
 smelt-events = { workspace = true }
 smelt-data = { workspace = true }
+smelt-slurm = { path = "../smelt-slurm", artifact = "bin" }
 anyhow = { workspace = true }
 dice = { workspace = true }
 allocative = { workspace = true }
@@ -24,6 +25,8 @@ async-trait = { workspace = true }
 fuzzy-matcher = { workspace = true }
 pythonize = { workspace = true }
 static_interner = { workspace = true }
+tonic = { workspace = true }
+
 
 serde_json = { workspace = true }
 tokio-stream = "0.1.15"
@@ -35,6 +38,8 @@ hex.workspace = true
 libproc = "0.14.8"
 tracing = { workspace = true }
 rand = "0.7.3"
+tempfile = "3.12.0"
+scc = "2.1.14"
 
 
 [target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dependencies]

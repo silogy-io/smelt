@@ -3,6 +3,17 @@ syntax = "proto3";
 package smelt_telemetry;
 import "google/protobuf/timestamp.proto";
 import "executed_tests.proto";
+import "google/protobuf/empty.proto";
+
+
+
+service EventListener {
+  // Sends an Event to the server.
+  rpc SendEvent (Event) returns (google.protobuf.Empty) {}
+  rpc SendOutputs(executed_tests.TestResult) returns (google.protobuf.Empty) {}
+}
+
+
 
 // Event flows from server -> client only
 message Event {

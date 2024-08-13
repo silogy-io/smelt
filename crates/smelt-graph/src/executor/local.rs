@@ -1,5 +1,5 @@
-use std::{path::PathBuf, sync::Arc};
 use std::process::Stdio;
+use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
@@ -9,15 +9,15 @@ use tokio::{
 };
 
 use smelt_data::{
-    Event,
     executed_tests::{ExecutedTestResult, TestOutputs},
+    Event,
 };
 use smelt_events::runtime_support::{
-    GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, LockSemaphore,
+    GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, SlotController,
 };
 
-use crate::Command;
 use crate::executor::{common::handle_line, Executor};
+use crate::Command;
 
 use super::{
     common::{create_test_result, prepare_workspace, Workspace},
@@ -38,12 +38,11 @@ impl Executor for LocalExecutor {
         let local_command = command;
         let trace_id = dd.get_trace_id();
         let root = global_data.get_smelt_root();
-        let command_default_dir = local_command.working_dir.clone();
+
         let rv = execute_local_command(
             local_command.as_ref(),
             trace_id.clone(),
             tx.clone(),
-            command_default_dir,
             root,
             global_data,
         )
@@ -57,12 +56,11 @@ async fn execute_local_command(
     command: &Command,
     trace_id: String,
     tx_chan: Sender<Event>,
-    command_working_dir: PathBuf,
     root: PathBuf,
     global_data: &DiceData,
 ) -> anyhow::Result<TestOutputs> {
     let silent = global_data.get_smelt_cfg().silent;
-    let _sem = global_data.lock_sem(command.runtime.num_cpus).await;
+    let _sem = global_data.acquire_slots(command.runtime.num_cpus).await;
     let shell = "bash";
     let _handle_me = tx_chan
         .send(Event::command_started(
@@ -75,7 +73,7 @@ async fn execute_local_command(
         script_file,
         mut stdout,
         ..
-    } = prepare_workspace(command, root.clone(), command_working_dir.as_path()).await?;
+    } = prepare_workspace(command, root.clone(), command.working_dir.as_path()).await?;
 
     let mut commandlocal = tokio::process::Command::new(shell);
 
@@ -103,8 +101,6 @@ async fn execute_local_command(
             ))
         })
     });
-
-    //let sample_task = ;
 
     let cstatus: TestOutputs = loop {
         tokio::select!(
