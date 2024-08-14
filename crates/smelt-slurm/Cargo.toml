@@ -8,7 +8,7 @@ edition.workspace = true
 
 [dependencies]
 smelt-core = { workspace = true }
-smelt-events = { workspace = true }
+
 smelt-data = { workspace = true }
 anyhow = { workspace = true }
 tonic = { workspace = true }

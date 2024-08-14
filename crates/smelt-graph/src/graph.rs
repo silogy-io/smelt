@@ -540,6 +540,7 @@ impl CommandGraph {
     ) -> Result<(), SmeltErr> {
         let tt = TargetType::from_str(maybe_type.as_str())?;
         let tx = self.start_tx(event_streamer).await?;
+
         let refs = self
             .all_commands
             .iter()
@@ -726,10 +727,10 @@ mod tests {
             let mut rv = vec![];
             loop {
                 if let Some(val) = self.rx_chan.recv().await {
+                    rv.push(val.clone());
                     if val.finished_event() {
                         break;
                     }
-                    rv.push(val);
                 }
             }
             rv
@@ -764,7 +765,16 @@ mod tests {
         execute_all_tests_in_file(graph, yaml_path).await
     }
 
-    async fn execute_all_tests_in_file(graph: CommandGraph, yaml_path: String) {
+    async fn remote_execute_tests(yaml_path: &'static str) {
+        let yaml_path = manifest_rel_path(yaml_path);
+        let (_tx, rx) = unbounded_channel();
+        let graph = CommandGraph::new_remote(rx, testing_cfg(yaml_path.clone()))
+            .await
+            .unwrap();
+        execute_all_tests_in_file(graph, yaml_path).await
+    }
+
+    async fn execute_all_tests_in_file(mut graph: CommandGraph, yaml_path: String) {
         let mut yaml_data = String::new();
 
         let _ = File::open(Path::new(&yaml_path))
@@ -776,6 +786,7 @@ mod tests {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data.as_str());
 
         let _script = script.unwrap();
+        graph.set_commands(_script).await;
 
         let (tx, rx_handle) = channel(100);
 
@@ -799,6 +810,13 @@ mod tests {
         let yaml_path = "test_data/command_lists/cl1.yaml";
 
         local_execute_tests(yaml_path).await
+    }
+
+    #[tokio::test]
+    async fn dependency_less_exec_remote() {
+        let yaml_path = "test_data/command_lists/cl1.yaml";
+
+        remote_execute_tests(yaml_path).await
     }
 
     #[tokio::test]

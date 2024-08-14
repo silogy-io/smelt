@@ -77,6 +77,7 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
+
         let _val = self.tx_chan.send(val).await;
         Ok(Response::new(()))
     }
@@ -89,6 +90,7 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         match v {
             None => {
                 tracing::error!("Missing entry in the remote server!");
+                panic!();
             }
             Some(entry) => {
                 let _ = entry.1.send(val);
@@ -124,7 +126,7 @@ impl Executor for RemoteExecutor {
             connections: connections.clone(),
         };
 
-        let addr = format!("0.0.0.0:{port}")
+        let addr = format!("127.0.0.1:{port}")
             .to_socket_addrs()
             .unwrap()
             .next()
@@ -138,6 +140,7 @@ impl Executor for RemoteExecutor {
                 .await
                 .unwrap();
         });
+
         let pertx = PerTxRemoteState {
             connections,
             server_addr: addr,
@@ -164,15 +167,22 @@ impl Executor for RemoteExecutor {
         let _ = pertxstate.connections.insert(command.name.clone(), sender);
 
         let mut commandlocal = tokio::process::Command::new(self.binary_path.path());
-        commandlocal.args([
-            format!("--comand_path {}", script_file.to_string_lossy()),
-            format!("--comand_name {}", command.name),
-            format!("--trace_id {}", trace_id),
-            format!("--host {}", pertxstate.server_addr.to_string()),
-        ]);
+        let arrrggs = [
+            "--command-path".to_string(),
+            script_file.to_string_lossy().to_string(),
+            "--command-name".to_string(),
+            command.name.clone(),
+            "--trace-id".to_string(),
+            trace_id,
+            "--host".to_string(),
+            format!("http://{}", pertxstate.server_addr.to_string()),
+        ];
+
+        commandlocal.args(arrrggs);
         let handle = commandlocal.spawn().expect("Could not spawn!");
 
         let output = rcv.await?;
+
         Ok(create_test_result(
             command,
             output

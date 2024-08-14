@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use argh::FromArgs;
 use smelt_slurm::execute_command;
 
-#[derive(FromArgs)]
+#[derive(FromArgs, Debug)]
 /// Worker args
 struct WorkerArgs {
     #[argh(option)]
@@ -25,6 +25,7 @@ struct WorkerArgs {
 
 fn main() {
     let args: WorkerArgs = argh::from_env();
+
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -39,11 +40,12 @@ fn main() {
 
     println!("Starting...");
 
-    let val = rt.block_on(execute_command(
-        command_name.as_str(),
-        command_path,
-        trace_id,
-        host,
-    ));
-    println!("Done!");
+    let val = rt
+        .block_on(execute_command(
+            command_name.as_str(),
+            command_path,
+            trace_id,
+            host,
+        ))
+        .expect("There was a failure executing the command!");
 }

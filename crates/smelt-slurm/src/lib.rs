@@ -48,7 +48,7 @@ pub async fn execute_command(
             command_name.to_string(),
             trace_id.clone(),
         ))
-        .await;
+        .await?;
     let stdout = script_file.parent().unwrap().join(Command::stdout_file());
 
     let mut stdout = File::create(&stdout).await?;
