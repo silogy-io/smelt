@@ -8,33 +8,33 @@ use dice::{
     DiceTransactionUpdater, Key, UserComputationData,
 };
 use dupe::Dupe;
+use futures::FutureExt;
 use futures::{
     future::{self, BoxFuture},
     stream::FuturesUnordered,
     StreamExt,
 };
-use futures::FutureExt;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use smelt_core::CommandDefPath;
 use smelt_core::SmeltErr;
 use smelt_data::{
-    client_commands::{*, client_command::ClientCommands, client_resp::ClientResponses},
+    client_commands::{client_command::ClientCommands, client_resp::ClientResponses, *},
     executed_tests::ExecutedTestResult,
 };
 use smelt_events::{
     self,
-    ClientCommandBundle,
-    Event, runtime_support::{
+    runtime_support::{
         GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
     },
+    ClientCommandBundle, Event,
 };
 
 use crate::{
-    CommandDependency,
     commands::{Command, TargetType},
     executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
     utils::invoke_start_message,
+    CommandDependency,
 };
 
 #[derive(Clone, Dupe, PartialEq, Eq, Hash, Display, Debug, Allocative)]
@@ -382,8 +382,7 @@ impl CommandGraph {
             Some(ref exec_val) => match exec_val {
                 configure_smelt::InitExecutor::Local(_) => Arc::new(LocalExecutor {}),
                 configure_smelt::InitExecutor::Docker(docker_cfg) => Arc::new(
-                    DockerExecutor::new(docker_cfg)
-                    .expect("Could not create docker executor"),
+                    DockerExecutor::new(docker_cfg).expect("Could not create docker executor"),
                 ),
             },
             None => Arc::new(LocalExecutor {}),
@@ -516,10 +515,14 @@ impl CommandGraph {
 
     async fn start_tx(&self, tx: Sender<Event>) -> Result<DiceTransaction, SmeltErr> {
         let ctx = self.dice.updater();
+        let executor = ctx.existing_state().await.global_data().get_executor();
+
         let mut data = UserComputationData::new();
 
         data.init_trace_id();
         data.set_tx_channel(tx);
+        executor.init_per_tx_state(&mut data).await;
+
         let tx = ctx.commit_with_data(data).await;
         let val = tx.per_transaction_data().get_tx_channel();
         // todo -- handle err
@@ -677,15 +680,42 @@ pub fn spawn_graph_server(cfg: ConfigureSmelt) -> SmeltServerHandle {
 
 #[cfg(test)]
 mod tests {
+
     use std::path::Path;
 
     use tokio::{
         fs::File,
         io::AsyncReadExt,
-        sync::mpsc::{channel, Receiver, unbounded_channel},
+        sync::mpsc::{channel, unbounded_channel, Receiver},
     };
 
+    use crate::executor::RemoteExecutor;
+
     use super::*;
+
+    impl CommandGraph {
+        pub async fn new_remote(
+            rx_chan: UnboundedReceiver<ClientCommandBundle>,
+            cfg: ConfigureSmelt,
+        ) -> Result<Self, SmeltErr> {
+            let executor: Arc<dyn Executor> = Arc::new(RemoteExecutor::new().await);
+
+            let mut dice_builder = Dice::builder();
+            dice_builder.set_smelt_cfg(cfg);
+            dice_builder.set_executor(executor);
+
+            let dice = dice_builder.build(DetectCycles::Enabled);
+
+            let graph = CommandGraph {
+                dice,
+                rx_chan,
+                all_commands: vec![],
+            };
+
+            tracing::trace!("Successfully made graph!");
+            Ok(graph)
+        }
+    }
 
     struct TestGraphHandle {
         rx_chan: Receiver<Event>,
@@ -725,8 +755,16 @@ mod tests {
         }
     }
 
-    async fn execute_all_tests_in_file(yaml_path: &'static str) {
+    async fn local_execute_tests(yaml_path: &'static str) {
         let yaml_path = manifest_rel_path(yaml_path);
+        let (_tx, rx) = unbounded_channel();
+        let graph = CommandGraph::new(rx, testing_cfg(yaml_path.clone()))
+            .await
+            .unwrap();
+        execute_all_tests_in_file(graph, yaml_path).await
+    }
+
+    async fn execute_all_tests_in_file(graph: CommandGraph, yaml_path: String) {
         let mut yaml_data = String::new();
 
         let _ = File::open(Path::new(&yaml_path))
@@ -738,10 +776,9 @@ mod tests {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data.as_str());
 
         let _script = script.unwrap();
-        let (_tx, rx) = unbounded_channel();
+
         let (tx, rx_handle) = channel(100);
 
-        let graph = CommandGraph::new(rx, testing_cfg(yaml_path)).await.unwrap();
         let mut gh = TestGraphHandle { rx_chan: rx_handle };
         graph
             .run_all_typed("test".to_string(), tx.clone())
@@ -761,18 +798,18 @@ mod tests {
     async fn dependency_less_exec() {
         let yaml_path = "test_data/command_lists/cl1.yaml";
 
-        execute_all_tests_in_file(yaml_path).await
+        local_execute_tests(yaml_path).await
     }
 
     #[tokio::test]
     async fn test_with_deps() {
         let yaml_path = "test_data/command_lists/cl2.yaml";
-        execute_all_tests_in_file(yaml_path).await
+        local_execute_tests(yaml_path).await
     }
 
     #[tokio::test]
     async fn test_with_intraphase_deps() {
         let yaml_path = "test_data/command_lists/cl3.yaml";
-        execute_all_tests_in_file(yaml_path).await
+        local_execute_tests(yaml_path).await
     }
 }
