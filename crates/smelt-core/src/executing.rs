@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::Command;
 
-use tokio::{fs::File, io::AsyncWriteExt, sync::mpsc::Sender};
+use tokio::{fs::File, io::AsyncWriteExt};
 
 pub struct Workspace {
     pub script_file: PathBuf,

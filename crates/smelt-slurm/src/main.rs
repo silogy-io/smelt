@@ -38,14 +38,11 @@ fn main() {
         trace_id,
     } = args;
 
-    println!("Starting...");
-
-    let val = rt
-        .block_on(execute_command(
-            command_name.as_str(),
-            command_path,
-            trace_id,
-            host,
-        ))
-        .expect("There was a failure executing the command!");
+    rt.block_on(execute_command(
+        command_name.as_str(),
+        command_path,
+        trace_id,
+        host,
+    ))
+    .expect("There was a failure executing the command!");
 }

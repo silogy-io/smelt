@@ -1,36 +1,29 @@
+use std::sync::Arc;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     os::unix::fs::PermissionsExt,
-    process::Stdio,
 };
-use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use scc::HashMap;
-use tempfile::{tempfile, NamedTempFile};
+use tempfile::NamedTempFile;
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
     sync::{mpsc::Sender, oneshot},
     task::JoinHandle,
 };
-use tonic::{transport::Server, Request, Response, Status, Streaming};
+use tonic::{transport::Server, Response};
 
 use smelt_data::{
-    executed_tests::{ExecutedTestResult, TestOutputs, TestResult},
+    executed_tests::{ExecutedTestResult, TestResult},
     Event,
 };
-use smelt_events::runtime_support::{
-    GetProfilingFreq, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, SlotController,
-};
+use smelt_events::runtime_support::{GetSmeltRoot, GetTraceId, GetTxChannel};
 
-use crate::executor::{common::handle_line, Executor};
+use crate::executor::Executor;
 use crate::Command;
 
-use super::{
-    common::{create_test_result, prepare_workspace, Workspace},
-    profiler::profile_cmd,
-};
+use super::common::{create_test_result, prepare_workspace, Workspace};
 
 type TRMap = Arc<HashMap<String, tokio::sync::oneshot::Sender<TestResult>>>;
 
@@ -46,14 +39,14 @@ struct RemoteServer {
     connections: Arc<HashMap<String, tokio::sync::oneshot::Sender<TestResult>>>,
 }
 
-const WORKER_BIN: &'static [u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
+const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
 async fn make_temp_executable(data: &[u8]) -> anyhow::Result<NamedTempFile> {
     let file = tempfile::NamedTempFile::new()?;
     tokio::fs::write(file.path(), data).await?;
     let mut perms = tokio::fs::metadata(file.path()).await?.permissions();
     perms.set_mode(0o755); // make exec
-    let _ = tokio::fs::set_permissions(file.path(), perms).await?;
+    tokio::fs::set_permissions(file.path(), perms).await?;
     Ok(file)
 }
 
@@ -76,9 +69,9 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         &self,
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        let val = request.into_inner();
+        let inner_event = request.into_inner();
 
-        let _val = self.tx_chan.send(val).await;
+        let _resp = self.tx_chan.send(inner_event).await;
         Ok(Response::new(()))
     }
     async fn send_outputs(
@@ -126,7 +119,7 @@ impl Executor for RemoteExecutor {
             connections: connections.clone(),
         };
 
-        let addr = format!("127.0.0.1:{port}")
+        let addr = format!("0.0.0.0:{port}")
             .to_socket_addrs()
             .unwrap()
             .next()
@@ -136,7 +129,7 @@ impl Executor for RemoteExecutor {
                 .add_service(smelt_data::event_listener_server::EventListenerServer::new(
                     remote_server,
                 ))
-                .serve(addr.clone())
+                .serve(addr)
                 .await
                 .unwrap();
         });
@@ -155,7 +148,7 @@ impl Executor for RemoteExecutor {
         dd: &UserComputationData,
         global_data: &DiceData,
     ) -> anyhow::Result<ExecutedTestResult> {
-        let tx = dd.get_tx_channel();
+        let _tx = dd.get_tx_channel();
 
         let trace_id = dd.get_trace_id();
         let root = global_data.get_smelt_root();
@@ -175,11 +168,11 @@ impl Executor for RemoteExecutor {
             "--trace-id".to_string(),
             trace_id,
             "--host".to_string(),
-            format!("http://{}", pertxstate.server_addr.to_string()),
+            format!("http://{}", pertxstate.server_addr),
         ];
 
         commandlocal.args(arrrggs);
-        let handle = commandlocal.spawn().expect("Could not spawn!");
+        let _handle = commandlocal.spawn().expect("Could not spawn!");
 
         let output = rcv.await?;
 

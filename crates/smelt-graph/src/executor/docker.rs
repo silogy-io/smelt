@@ -2,14 +2,14 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Error;
 use async_trait::async_trait;
+use bollard::container::LogOutput;
+use bollard::models::ResourcesUlimits;
 use bollard::{container::LogsOptions, Docker};
 use bollard::{
     container::{Config, CreateContainerOptions, StartContainerOptions},
     errors::Error as BollardError,
     service::HostConfig,
 };
-use bollard::container::LogOutput;
-use bollard::models::ResourcesUlimits;
 use chrono::Utc;
 use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
@@ -18,13 +18,13 @@ use rand::Rng;
 use tokio::fs::File;
 
 use smelt_core::SmeltErr;
-use smelt_data::{Event, executed_tests::ExecutedTestResult};
 use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
+use smelt_data::{executed_tests::ExecutedTestResult, Event};
 use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
-use crate::Command;
-use crate::executor::Executor;
 use crate::executor::profiler::profile_cmd_docker;
+use crate::executor::Executor;
+use crate::Command;
 
 use super::common::{create_test_result, get_target_root, handle_line, prepare_workspace};
 
@@ -43,14 +43,14 @@ pub struct DockerExecutor {
 }
 
 impl DockerExecutor {
-    pub fn new(
-        cfg_docker: &CfgDocker,
-    ) -> anyhow::Result<Self> {
+    pub fn new(cfg_docker: &CfgDocker) -> anyhow::Result<Self> {
         let docker_client = Docker::connect_with_defaults()?;
         let run_mode = match RunMode::from_i32(cfg_docker.run_mode) {
             Some(mode) => mode,
             None => {
-                return Err(Error::from(SmeltErr::InvalidConfig { reason: format!("Unknown docker run_mode: {}", cfg_docker.run_mode) }))
+                return Err(Error::from(SmeltErr::InvalidConfig {
+                    reason: format!("Unknown docker run_mode: {}", cfg_docker.run_mode),
+                }))
             }
         };
 
@@ -68,7 +68,6 @@ impl DockerExecutor {
 
 #[async_trait]
 impl Executor for DockerExecutor {
-
     async fn execute_commands(
         &self,
         command: Arc<Command>,
@@ -93,15 +92,21 @@ impl Executor for DockerExecutor {
 
         let cmd = match self.run_mode {
             RunMode::Local => {
-                let workspace = prepare_workspace(&command, root.clone(), command_default_dir.as_path()).await?;
+                let workspace =
+                    prepare_workspace(&command, root.clone(), command_default_dir.as_path())
+                        .await?;
                 stdout = workspace.stdout;
-                vec![shell.to_string(), workspace.script_file.to_str().unwrap().to_string()]
+                vec![
+                    shell.to_string(),
+                    workspace.script_file.to_str().unwrap().to_string(),
+                ]
             }
             RunMode::Remote => {
                 // Create the target root before running any commands
-                let mut sub_command = vec![
-                    format!("mkdir -p {}", get_target_root(root_as_str, &command.name))
-                ];
+                let mut sub_command = vec![format!(
+                    "mkdir -p {}",
+                    get_target_root(root_as_str, &command.name)
+                )];
                 sub_command.append(&mut command.script.clone());
                 vec![
                     "bash".to_string(),
@@ -114,7 +119,11 @@ impl Executor for DockerExecutor {
         // we can derive platform info from inspecting the image, but we don't need to do that
         // let inspect = docker.inspect_image(self.image_name.as_str()).await?;
 
-        let artifact_bind = format!("{}:{}", format!("{}/{}", &self.artifact_bind_directory, &command.name), "/tmp/artifacts/");
+        let artifact_bind = format!(
+            "{}:{}",
+            format!("{}/{}", &self.artifact_bind_directory, &command.name),
+            "/tmp/artifacts/"
+        );
 
         let binds = match self.run_mode {
             RunMode::Local => {
@@ -122,24 +131,27 @@ impl Executor for DockerExecutor {
                 // mount the git root in to the container, at the same path as it has on the host
                 // filesystem
                 let base_binds = vec![format!("{}:{}", root_as_str, root_as_str), artifact_bind];
-                Some(self
-                    .additional_mounts
-                    .iter()
-                    .fold(base_binds, |mut val, b| {
-                        val.push(format!("{}:{}", b.0, b.1));
-                        val
-                    }))
+                Some(
+                    self.additional_mounts
+                        .iter()
+                        .fold(base_binds, |mut val, b| {
+                            val.push(format!("{}:{}", b.0, b.1));
+                            val
+                        }),
+                )
             }
-            RunMode::Remote => Some(vec![artifact_bind])
+            RunMode::Remote => Some(vec![artifact_bind]),
         };
 
-        let ulimits = self.ulimits.iter().map(|ulimit| {
-                ResourcesUlimits {
-                    name: ulimit.name.clone(),
-                    soft: ulimit.soft,
-                    hard: ulimit.hard,
-                }
-        }).collect::<Vec<_>>();
+        let ulimits = self
+            .ulimits
+            .iter()
+            .map(|ulimit| ResourcesUlimits {
+                name: ulimit.name.clone(),
+                soft: ulimit.soft,
+                hard: ulimit.hard,
+            })
+            .collect::<Vec<_>>();
 
         // Define the container options
         let container_config: Config<String> = Config {
@@ -148,7 +160,10 @@ impl Executor for DockerExecutor {
             cmd: Some(cmd),
             env: Some(vec![
                 format!("SMELT_ROOT={}", root_as_str),
-                format!("TARGET_ROOT={}", get_target_root(root_as_str, &command.name)),
+                format!(
+                    "TARGET_ROOT={}",
+                    get_target_root(root_as_str, &command.name)
+                ),
             ]),
             mac_address: self.mac_address.clone(),
             host_config: Some(HostConfig {
@@ -197,7 +212,6 @@ impl Executor for DockerExecutor {
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await?;
 
-
         let profile_start_time_millis: u64 = Utc::now().timestamp_millis().try_into().unwrap();
         let docker_clone = docker.clone();
         let container_name_clone = container_name.clone();
@@ -212,7 +226,8 @@ impl Executor for DockerExecutor {
                 command_name_clone,
                 trace_id_clone,
                 profile_start_time_millis,
-            ).await;
+            )
+            .await;
         });
 
         let command_clone = command.clone();
@@ -239,7 +254,8 @@ impl Executor for DockerExecutor {
                                 &tx,
                                 &mut stdout,
                                 silent,
-                            ).await;
+                            )
+                            .await;
                         }
 
                         // From looking at the code, console messages are docker telemetry that come
@@ -253,26 +269,30 @@ impl Executor for DockerExecutor {
                     },
                     Err(e) => eprintln!("Error: {}", e),
                 }
-            };
+            }
         });
 
         // Need to explicitly wait for container to exit. The closing of output is not a reliable
         // signal for the container having exited.
-        let status_code = match docker.wait_container::<&str>(container_name.as_str(), None).next().await {
+        let status_code = match docker
+            .wait_container::<&str>(container_name.as_str(), None)
+            .next()
+            .await
+        {
             Some(Ok(response)) => response.status_code,
             Some(Err(BollardError::DockerContainerWaitError { error: _, code })) => {
                 // This is how wait_container returns a non-zero exit code from the container, as
                 // well as if waiting for the container returned an error.
                 code
-            },
+            }
             Some(Err(e)) => {
                 tracing::error!("Unhandled error from docker wait: {}", e);
                 1
-            },
+            }
             None => {
                 tracing::error!("Container {} returned no exit code", container_name);
                 1
-            },
+            }
         };
 
         log_task.abort();

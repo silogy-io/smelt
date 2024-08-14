@@ -1,7 +1,7 @@
 use std::{path::PathBuf, process::Stdio};
 
-use anyhow::{anyhow, Result};
-use smelt_core::{prepare_workspace, Command, Workspace};
+use anyhow::{Result};
+use smelt_core::{Command};
 use smelt_data::{
     event_listener_client::EventListenerClient,
     executed_tests::{TestOutputs, TestResult},
@@ -109,5 +109,5 @@ pub async fn execute_command(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 }
