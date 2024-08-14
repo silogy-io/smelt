@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     os::unix::fs::PermissionsExt,
 };
+use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
@@ -30,7 +30,7 @@ type TRMap = Arc<HashMap<String, tokio::sync::oneshot::Sender<TestResult>>>;
 /// This is a dummy executor to test all of the logic of the slurm executor, with none of the
 /// overhead of creating a slurm cluster
 pub struct RemoteExecutor {
-    binary_path: NamedTempFile,
+    binary_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -41,12 +41,16 @@ struct RemoteServer {
 
 const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
-async fn make_temp_executable(data: &[u8]) -> anyhow::Result<NamedTempFile> {
-    let file = tempfile::NamedTempFile::new()?;
-    tokio::fs::write(file.path(), data).await?;
-    let mut perms = tokio::fs::metadata(file.path()).await?.permissions();
+async fn make_temp_executable(data: &[u8]) -> anyhow::Result<PathBuf> {
+    let file = PathBuf::from(format!(
+        "{}/workerguy",
+        std::env!("CARGO_MANIFEST_DIR").to_string()
+    ));
+
+    tokio::fs::write(file.as_path(), data).await?;
+    let mut perms = tokio::fs::metadata(file.as_path()).await?.permissions();
     perms.set_mode(0o755); // make exec
-    tokio::fs::set_permissions(file.path(), perms).await?;
+    tokio::fs::set_permissions(file.as_path(), perms).await?;
     Ok(file)
 }
 
@@ -159,7 +163,7 @@ impl Executor for RemoteExecutor {
         let (sender, rcv) = oneshot::channel();
         let _ = pertxstate.connections.insert(command.name.clone(), sender);
 
-        let mut commandlocal = tokio::process::Command::new(self.binary_path.path());
+        let mut commandlocal = tokio::process::Command::new(self.binary_path.as_path());
         let arrrggs = [
             "--command-path".to_string(),
             script_file.to_string_lossy().to_string(),

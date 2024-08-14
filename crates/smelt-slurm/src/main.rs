@@ -25,6 +25,7 @@ struct WorkerArgs {
 
 fn main() {
     let args: WorkerArgs = argh::from_env();
+    println!("Hey boo");
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -45,4 +46,5 @@ fn main() {
         host,
     ))
     .expect("There was a failure executing the command!");
+    println!("Done boo");
 }
