@@ -78,7 +78,7 @@ async fn docker_sample(
     //  compute rate-related information such as CPU load. This means that if
     //  we set stream=False, our rate of fetching stats is limited to once
     //  every _two_ seconds.
-    let stats = docker_client.stats(&command_ref, Some(StatsOptions {
+    let stats = docker_client.stats(command_ref, Some(StatsOptions {
         stream: false,
         ..Default::default()
     })).try_collect::<Vec<_>>().await.unwrap();
@@ -107,8 +107,8 @@ fn docker_stats_to_event(
         .try_into().ok()?;
 
     docker_profile_event(
-        &trace_id,
-        &command_ref,
+        trace_id,
+        command_ref,
         stats,
         sample_timestamp_ms.saturating_sub(profile_start_time_ms),
     )
@@ -128,7 +128,7 @@ pub async fn profile_cmd_docker(
         let new_sample = docker_sample(&docker_client, container_name).await;
 
         if let Some(ref stats) = new_sample {
-            match docker_stats_to_event(&trace_id, &command_ref, &stats, profile_start_time_ms) {
+            match docker_stats_to_event(&trace_id, &command_ref, stats, profile_start_time_ms) {
                 Some(event) => {
                     let _ = tx.send(event).await;
                 }
@@ -202,8 +202,8 @@ pub async fn profile_cmd(
                     .send(profile_event(
                         &trace_id,
                         &command_ref,
-                        &sample,
-                        &_prev,
+                        sample,
+                        _prev,
                         time_since_previous,
                         time_since_start,
                     ))
@@ -230,7 +230,7 @@ fn profile_event(
         memory_used: sample.memory_used,
         // Microseconds of CPU time / microseconds of wall time
         cpu_load: ((sample.cpu_time_delta.saturating_sub(prev.cpu_time_delta)) as f32
-            / NANOS_TO_MICROS as f32) as f32
+            / NANOS_TO_MICROS as f32)
             / time_since_previous_us as f32,
         time_since_start_ms,
     });

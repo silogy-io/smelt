@@ -1,0 +1,20 @@
+[package]
+name = "smelt-slurm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+smelt-core = { workspace = true }
+
+smelt-data = { workspace = true }
+anyhow = { workspace = true }
+tonic = { workspace = true }
+tokio = { workspace = true }
+argh = "0.1.12"
+
+[[bin]]
+path = "src/main.rs"
+name = "worker"

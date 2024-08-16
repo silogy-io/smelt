@@ -1,5 +1,5 @@
 mod commands;
-mod digest;
+
 mod dispatcher;
 mod executor;
 mod graph;

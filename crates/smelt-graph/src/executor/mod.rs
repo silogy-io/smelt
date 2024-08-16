@@ -10,12 +10,17 @@ mod common;
 #[cfg(feature = "docker")]
 mod docker;
 mod local;
+#[cfg(test)]
+mod remote;
+
 mod profiler;
 
 use async_trait::async_trait;
 #[cfg(feature = "docker")]
 pub use docker::DockerExecutor;
 pub use local::LocalExecutor;
+#[cfg(test)]
+pub use remote::RemoteExecutor;
 
 #[async_trait]
 pub trait Executor: Send + Sync {
@@ -25,6 +30,8 @@ pub trait Executor: Send + Sync {
         dice_data: &UserComputationData,
         global_dice_data: &DiceData,
     ) -> anyhow::Result<ExecutedTestResult>;
+
+    async fn init_per_tx_state(&self, _dice_data: &mut UserComputationData) {}
 }
 
 pub trait SetExecutor {

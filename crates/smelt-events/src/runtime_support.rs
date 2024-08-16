@@ -1,4 +1,4 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use crate::Event;
 use async_trait::async_trait;
@@ -42,9 +42,9 @@ pub trait SetSemaphore {
 }
 
 #[async_trait]
-pub trait LockSemaphore {
+pub trait SlotController {
     /// Gets the semaphore we use to control how many slots we're using in smelt
-    async fn lock_sem(&self, cnt: u32) -> SemaphorePermit<'_>;
+    async fn acquire_slots(&self, cnt: u32) -> SemaphorePermit<'_>;
 }
 pub trait GetJobSlots {
     fn get_job_slots(&self) -> u64;
@@ -119,18 +119,16 @@ impl SetSemaphore for DiceDataBuilder {
     }
 }
 #[async_trait]
-impl LockSemaphore for DiceData {
-    async fn lock_sem(&self, cnt: u32) -> SemaphorePermit<'_> {
+impl SlotController for DiceData {
+    async fn acquire_slots(&self, cnt: u32) -> SemaphorePermit<'_> {
         let sem = self.get::<Semaphore>().expect("Semaphore should be set");
         let max_slots = self.get_smelt_cfg().job_slots;
         let slots = cnt.min(max_slots as u32);
 
         let available = sem.available_permits();
         tracing::debug!("Acquiring semaphore {cnt}, max is {max_slots}, current is {available}");
-        
 
-        sem
-            .acquire_many(slots)
+        sem.acquire_many(slots)
             .await
             .expect("We should NEVER close this semaphore")
     }
