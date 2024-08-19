@@ -2,9 +2,8 @@
 resolver = "2"
 members = ["crates/*", "py-smelt"]
 
-
 [workspace.package]
-version = "0.7.2"
+version = "0.7.3"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
@@ -120,7 +119,6 @@ default-features = false
 [workspace.dependencies.smelt-slurm]
 path = "crates/smelt-slurm"
 default-features = false
-
 
 [workspace.dependencies.py-smelt]
 path = "py-smelt"
