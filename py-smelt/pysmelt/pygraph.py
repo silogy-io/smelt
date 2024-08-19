@@ -96,6 +96,9 @@ class PyGraph:
 
     additional_listeners: List[SmeltSub]
 
+    def commands(self):
+        return self.universe.top_level_commands
+
     def runloop(self, listener: PyEventStream):
         errhandler = SmeltErrorHandler()
         invbuilder = InvocationBuilder()

@@ -119,6 +119,10 @@ impl Key for CommandRef {
         ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
+        if ctx.global_data().get_smelt_cfg().test_only && self.0.target_type != TargetType::Test {
+            return Ok(Arc::new(ExecutedTestResult::Skipped));
+        }
+
         let deps = self.0.dependencies.as_slice();
         let req_files = self.0.dependent_files.as_slice();
         let (command_deps, file_command_deps) = get_command_deps(ctx, deps, req_files).await;
