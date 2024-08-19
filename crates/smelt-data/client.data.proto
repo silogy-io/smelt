@@ -46,8 +46,14 @@ message ConfigureSmelt {
     CfgLocal local = 10;
     CfgDocker docker = 11;
   }
-}
 
+  oneof InitMaterializer {
+    MatPT passthrough = 25;
+    MatS3 s3 = 26;
+    
+  }
+
+}
 message ProfilerCfg {
   // if we enable simple profiling
   ProfilingSelection prof_type = 1;
@@ -80,4 +86,18 @@ message CfgDocker {
   optional string mac_address = 4;
   RunMode run_mode = 5;
   string artifact_bind_directory = 6;
+}
+
+
+message MatPT {}
+
+
+message MatS3 {
+  string region_name = 1;
+  string key_id = 2;
+  string access_key = 3;
+  string default_bucket = 4;
+  /// The base path in the bucket that we'll upload artifacts to for the duration of execution 
+  /// Each command will append to its own 
+  string base_path = 5;
 }

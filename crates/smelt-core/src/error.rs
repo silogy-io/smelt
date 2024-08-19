@@ -1,7 +1,5 @@
 use allocative::Allocative;
 use dice::DiceError;
-use pyo3::exceptions::PyRuntimeError;
-use pyo3::prelude::PyErr;
 
 use thiserror::Error;
 
@@ -42,19 +40,12 @@ pub enum SmeltErr {
     #[error("Artifact name cannot be parsed out")]
     BadArtifactName,
     #[error("Invalid config: {reason}")]
-    InvalidConfig { reason: String }
+    InvalidConfig { reason: String },
 }
 
 impl Allocative for SmeltErr {
     fn visit<'a, 'b: 'a>(&self, visitor: &'a mut allocative::Visitor<'b>) {
         let vis = visitor.enter_self(&self);
         vis.exit();
-    }
-}
-
-impl From<SmeltErr> for PyErr {
-    fn from(smelt_err: SmeltErr) -> Self {
-        let smelt_string = smelt_err.to_string();
-        PyRuntimeError::new_err(smelt_string)
     }
 }
