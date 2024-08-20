@@ -14,6 +14,7 @@ mod local;
 mod remote;
 
 mod profiler;
+mod slurm;
 
 use async_trait::async_trait;
 #[cfg(feature = "docker")]
