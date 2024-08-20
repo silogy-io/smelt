@@ -17,7 +17,8 @@ from pysmelt.proto.smelt_client.commands import (
     RunMode,
 )
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
-from pytests.common import MockRemoteSmeltFileStorage
+
+# from pytests.common import MockRemoteSmeltFileStorage
 
 
 @pytest.fixture(scope="session")
@@ -331,4 +332,22 @@ def test_sanity_procedural():
     ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
 
 
-test_sanity_pygraph()
+def test_simple_graph_smelt():
+    test_list = f"{get_git_root()}/test_data/smelt_files/simple_graph.smelt.yaml"
+
+    def init_only_test(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.test_only = True
+        return cfg
+
+    graph = create_graph(test_list, cfg_init=init_only_test)
+    graph.run_all_typed_commands("test")
+
+    expected_tests = 2
+    observed_reexec = graph.retcode_tracker.total_executed()
+
+    assert (
+        observed_reexec == expected_tests
+    ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
+
+
+test_simple_graph_smelt()

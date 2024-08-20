@@ -119,7 +119,8 @@ impl Key for CommandRef {
         ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
-        if ctx.global_data().get_smelt_cfg().test_only && self.0.target_type != TargetType::Test {
+        let test_only = ctx.global_data().get_smelt_cfg().test_only;
+        if test_only && self.0.target_type != TargetType::Test {
             return Ok(Arc::new(ExecutedTestResult::Skipped));
         }
 
@@ -130,6 +131,10 @@ impl Key for CommandRef {
         let all_deps: Vec<CommandRef> = command_deps
             .into_iter()
             .chain(file_command_deps.into_iter())
+            .filter(|val| match val {
+                Ok(res) => (res.0.target_type == TargetType::Test && test_only) || !test_only,
+                Err(_) => true,
+            })
             .collect::<Result<Vec<CommandRef>, SmeltErr>>()?;
 
         let tx = ctx.per_transaction_data().get_tx_channel();
