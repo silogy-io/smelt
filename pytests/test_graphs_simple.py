@@ -18,7 +18,7 @@ from pysmelt.proto.smelt_client.commands import (
 )
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
 
-# from pytests.common import MockRemoteSmeltFileStorage
+from pytests.common import MockRemoteSmeltFileStorage
 
 
 @pytest.fixture(scope="session")
