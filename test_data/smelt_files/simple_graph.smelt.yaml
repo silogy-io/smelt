@@ -1,0 +1,23 @@
+- name: verilator_build_dummy
+  rule: raw_bash_build
+  rule_args:
+    cmds:
+      - echo "dummy build"
+
+- name: cmark
+  rule: raw_bash
+  rule_args:
+    deps:
+      - verilator_build_dummy
+    cmds:
+      - echo "normal"
+      - exit 1
+
+- name: hello_world
+  rule: raw_bash
+  rule_args:
+    deps:
+      - verilator_build_dummy
+    cmds:
+      - echo "normal hello_world"
+      - exit 1
