@@ -120,7 +120,7 @@ impl Key for CommandRef {
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         let test_only = ctx.global_data().get_smelt_cfg().test_only;
-        if test_only && self.0.target_type != TargetType::Test {
+        if test_only && !self.0.target_type.test_only_valid() {
             return Ok(Arc::new(ExecutedTestResult::Skipped));
         }
 
@@ -132,7 +132,7 @@ impl Key for CommandRef {
             .into_iter()
             .chain(file_command_deps.into_iter())
             .filter(|val| match val {
-                Ok(res) => (res.0.target_type == TargetType::Test && test_only) || !test_only,
+                Ok(res) => (res.0.target_type.test_only_valid() && test_only) || !test_only,
                 Err(_) => true,
             })
             .collect::<Result<Vec<CommandRef>, SmeltErr>>()?;
