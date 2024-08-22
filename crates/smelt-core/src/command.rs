@@ -77,6 +77,15 @@ pub enum TargetType {
     Rebuild,
 }
 
+impl TargetType {
+    pub fn test_only_valid(&self) -> bool {
+        match self {
+            Self::Test | Self::Rerun | Self::Rebuild => true,
+            _ => false,
+        }
+    }
+}
+
 impl FromStr for TargetType {
     type Err = SmeltErr;
 

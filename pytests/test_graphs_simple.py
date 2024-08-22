@@ -18,7 +18,10 @@ from pysmelt.proto.smelt_client.commands import (
 )
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
 
-from pytests.common import MockRemoteSmeltFileStorage
+try:
+    from pytests.common import MockRemoteSmeltFileStorage
+except ImportError as e:
+    pass
 
 
 @pytest.fixture(scope="session")
@@ -350,4 +353,24 @@ def test_simple_graph_smelt():
     ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
 
 
-test_simple_graph_smelt()
+def test_sanity_pygraph_new_build_test_only():
+    test_list = f"{get_git_root()}/test_data/smelt_files/rerun_with_newbuild.smelt.yaml"
+
+    def init_only_test(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.test_only = True
+        return cfg
+
+    graph = create_graph(test_list, cfg_init=init_only_test)
+    graph.run_all_commands()
+
+    # we have 3 commands, 2 of which fail, one of which rebuilds
+    # however the first build is skipped
+    expected_failing_tests = 5
+    observed_reexec = graph.retcode_tracker.total_executed()
+
+    assert (
+        observed_reexec == expected_failing_tests
+    ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
+
+
+test_sanity_pygraph_new_build_test_only()
