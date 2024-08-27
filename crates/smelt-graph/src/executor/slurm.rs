@@ -130,8 +130,8 @@ struct PerTxRemoteState {
 }
 
 impl SlurmExecutor {
-    pub async fn new(cfg: &ConfigureSmelt) -> Self {
-        let res = make_temp_executable(cfg, WORKER_BIN).await.unwrap();
+    pub async fn new(global_cfg: &ConfigureSmelt) -> Self {
+        let res = make_temp_executable(global_cfg, WORKER_BIN).await.unwrap();
         Self {}
     }
     fn get_bin(cfg: &ConfigureSmelt) -> PathBuf {

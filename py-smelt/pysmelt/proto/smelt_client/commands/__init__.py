@@ -97,6 +97,7 @@ class ConfigureSmelt(betterproto.Message):
 
     local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")
     docker: "CfgDocker" = betterproto.message_field(11, group="InitExecutor")
+    slurm: "CfgSlurm" = betterproto.message_field(12, group="InitExecutor")
 
 
 @dataclass(eq=False, repr=False)
@@ -109,6 +110,11 @@ class ProfilerCfg(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CfgLocal(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class CfgSlurm(betterproto.Message):
     pass
 
 

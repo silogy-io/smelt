@@ -32,7 +32,7 @@ use smelt_events::{
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor, SlurmExecutor},
     utils::invoke_start_message,
     CommandDependency,
 };
@@ -393,6 +393,9 @@ impl CommandGraph {
                 configure_smelt::InitExecutor::Docker(docker_cfg) => Arc::new(
                     DockerExecutor::new(docker_cfg).expect("Could not create docker executor"),
                 ),
+                configure_smelt::InitExecutor::Slurm(_slurm_cfg) => {
+                    Arc::new(SlurmExecutor::new(&cfg).await)
+                }
             },
             None => Arc::new(LocalExecutor {}),
         };
