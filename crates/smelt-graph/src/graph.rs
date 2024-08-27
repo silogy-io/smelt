@@ -25,7 +25,7 @@ use smelt_data::{
 use smelt_events::{
     self,
     runtime_support::{
-        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
+        GetSmeltCfg, GetTraceId, GetTxChannel, SetHostname, SetSmeltCfg, SetTraceId, SetTxChannel,
     },
     ClientCommandBundle, Event,
 };
@@ -401,6 +401,8 @@ impl CommandGraph {
         };
 
         let mut dice_builder = Dice::builder();
+        // NOTE: this is only needed with the slurm executor
+
         dice_builder.set_smelt_cfg(cfg);
         dice_builder.set_executor(executor);
 
@@ -531,6 +533,7 @@ impl CommandGraph {
 
         let mut data = UserComputationData::new();
 
+        data.set_hostname();
         data.init_trace_id();
         data.set_tx_channel(tx);
         executor.init_per_tx_state(&mut data).await;

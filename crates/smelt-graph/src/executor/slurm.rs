@@ -26,7 +26,9 @@ use smelt_data::{
     executed_tests::{ExecutedTestResult, TestResult},
     Event,
 };
-use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
+use smelt_events::runtime_support::{
+    GetHostname, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
+};
 
 use crate::executor::Executor;
 use crate::Command;
@@ -156,7 +158,7 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         request: tonic::Request<TestResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
-        let v = self.connections.remove(&val.test_name);
+        let v = self.connections.remove_async(&val.test_name).await;
         match v {
             None => {
                 tracing::error!("Missing entry in the remote server!");
@@ -196,10 +198,12 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
-        let listener = TcpListener::bind("0.0.0.0:0").await.unwrap();
+        let hn = data.get_hostname();
+        let listener = TcpListener::bind(format!("{hn}:0")).await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let server_handle = tokio::spawn(async move {
+            tracing::info!("Spawning server!");
             Server::builder()
                 .add_service(smelt_data::event_listener_server::EventListenerServer::new(
                     remote_server,
@@ -243,7 +247,10 @@ impl Executor for SlurmExecutor {
         )
         .await?;
         let (sender, rcv) = oneshot::channel();
-        let _ = pertxstate.connections.insert(command.name.clone(), sender);
+        let _ = pertxstate
+            .connections
+            .insert_async(command.name.clone(), sender)
+            .await;
         let mut commandlocal = tokio::process::Command::new("sbatch");
 
         commandlocal.arg(sbatch_file);

@@ -41,6 +41,15 @@ pub trait SetSemaphore {
     fn set_sempahore(&mut self, cnt: usize);
 }
 
+struct Hostname(String);
+pub trait SetHostname {
+    fn set_hostname(&mut self);
+}
+
+pub trait GetHostname {
+    fn get_hostname(&self) -> String;
+}
+
 #[async_trait]
 pub trait SlotController {
     /// Gets the semaphore we use to control how many slots we're using in smelt
@@ -118,6 +127,24 @@ impl SetSemaphore for DiceDataBuilder {
         self.set(sem);
     }
 }
+
+impl SetHostname for UserComputationData {
+    fn set_hostname(&mut self) {
+        let hostname = Hostname(whoami::fallible::hostname().expect("Could not find hostname!"));
+        self.data.set(hostname);
+    }
+}
+
+impl GetHostname for UserComputationData {
+    fn get_hostname(&self) -> String {
+        self.data
+            .get::<Hostname>()
+            .expect("Hostname was never set!")
+            .0
+            .clone()
+    }
+}
+
 #[async_trait]
 impl SlotController for DiceData {
     async fn acquire_slots(&self, cnt: u32) -> SemaphorePermit<'_> {
