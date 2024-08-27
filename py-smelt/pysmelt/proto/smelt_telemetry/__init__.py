@@ -5,10 +5,24 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Optional,
+)
 
 import betterproto
+import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
+import grpclib
+from betterproto.grpc.grpclib_server import ServiceBase
 
 from .. import executed_tests as _executed_tests__
+
+
+if TYPE_CHECKING:
+    import grpclib.server
+    from betterproto.grpc.grpclib_client import MetadataLike
+    from grpclib.metadata import Deadline
 
 
 class SmeltErrorType(betterproto.Enum):
@@ -131,3 +145,84 @@ class SetGraph(betterproto.Message):
 class SmeltError(betterproto.Message):
     sig: "SmeltErrorType" = betterproto.enum_field(1)
     error_payload: str = betterproto.string_field(2)
+
+
+class EventListenerStub(betterproto.ServiceStub):
+    async def send_event(
+        self,
+        event: "Event",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/smelt_telemetry.EventListener/SendEvent",
+            event,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def send_outputs(
+        self,
+        executed_tests_test_result: "_executed_tests__.TestResult",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/smelt_telemetry.EventListener/SendOutputs",
+            executed_tests_test_result,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+
+class EventListenerBase(ServiceBase):
+
+    async def send_event(
+        self, event: "Event"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_outputs(
+        self, executed_tests_test_result: "_executed_tests__.TestResult"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_send_event(
+        self,
+        stream: "grpclib.server.Stream[Event, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_event(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_outputs(
+        self,
+        stream: "grpclib.server.Stream[_executed_tests__.TestResult, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_outputs(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/smelt_telemetry.EventListener/SendEvent": grpclib.const.Handler(
+                self.__rpc_send_event,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Event,
+                betterproto_lib_google_protobuf.Empty,
+            ),
+            "/smelt_telemetry.EventListener/SendOutputs": grpclib.const.Handler(
+                self.__rpc_send_outputs,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                _executed_tests__.TestResult,
+                betterproto_lib_google_protobuf.Empty,
+            ),
+        }
