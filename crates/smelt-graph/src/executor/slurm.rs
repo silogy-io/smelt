@@ -2,6 +2,7 @@ use std::{
     net::{SocketAddr, ToSocketAddrs},
     os::unix::fs::PermissionsExt,
     path::Path,
+    process::Stdio,
 };
 use std::{path::PathBuf, sync::Arc};
 
@@ -13,7 +14,11 @@ use smelt_core::get_target_root;
 use std::fmt::Display;
 use std::io::Write;
 
-use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener};
+use tokio::{
+    fs::File,
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::TcpListener,
+};
 
 use tokio::{
     sync::{mpsc::Sender, oneshot},
@@ -254,8 +259,33 @@ impl Executor for SlurmExecutor {
         let mut commandlocal = tokio::process::Command::new("sbatch");
 
         commandlocal.arg(&sbatch_file);
+        commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
         let handle = commandlocal.spawn()?;
         tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
+
+        let mut comm_handle = commandlocal.spawn()?;
+        let stderr = comm_handle.stderr.take().unwrap();
+        let stderr_reader = BufReader::new(stderr);
+        let mut stderr_lines = stderr_reader.lines();
+
+        let reader = BufReader::new(comm_handle.stdout.take().unwrap());
+        let mut lines = reader.lines();
+
+        loop {
+            tokio::select!(
+                Ok(Some(line)) = lines.next_line() => {
+                    tracing::info!("stdout says {line}");
+                }
+                Ok(Some(line)) = stderr_lines.next_line() => {
+                    tracing::info!("stderr says {line}");
+                }
+                status_code = comm_handle.wait() => {
+                    let status_code = status_code.unwrap();
+                    tracing::info!("sbatch exited with {status_code}");
+                    break;
+                }
+            );
+        }
 
         let output = rcv.await?;
 
