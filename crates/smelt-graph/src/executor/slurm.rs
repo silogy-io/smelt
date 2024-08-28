@@ -253,8 +253,9 @@ impl Executor for SlurmExecutor {
             .await;
         let mut commandlocal = tokio::process::Command::new("sbatch");
 
-        commandlocal.arg(sbatch_file);
-        let _ = commandlocal.spawn();
+        commandlocal.arg(&sbatch_file);
+        let handle = commandlocal.spawn()?;
+        tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
 
         let output = rcv.await?;
 
