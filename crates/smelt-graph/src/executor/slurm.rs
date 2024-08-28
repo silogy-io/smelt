@@ -119,7 +119,7 @@ pub struct SlurmExecutor {}
 #[derive(Debug, Clone)]
 struct RemoteServer {
     tx_chan: Sender<Event>,
-    connections: Arc<HashMap<String, tokio::sync::oneshot::Sender<TestResult>>>,
+    connections: TRMap,
 }
 
 const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
@@ -167,6 +167,7 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         request: tonic::Request<TestResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
+        tracing::info!("Trying to remove {}", val.test_name);
         let v = self.connections.remove_async(&val.test_name).await;
         match v {
             None => {
@@ -255,6 +256,8 @@ impl Executor for SlurmExecutor {
         )
         .await?;
         let (sender, rcv) = oneshot::channel();
+        tracing::info!("Trying to insert {}", command.name);
+
         let _ = pertxstate
             .connections
             .insert_async(command.name.clone(), sender)
