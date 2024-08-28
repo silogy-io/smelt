@@ -267,7 +267,7 @@ impl Executor for SlurmExecutor {
 
         commandlocal.arg(&sbatch_file);
         commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
-        let handle = commandlocal.spawn()?;
+
         tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
 
         let mut comm_handle = commandlocal.spawn()?;
