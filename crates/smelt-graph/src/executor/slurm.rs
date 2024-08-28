@@ -254,6 +254,7 @@ impl Executor for SlurmExecutor {
         let mut commandlocal = tokio::process::Command::new("sbatch");
 
         commandlocal.arg(sbatch_file);
+        let _ = commandlocal.spawn();
 
         let output = rcv.await?;
 
