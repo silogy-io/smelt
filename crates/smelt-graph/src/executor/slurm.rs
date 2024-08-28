@@ -92,14 +92,18 @@ async fn prepare_slurm_workspace(
         format!("http://{}", server_addr),
     ];
     //TODO: add sbatch directives
-    let worker_command = format!(
-        "{} {}",
+    let mut buf2: Vec<u8> = Vec::new();
+
+    writeln!(buf2, "#!/bin/bash")?;
+
+    writeln!(
+        buf2,
+        "{} {}\n",
         worker_bin_path.to_string_lossy(),
         arrrggs.join(" ")
-    );
-    sbatch_file_real
-        .write_all(&worker_command.as_bytes())
-        .await?;
+    )?;
+
+    sbatch_file_real.write_all(&buf2).await?;
 
     file.write_all(&buf).await?;
     file.flush().await?;
