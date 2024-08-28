@@ -171,7 +171,6 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         match v {
             None => {
                 tracing::error!("Missing entry in the remote server!");
-                panic!();
             }
             Some(entry) => {
                 let _ = entry.1.send(val);
@@ -259,7 +258,8 @@ impl Executor for SlurmExecutor {
         let _ = pertxstate
             .connections
             .insert_async(command.name.clone(), sender)
-            .await;
+            .await
+            .expect("Command should only be inserted once");
         let mut commandlocal = tokio::process::Command::new("sbatch");
 
         commandlocal.arg(&sbatch_file);
