@@ -34,6 +34,7 @@ pub trait Executor: Send + Sync {
     ) -> anyhow::Result<ExecutedTestResult>;
 
     async fn init_per_tx_state(&self, _dice_data: &mut UserComputationData) {}
+    async fn drop_per_tx_state(&self, _dice_data: &UserComputationData) {}
 }
 
 pub trait SetExecutor {

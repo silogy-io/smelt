@@ -291,6 +291,14 @@ async fn get_command_deps(
     (comm_deps, file_deps)
 }
 
+async fn drop_tx(mut tx: DiceTransaction) {
+    let local_data = tx.per_transaction_data();
+    tx.global_data()
+        .get_executor()
+        .drop_per_tx_state(local_data)
+        .await;
+}
+
 pub trait CommandSetter {
     fn add_command(&mut self, command: CommandRef) -> Result<(), SmeltErr>;
     fn add_commands(
@@ -566,6 +574,7 @@ impl CommandGraph {
         self.run_tests(refs, tx).await
     }
 
+    /// Top level function for running commands -- any commands executed should Go Here
     async fn run_tests(
         &self,
         refs: Vec<CommandRef>,
@@ -577,6 +586,7 @@ impl CommandGraph {
             let trace = tx.per_transaction_data().get_trace_id();
 
             handle_result(_out, val, trace).await;
+            drop_tx(tx).await;
         });
         Ok(())
     }

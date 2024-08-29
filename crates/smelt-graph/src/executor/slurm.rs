@@ -197,6 +197,10 @@ impl RemoteHelpers for UserComputationData {
 
 #[async_trait]
 impl Executor for SlurmExecutor {
+    async fn drop_per_tx_state(&self, data: &UserComputationData) {
+        data.get_pertx_state().server_handle.abort();
+    }
+
     async fn init_per_tx_state(&self, data: &mut UserComputationData) {
         // This is bad! we could collide on port! I dont care
 
