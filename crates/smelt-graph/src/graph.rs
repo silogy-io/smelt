@@ -291,7 +291,7 @@ async fn get_command_deps(
     (comm_deps, file_deps)
 }
 
-async fn drop_tx(mut tx: DiceTransaction) {
+async fn drop_tx(tx: DiceTransaction) {
     let local_data = tx.per_transaction_data();
     tx.global_data()
         .get_executor()

@@ -1,8 +1,7 @@
 use std::{
-    net::{SocketAddr, ToSocketAddrs},
+    net::{SocketAddr},
     os::unix::fs::PermissionsExt,
     path::Path,
-    process::Stdio,
 };
 use std::{path::PathBuf, sync::Arc};
 
@@ -11,12 +10,12 @@ use dice::{DiceData, UserComputationData};
 use scc::HashMap;
 use smelt_core::get_target_root;
 
-use std::fmt::Display;
+
 use std::io::Write;
 
 use tokio::{
     fs::File,
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncWriteExt},
     net::TcpListener,
 };
 
@@ -38,7 +37,7 @@ use smelt_events::runtime_support::{
 use crate::executor::Executor;
 use crate::Command;
 
-use super::common::{create_test_result, Workspace};
+use super::common::{create_test_result};
 
 fn sbatch_file() -> &'static str {
     "sbatch_command.sh"
@@ -55,7 +54,7 @@ async fn prepare_slurm_workspace(
     worker_bin_path: &Path,
     trace_id: &str,
     server_addr: &str,
-) -> anyhow::Result<(SlurmWorkspace)> {
+) -> anyhow::Result<SlurmWorkspace> {
     let working_dir = command.default_target_root(smelt_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
     let sbatch_file = working_dir.join(sbatch_file());
@@ -64,7 +63,7 @@ async fn prepare_slurm_workspace(
     let mut file = File::create(&script_file).await?;
     let mut sbatch_file_real = File::create(&sbatch_file).await?;
 
-    let stdout = File::create(&stdout_file).await?;
+    let _stdout = File::create(&stdout_file).await?;
 
     let mut buf: Vec<u8> = Vec::new();
 
@@ -142,12 +141,12 @@ struct PerTxRemoteState {
 
 impl SlurmExecutor {
     pub async fn new(global_cfg: &ConfigureSmelt) -> Self {
-        let res = make_temp_executable(global_cfg, WORKER_BIN).await.unwrap();
+        let _res = make_temp_executable(global_cfg, WORKER_BIN).await.unwrap();
         Self {}
     }
     fn get_bin(cfg: &ConfigureSmelt) -> PathBuf {
-        let file = PathBuf::from(format!("{}/workerguy", cfg.smelt_root));
-        file
+        
+        PathBuf::from(format!("{}/workerguy", cfg.smelt_root))
     }
 }
 
@@ -167,7 +166,7 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         request: tonic::Request<TestResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
-        tracing::info!("Trying to remove {}", val.test_name);
+        tracing::trace!("Trying to remove {}", val.test_name);
         let v = self.connections.remove_async(&val.test_name).await;
         match v {
             None => {
@@ -216,7 +215,7 @@ impl Executor for SlurmExecutor {
         let addr = listener.local_addr().unwrap();
 
         let server_handle = tokio::spawn(async move {
-            tracing::info!("Spawning server!");
+            tracing::trace!("Spawning server!");
             Server::builder()
                 .add_service(smelt_data::event_listener_server::EventListenerServer::new(
                     remote_server,
@@ -260,7 +259,7 @@ impl Executor for SlurmExecutor {
         )
         .await?;
         let (sender, rcv) = oneshot::channel();
-        tracing::info!("Trying to insert {}", command.name);
+        tracing::trace!("Trying to insert {}", command.name);
 
         let _ = pertxstate
             .connections
@@ -270,33 +269,33 @@ impl Executor for SlurmExecutor {
         let mut commandlocal = tokio::process::Command::new("sbatch");
 
         commandlocal.arg(&sbatch_file);
-        commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
+        //commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-        tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
+        //tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
 
-        let mut comm_handle = commandlocal.spawn()?;
-        let stderr = comm_handle.stderr.take().unwrap();
-        let stderr_reader = BufReader::new(stderr);
-        let mut stderr_lines = stderr_reader.lines();
+        //let mut comm_handle = commandlocal.spawn()?;
+        //let stderr = comm_handle.stderr.take().unwrap();
+        //let stderr_reader = BufReader::new(stderr);
+        //let mut stderr_lines = stderr_reader.lines();
 
-        let reader = BufReader::new(comm_handle.stdout.take().unwrap());
-        let mut lines = reader.lines();
+        //let reader = BufReader::new(comm_handle.stdout.take().unwrap());
+        //let mut lines = reader.lines();
 
-        loop {
-            tokio::select!(
-                Ok(Some(line)) = lines.next_line() => {
-                    tracing::info!("stdout says {line}");
-                }
-                Ok(Some(line)) = stderr_lines.next_line() => {
-                    tracing::info!("stderr says {line}");
-                }
-                status_code = comm_handle.wait() => {
-                    let status_code = status_code.unwrap();
-                    tracing::info!("sbatch exited with {status_code}");
-                    break;
-                }
-            );
-        }
+        //loop {
+        //    tokio::select!(
+        //        Ok(Some(line)) = lines.next_line() => {
+        //            tracing::trace!("stdout says {line}");
+        //        }
+        //        Ok(Some(line)) = stderr_lines.next_line() => {
+        //            tracing::info!("stderr says {line}");
+        //        }
+        //        status_code = comm_handle.wait() => {
+        //            let status_code = status_code.unwrap();
+        //            tracing::info!("sbatch exited with {status_code}");
+        //            break;
+        //        }
+        //    );
+        //}
 
         let output = rcv.await?;
 

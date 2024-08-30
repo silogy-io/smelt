@@ -7,7 +7,7 @@ use std::{path::PathBuf, sync::Arc};
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use scc::HashMap;
-use tempfile::NamedTempFile;
+
 use tokio::{
     sync::{mpsc::Sender, oneshot},
     task::JoinHandle,
@@ -44,7 +44,7 @@ const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker
 async fn make_temp_executable(data: &[u8]) -> anyhow::Result<PathBuf> {
     let file = PathBuf::from(format!(
         "{}/workerguy",
-        std::env!("CARGO_MANIFEST_DIR").to_string()
+        std::env!("CARGO_MANIFEST_DIR")
     ));
 
     tokio::fs::write(file.as_path(), data).await?;
