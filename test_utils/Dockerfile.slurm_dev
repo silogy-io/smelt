@@ -2,12 +2,12 @@ FROM --platform=linux/amd64 ghcr.io/pyo3/maturin as builder
 WORKDIR /app
 COPY . . 
 RUN maturin build --interpreter python3.9 --manifest-path py-smelt/Cargo.toml --out dist
-
-
 FROM --platform=linux/amd64  2048bees/docker-centos8-slurm:latest  as runtime
+ARG SMELT_VERSION
+RUN echo "SMELT_VERSION: $SMELT_VERSION"
 COPY --from=builder /app/dist /dist
 RUN alternatives --set python3 /usr/bin/python3.9
-RUN pip3 install dist/pysmelt-0.7.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && pip3 install pytest
+RUN pip3 install dist/pysmelt-${SMELT_VERSION}-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && pip3 install pytest
 
 WORKDIR /smelt_src
 COPY . . 
