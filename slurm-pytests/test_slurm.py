@@ -20,9 +20,7 @@ from pysmelt.proto.smelt_client.commands import (
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
 
 
-
-
-def try_make_slurm():
+def test_simple_slurm():
 
     test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
 
@@ -32,11 +30,10 @@ def try_make_slurm():
 
     graph = create_graph(test_list, cfg_init=init_slurm)
     graph.run_all_typed_commands("test")
-                                                                                       
+
     expected_tests = 3
     observed_reexec = graph.retcode_tracker.total_executed()
-                                                                                       
+
     assert (
         observed_reexec == expected_tests
-    ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests" 
-try_make_slurm()
+    ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
