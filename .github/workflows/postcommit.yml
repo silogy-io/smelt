@@ -31,8 +31,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build and run Docker image
         run: |
-          docker build --platform linux/amd64 -f test_utils/Dockerfile.slurm_dev . --tag smeltdev
-          docker run --hostname slurmctl --platform linux/amd64 smeltdev
+          bash test_utils/exec_slurm_tests.sh
   py-test-linux:
     runs-on: ubuntu-latest
     strategy:
