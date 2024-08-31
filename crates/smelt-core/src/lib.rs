@@ -1,6 +1,7 @@
 mod command;
 mod error;
 mod executing;
+mod parsing;
 mod paths;
 pub use command::*;
 pub use error::SmeltErr;

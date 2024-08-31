@@ -20,6 +20,7 @@ serde = { workspace = true }
 serde_yaml = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
+regex = { workspace = true }
 derive_more = { workspace = true }
 async-trait = { workspace = true }
 fuzzy-matcher = { workspace = true }

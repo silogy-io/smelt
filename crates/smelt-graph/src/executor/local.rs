@@ -111,7 +111,7 @@ async fn execute_local_command(
                 handle_line(command,line,trace_id.clone(),&tx_chan,&mut stdout, silent).await;
             }
             status_code = comm_handle.wait() => {
-                break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![]});
+                break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![], failure_message: String::default()});
             }
 
 

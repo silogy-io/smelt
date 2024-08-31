@@ -56,6 +56,8 @@ message TestOutputs {
   repeated ArtifactPointer artifacts = 1;
   // exit code of the test
   int32 exit_code= 2;
+  // failure message 
+  string failure_message = 3;
 }
 
 

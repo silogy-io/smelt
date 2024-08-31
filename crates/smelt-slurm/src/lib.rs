@@ -79,8 +79,9 @@ pub async fn execute_command(
 
 
             }
+            //TODO: fill in artifacts, failure message
             status_code = comm_handle.wait() => {
-                break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![]});
+                break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![], failure_message: String::default()});
             }
 
 
