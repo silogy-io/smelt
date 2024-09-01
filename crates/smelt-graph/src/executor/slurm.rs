@@ -1,8 +1,4 @@
-use std::{
-    net::{SocketAddr},
-    os::unix::fs::PermissionsExt,
-    path::Path,
-};
+use std::{net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -10,14 +6,9 @@ use dice::{DiceData, UserComputationData};
 use scc::HashMap;
 use smelt_core::get_target_root;
 
-
 use std::io::Write;
 
-use tokio::{
-    fs::File,
-    io::{AsyncWriteExt},
-    net::TcpListener,
-};
+use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener};
 
 use tokio::{
     sync::{mpsc::Sender, oneshot},
@@ -37,7 +28,7 @@ use smelt_events::runtime_support::{
 use crate::executor::Executor;
 use crate::Command;
 
-use super::common::{create_test_result};
+use super::common::create_test_result;
 
 fn sbatch_file() -> &'static str {
     "sbatch_command.sh"
@@ -145,7 +136,6 @@ impl SlurmExecutor {
         Self {}
     }
     fn get_bin(cfg: &ConfigureSmelt) -> PathBuf {
-        
         PathBuf::from(format!("{}/workerguy", cfg.smelt_root))
     }
 }
@@ -273,7 +263,7 @@ impl Executor for SlurmExecutor {
 
         //tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
 
-        //let mut comm_handle = commandlocal.spawn()?;
+        let _comm_handle = commandlocal.spawn()?;
         //let stderr = comm_handle.stderr.take().unwrap();
         //let stderr_reader = BufReader::new(stderr);
         //let mut stderr_lines = stderr_reader.lines();
