@@ -45,6 +45,7 @@ message ConfigureSmelt {
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;
+    CfgSlurm slurm = 12;
   }
 }
 
@@ -60,6 +61,7 @@ enum ProfilingSelection {
 }
 
 message CfgLocal {}
+message CfgSlurm {}
 
 // Clone of Bollard proto message Ulimit
 message Ulimit {

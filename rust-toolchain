@@ -12,4 +12,4 @@
 # @rustc_version: rustc 1.76.0-nightly (d86d65bbc 2023-12-10)
 channel = "nightly-2024-02-01"
 
-components = ["llvm-tools-preview","rustc-dev","rust-src"]
+#components = ["llvm-tools-preview","rustc-dev","rust-src"]

@@ -25,14 +25,14 @@ use smelt_data::{
 use smelt_events::{
     self,
     runtime_support::{
-        GetSmeltCfg, GetTraceId, GetTxChannel, SetSmeltCfg, SetTraceId, SetTxChannel,
+        GetSmeltCfg, GetTraceId, GetTxChannel, SetHostname, SetSmeltCfg, SetTraceId, SetTxChannel,
     },
     ClientCommandBundle, Event,
 };
 
 use crate::{
     commands::{Command, TargetType},
-    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor},
+    executor::{DockerExecutor, Executor, GetExecutor, LocalExecutor, SetExecutor, SlurmExecutor},
     utils::invoke_start_message,
     CommandDependency,
 };
@@ -291,6 +291,14 @@ async fn get_command_deps(
     (comm_deps, file_deps)
 }
 
+async fn drop_tx(tx: DiceTransaction) {
+    let local_data = tx.per_transaction_data();
+    tx.global_data()
+        .get_executor()
+        .drop_per_tx_state(local_data)
+        .await;
+}
+
 pub trait CommandSetter {
     fn add_command(&mut self, command: CommandRef) -> Result<(), SmeltErr>;
     fn add_commands(
@@ -393,11 +401,16 @@ impl CommandGraph {
                 configure_smelt::InitExecutor::Docker(docker_cfg) => Arc::new(
                     DockerExecutor::new(docker_cfg).expect("Could not create docker executor"),
                 ),
+                configure_smelt::InitExecutor::Slurm(_slurm_cfg) => {
+                    Arc::new(SlurmExecutor::new(&cfg).await)
+                }
             },
             None => Arc::new(LocalExecutor {}),
         };
 
         let mut dice_builder = Dice::builder();
+        // NOTE: this is only needed with the slurm executor
+
         dice_builder.set_smelt_cfg(cfg);
         dice_builder.set_executor(executor);
 
@@ -528,6 +541,7 @@ impl CommandGraph {
 
         let mut data = UserComputationData::new();
 
+        data.set_hostname();
         data.init_trace_id();
         data.set_tx_channel(tx);
         executor.init_per_tx_state(&mut data).await;
@@ -560,6 +574,7 @@ impl CommandGraph {
         self.run_tests(refs, tx).await
     }
 
+    /// Top level function for running commands -- any commands executed should Go Here
     async fn run_tests(
         &self,
         refs: Vec<CommandRef>,
@@ -571,6 +586,7 @@ impl CommandGraph {
             let trace = tx.per_transaction_data().get_trace_id();
 
             handle_result(_out, val, trace).await;
+            drop_tx(tx).await;
         });
         Ok(())
     }

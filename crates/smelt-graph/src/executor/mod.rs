@@ -14,6 +14,7 @@ mod local;
 mod remote;
 
 mod profiler;
+mod slurm;
 
 use async_trait::async_trait;
 #[cfg(feature = "docker")]
@@ -21,6 +22,7 @@ pub use docker::DockerExecutor;
 pub use local::LocalExecutor;
 #[cfg(test)]
 pub use remote::RemoteExecutor;
+pub use slurm::SlurmExecutor;
 
 #[async_trait]
 pub trait Executor: Send + Sync {
@@ -32,6 +34,7 @@ pub trait Executor: Send + Sync {
     ) -> anyhow::Result<ExecutedTestResult>;
 
     async fn init_per_tx_state(&self, _dice_data: &mut UserComputationData) {}
+    async fn drop_per_tx_state(&self, _dice_data: &UserComputationData) {}
 }
 
 pub trait SetExecutor {

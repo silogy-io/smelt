@@ -246,7 +246,7 @@ impl Executor for DockerExecutor {
                 match message {
                     Ok(output) => match output {
                         LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
-                            let line = String::from_utf8_lossy(&*message);
+                            let line = String::from_utf8_lossy(&message);
                             handle_line(
                                 &command_clone,
                                 line.to_string(),

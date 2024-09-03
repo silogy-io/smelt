@@ -9,6 +9,7 @@ import yaml
 from pysmelt.interfaces import Command
 from pysmelt.path_utils import get_git_root
 from pysmelt.proto.smelt_client.commands import (
+    CfgSlurm,
     ConfigureSmelt,
     ProfilerCfg,
     ProfilingSelection,
@@ -20,6 +21,7 @@ from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
 
 try:
     from pytests.common import MockRemoteSmeltFileStorage
+
 except ImportError as e:
     pass
 
@@ -371,6 +373,3 @@ def test_sanity_pygraph_new_build_test_only():
     assert (
         observed_reexec == expected_failing_tests
     ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
-
-
-test_sanity_pygraph_new_build_test_only()
