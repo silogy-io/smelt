@@ -57,7 +57,16 @@ message TestOutputs {
   // exit code of the test
   int32 exit_code= 2;
   // failure message 
-  string failure_message = 3;
+  
+}
+
+
+// Extra data that is expected when a test fails 
+message FailedTestData { 
+  // the raw failure message that is parsed from the test log 
+  string failure_message = 1;
+  // the failure signature that is parsed and anonymized from the failure message
+  string signature = 2;
 }
 
 

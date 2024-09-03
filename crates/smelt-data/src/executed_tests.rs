@@ -13,14 +13,24 @@ impl ArtifactPointer {
 }
 
 #[derive(Allocative, Clone)]
+/// The result of a command _actually_ executing
+/// This is the data type that is tracked via dice in the execution graph
+///
+/// Note that we do not cover the case of a command failing to execute -- this would occur if there is
+/// a failure within smelt itself. currently, such a failure is considered unrecoverable, and the
+/// system will crash soon after
 pub enum ExecutedTestResult {
+    // A command successfully executed, with all expected artifacts available
     Success(TestResult),
+    // A command successfully executed, but not all expected artifacts were found
+    // the missing artifacts are enumerated
     MissingFiles {
         /// this contains the test result, with all the files that exist
         test_result: TestResult,
         /// artifacts that are missing -- will always point to the filesystem
         missing_artifacts: Vec<ArtifactPointer>,
     },
+    // A command did not execute
     Skipped,
 }
 
