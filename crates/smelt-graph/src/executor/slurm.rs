@@ -112,7 +112,7 @@ struct RemoteServer {
     connections: TRMap,
 }
 
-const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
+pub const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
 async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Result<PathBuf> {
     let file = SlurmExecutor::get_bin(cfg);

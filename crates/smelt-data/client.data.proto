@@ -42,6 +42,9 @@ message ConfigureSmelt {
   bool test_only = 4;
   // If true, we do not transmit stdout from the server
   bool silent = 5;
+  // if true, we will prepare the workspace to run tests in another stage
+  // this is useful for splitting the work between a build and test stage
+  bool prepare_workspace = 6;
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;
@@ -61,7 +64,20 @@ enum ProfilingSelection {
 }
 
 message CfgLocal {}
-message CfgSlurm {}
+message CfgSlurm {
+  oneof SealedWorkspace {
+    bool none = 10;
+    DockerWorkspace dockerws = 11;
+  } 
+}
+
+message DockerWorkspace {
+  string container_name = 1;
+  string workspace_smelt_root = 2;
+}
+
+
+
 
 // Clone of Bollard proto message Ulimit
 message Ulimit {

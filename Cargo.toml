@@ -54,11 +54,11 @@ version = "1.10.5"
 
 [workspace.dependencies.dice]
 git = "https://github.com/facebook/buck2"
-rev = "9e17b241"
+rev = "2024-09-02"
 
 [workspace.dependencies.allocative]
 git = "https://github.com/facebook/buck2"
-rev = "9e17b241"
+rev = "2024-09-02"
 features = [
   "anyhow",
   "bumpalo",
@@ -83,7 +83,7 @@ features = [
 
 [workspace.dependencies.dupe]
 git = "https://github.com/facebook/buck2"
-rev = "9e17b241"
+rev = "2024-09-02"
 
 [workspace.dependencies.static_interner]
 version = "0.1.1"

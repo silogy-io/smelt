@@ -16,8 +16,8 @@ use futures::{
 };
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
-use smelt_core::CommandDefPath;
 use smelt_core::SmeltErr;
+use smelt_core::{prepare_workspace, CommandDefPath};
 use smelt_data::{
     client_commands::{client_command::ClientCommands, client_resp::ClientResponses, *},
     executed_tests::ExecutedTestResult,
@@ -25,7 +25,8 @@ use smelt_data::{
 use smelt_events::{
     self,
     runtime_support::{
-        GetSmeltCfg, GetTraceId, GetTxChannel, SetHostname, SetSmeltCfg, SetTraceId, SetTxChannel,
+        GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, SetHostname, SetSmeltCfg, SetTraceId,
+        SetTxChannel,
     },
     ClientCommandBundle, Event,
 };
@@ -114,14 +115,33 @@ impl Key for LookupFileMaker {
 #[async_trait]
 impl Key for CommandRef {
     type Value = Result<Arc<ExecutedTestResult>, Arc<SmeltErr>>;
+    /// This is the work horse for the smelt execution engine
+    ///
+    /// Each command impls the Key trait, and this resolves how to execute each command, and each
+    /// command's dependencies
     async fn compute(
         &self,
         ctx: &mut DiceComputations,
         _cancellations: &CancellationContext,
     ) -> Self::Value {
         let test_only = ctx.global_data().get_smelt_cfg().test_only;
+        let prepare_only = ctx.global_data().get_smelt_cfg().prepare_workspace;
+
         if test_only && !self.0.target_type.test_only_valid() {
             return Ok(Arc::new(ExecutedTestResult::Skipped));
+        }
+
+        if prepare_only && self.0.target_type.test_only_valid() {
+            let command = self.0.as_ref();
+            let root = ctx.global_data().get_smelt_root();
+            let val = prepare_workspace(command, root.clone(), command.working_dir.as_path()).await;
+            if let Err(err) = val {
+                tracing::info!(
+                    "Preparing the workspace for {:?} failed with err {:?}",
+                    command.name,
+                    err
+                );
+            }
         }
 
         let deps = self.0.dependencies.as_slice();
@@ -138,12 +158,7 @@ impl Key for CommandRef {
             .collect::<Result<Vec<CommandRef>, SmeltErr>>()?;
 
         let tx = ctx.per_transaction_data().get_tx_channel();
-        let _ = tx
-            .send(Event::command_scheduled(
-                self.0.name.clone(),
-                ctx.per_transaction_data().get_trace_id(),
-            ))
-            .await;
+
         let futs = ctx.compute_many(all_deps.into_iter().map(|val| {
             DiceComputations::declare_closure(
                 move |ctx: &mut DiceComputations| -> BoxFuture<Self::Value> {
@@ -157,6 +172,7 @@ impl Key for CommandRef {
             )
         }));
 
+        // Execute all the dependencies of this command
         let val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
 
         let mut exit = None;
@@ -197,6 +213,16 @@ impl Key for CommandRef {
         }
 
         let executor = ctx.global_data().get_executor();
+
+        // At this point, the current command is effectively scheduled -- all of the dependencies
+        // of this command have executed successfully, and we're about to try to execute this
+        // command
+        let _ = tx
+            .send(Event::command_scheduled(
+                self.0.name.clone(),
+                ctx.per_transaction_data().get_trace_id(),
+            ))
+            .await;
 
         let output = executor
             .execute_commands(
@@ -773,6 +799,7 @@ mod tests {
                 prof_type: 0,
                 sampling_period: 1000,
             }),
+            prepare_workspace: false,
             smelt_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
             test_only: false,
             silent: true,
