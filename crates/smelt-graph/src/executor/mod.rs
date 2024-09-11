@@ -22,7 +22,7 @@ pub use docker::DockerExecutor;
 pub use local::LocalExecutor;
 #[cfg(test)]
 pub use remote::RemoteExecutor;
-pub use slurm::{SlurmExecutor, WORKER_BIN};
+pub use slurm::{init_worker_binary, SlurmExecutor, WORKER_BIN};
 
 #[async_trait]
 pub trait Executor: Send + Sync {

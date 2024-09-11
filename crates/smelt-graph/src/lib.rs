@@ -7,6 +7,5 @@ mod sealed;
 mod utils;
 
 pub use commands::*;
-pub use executor::WORKER_BIN;
+pub use executor::{init_worker_binary, WORKER_BIN};
 pub use graph::*;
-

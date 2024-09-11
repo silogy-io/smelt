@@ -128,11 +128,8 @@ pub async fn profile_cmd_docker(
         let new_sample = docker_sample(&docker_client, container_name).await;
 
         if let Some(ref stats) = new_sample {
-            match docker_stats_to_event(&trace_id, &command_ref, stats, profile_start_time_ms) {
-                Some(event) => {
-                    let _ = tx.send(event).await;
-                }
-                None => {}
+            if let Some(event) = docker_stats_to_event(&trace_id, &command_ref, stats, profile_start_time_ms) {
+                let _ = tx.send(event).await;
             }
 
         }

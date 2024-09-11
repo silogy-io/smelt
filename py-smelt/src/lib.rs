@@ -4,7 +4,7 @@ use smelt_data::{client_commands::ConfigureSmelt, Event};
 mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 
-use std::{fs, sync::Once};
+use std::sync::Once;
 
 static START: Once = Once::new();
 
@@ -17,7 +17,7 @@ use pyo3::{
     types::{PyBytes, PyType},
 };
 use smelt_events::{ClientCommandBundle, ClientCommandResp, EventStreams};
-use smelt_graph::{spawn_graph_server, SmeltServerHandle, WORKER_BIN};
+use smelt_graph::{init_worker_binary, spawn_graph_server, SmeltServerHandle};
 
 use std::sync::Arc;
 use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedSender};
@@ -32,7 +32,7 @@ pub fn arc_err_to_py(smelt_err: Arc<SmeltErr>) -> PyErr {
 fn pysmelt(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyController>()?;
     m.add_class::<PyEventStream>()?;
-    m.add_function(wrap_pyfunction!(init_worker_binary, &m)?)?;
+    m.add_function(wrap_pyfunction!(create_worker_binary, &m)?)?;
     Ok(())
 }
 
@@ -58,8 +58,8 @@ impl PyEventStream {
 
 #[pyfunction]
 /// Writes the worker binary to the input path
-fn init_worker_binary(output_path: String) -> PyResult<()> {
-    fs::write(output_path, WORKER_BIN)?;
+fn create_worker_binary() -> PyResult<()> {
+    init_worker_binary()?;
     Ok(())
 }
 
