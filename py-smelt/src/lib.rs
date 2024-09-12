@@ -1,6 +1,7 @@
 use smelt_core::SmeltErr;
 use smelt_data::client_commands::{client_resp::ClientResponses, ClientCommand, ClientResp};
 use smelt_data::{client_commands::ConfigureSmelt, Event};
+mod docker_utils;
 mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Callable, Generator, List, Optional
 
 import yaml
-from pysmelt.pysmelt_rust import PyController, PyEventStream
+from pysmelt.pysmelt import PyController, PyEventStream
 
 from pysmelt.interfaces import Command
 from pysmelt.interfaces.paths import SmeltPath, SmeltPathFetcher

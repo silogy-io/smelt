@@ -110,7 +110,7 @@ default-features = false
 
 [workspace.dependencies.smelt-graph]
 path = "crates/smelt-graph"
-default-features = false
+
 
 [workspace.dependencies.smelt-data]
 path = "crates/smelt-data"
@@ -123,3 +123,6 @@ default-features = false
 [workspace.dependencies.py-smelt]
 path = "py-smelt"
 default-features = false
+
+[workspace.dependencies.bollard]
+version = "0.16.1"
