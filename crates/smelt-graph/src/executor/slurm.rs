@@ -245,8 +245,6 @@ impl Executor for SlurmExecutor {
     }
 
     async fn init_per_tx_state(&self, data: &mut UserComputationData, _global_data: &DiceData) {
-        // This is bad! we could collide on port! I dont care
-
         let tx_chan = data.get_tx_channel();
         let connections = Arc::new(HashMap::new());
         let remote_server = RemoteServer {

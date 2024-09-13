@@ -26,6 +26,9 @@ pub use slurm::{init_worker_binary, SlurmExecutor, WORKER_BIN};
 
 #[async_trait]
 pub trait Executor: Send + Sync {
+    /// The heavy lifting of actually _executing_ a command is implemented here
+    /// the [`dice_data`](UserComputationData) contains per invocation metadata
+    /// (e.g. unique id of the invocation)
     async fn execute_commands(
         &self,
         command: Arc<Command>,
@@ -33,12 +36,16 @@ pub trait Executor: Send + Sync {
         global_dice_data: &DiceData,
     ) -> anyhow::Result<ExecutedTestResult>;
 
+    /// Initialization of per execution state. This is particularly useful for executors that need
+    /// to create transient services see the slurm executor
     async fn init_per_tx_state(
         &self,
         _dice_data: &mut UserComputationData,
         global_dice_data: &DiceData,
     ) {
     }
+
+    /// The "free"-ing side of the per tx initialization
     async fn drop_per_tx_state(&self, _dice_data: &UserComputationData) {}
 }
 
