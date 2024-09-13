@@ -14,6 +14,7 @@ from pysmelt.serde import SafeDataclassDumper
 from typing import Optional, Dict
 from typer import Exit
 from pysmelt.templates.template_rule import create_rule_target_from_template
+from pysmelt.pysmelt import create_worker_binary
 
 app = typer.Typer()
 
@@ -97,13 +98,18 @@ def execute(
     jobs: Optional[int] = typer.Option(
         None, "--jobs", help="max number of jobslots allowed"
     ),
+    prepare_workspace: bool = typer.Option(
+        False,
+        help="If set, we will prepare the workspace for a distributed run -- Only build commands will run, and test commands will only create shell scripts.",
+        is_flag=True,
+    ),
 ):
-
     if jobs:
         SmeltRcHolder.set_jobs(jobs)
 
     def configure_cb(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.test_only = test_only
+        cfg.prepare_workspace = prepare_workspace
         return cfg
 
     graph = create_graph(str(smelt_file), cfg_init=configure_cb)
@@ -111,6 +117,8 @@ def execute(
         graph.run_one_test_interactive(target_name)
     else:
         graph.run_all_typed_commands(tt)
+    if prepare_workspace:
+        create_worker_binary()
 
 
 @app.command(

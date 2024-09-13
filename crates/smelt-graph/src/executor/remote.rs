@@ -42,10 +42,7 @@ struct RemoteServer {
 const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
 async fn make_temp_executable(data: &[u8]) -> anyhow::Result<PathBuf> {
-    let file = PathBuf::from(format!(
-        "{}/workerguy",
-        std::env!("CARGO_MANIFEST_DIR")
-    ));
+    let file = PathBuf::from(format!("{}/workerguy", std::env!("CARGO_MANIFEST_DIR")));
 
     tokio::fs::write(file.as_path(), data).await?;
     let mut perms = tokio::fs::metadata(file.as_path()).await?.permissions();
@@ -113,7 +110,7 @@ impl RemoteHelpers for UserComputationData {
 
 #[async_trait]
 impl Executor for RemoteExecutor {
-    async fn init_per_tx_state(&self, data: &mut UserComputationData) {
+    async fn init_per_tx_state(&self, data: &mut UserComputationData, _global_data: &DiceData) {
         // This is bad! we could collide on port! I dont care
         let port = 9213;
         let tx_chan = data.get_tx_channel();

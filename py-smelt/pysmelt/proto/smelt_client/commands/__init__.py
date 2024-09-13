@@ -95,6 +95,12 @@ class ConfigureSmelt(betterproto.Message):
     silent: bool = betterproto.bool_field(5)
     """If true, we do not transmit stdout from the server"""
 
+    prepare_workspace: bool = betterproto.bool_field(6)
+    """
+    if true, we will prepare the workspace to run tests in another stage this
+    is useful for splitting the work between a build and test stage
+    """
+
     local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")
     docker: "CfgDocker" = betterproto.message_field(11, group="InitExecutor")
     slurm: "CfgSlurm" = betterproto.message_field(12, group="InitExecutor")
@@ -115,7 +121,14 @@ class CfgLocal(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CfgSlurm(betterproto.Message):
-    pass
+    none: bool = betterproto.bool_field(10, group="SealedWorkspace")
+    dockerws: "DockerWorkspace" = betterproto.message_field(11, group="SealedWorkspace")
+
+
+@dataclass(eq=False, repr=False)
+class DockerWorkspace(betterproto.Message):
+    container_name: str = betterproto.string_field(1)
+    workspace_smelt_root: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)

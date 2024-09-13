@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-
+mod sealed;
 use anyhow::Error;
 use async_trait::async_trait;
 use bollard::container::LogOutput;

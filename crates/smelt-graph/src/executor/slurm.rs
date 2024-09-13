@@ -1,4 +1,9 @@
-use std::{net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
+use std::{
+    fs::{set_permissions, Permissions},
+    net::SocketAddr,
+    os::unix::fs::PermissionsExt,
+    path::Path,
+};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -239,7 +244,7 @@ impl Executor for SlurmExecutor {
         data.get_pertx_state().server_handle.abort();
     }
 
-    async fn init_per_tx_state(&self, data: &mut UserComputationData) {
+    async fn init_per_tx_state(&self, data: &mut UserComputationData, _global_data: &DiceData) {
         // This is bad! we could collide on port! I dont care
 
         let tx_chan = data.get_tx_channel();
@@ -357,5 +362,8 @@ pub fn init_worker_binary() -> Result<(), std::io::Error> {
     //TODO -- maybe handle this
     let _tohandle = std::fs::create_dir_all(wpath.parent().unwrap());
     std::fs::write(WORKER_PATH, WORKER_BIN)?;
+    let mut perms = std::fs::metadata(WORKER_PATH)?.permissions();
+    perms.set_mode(777);
+    set_permissions(WORKER_PATH, perms)?;
     Ok(())
 }

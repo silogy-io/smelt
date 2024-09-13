@@ -33,7 +33,12 @@ pub trait Executor: Send + Sync {
         global_dice_data: &DiceData,
     ) -> anyhow::Result<ExecutedTestResult>;
 
-    async fn init_per_tx_state(&self, _dice_data: &mut UserComputationData) {}
+    async fn init_per_tx_state(
+        &self,
+        _dice_data: &mut UserComputationData,
+        global_dice_data: &DiceData,
+    ) {
+    }
     async fn drop_per_tx_state(&self, _dice_data: &UserComputationData) {}
 }
 

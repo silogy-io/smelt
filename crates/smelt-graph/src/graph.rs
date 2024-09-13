@@ -131,19 +131,6 @@ impl Key for CommandRef {
             return Ok(Arc::new(ExecutedTestResult::Skipped));
         }
 
-        if prepare_only && self.0.target_type.test_only_valid() {
-            let command = self.0.as_ref();
-            let root = ctx.global_data().get_smelt_root();
-            let val = prepare_workspace(command, root.clone(), command.working_dir.as_path()).await;
-            if let Err(err) = val {
-                tracing::info!(
-                    "Preparing the workspace for {:?} failed with err {:?}",
-                    command.name,
-                    err
-                );
-            }
-        }
-
         let deps = self.0.dependencies.as_slice();
         let req_files = self.0.dependent_files.as_slice();
         let (command_deps, file_command_deps) = get_command_deps(ctx, deps, req_files).await;
@@ -174,6 +161,20 @@ impl Key for CommandRef {
 
         // Execute all the dependencies of this command
         let val: Vec<Self::Value> = future::join_all(futs).await.into_iter().collect();
+
+        if prepare_only && self.0.target_type.test_only_valid() {
+            let command = self.0.as_ref();
+            let root = ctx.global_data().get_smelt_root();
+            let val = prepare_workspace(command, root.clone(), command.working_dir.as_path()).await;
+            if let Err(err) = val {
+                tracing::info!(
+                    "Preparing the workspace for {:?} failed with err {:?}",
+                    command.name,
+                    err
+                );
+            }
+            return Ok(Arc::new(ExecutedTestResult::Skipped));
+        }
 
         let mut exit = None;
         for val in val {
@@ -566,11 +567,13 @@ impl CommandGraph {
         let executor = ctx.existing_state().await.global_data().get_executor();
 
         let mut data = UserComputationData::new();
+        let global = ctx.existing_state().await;
+        let gdata = global.global_data();
 
         data.set_hostname();
         data.init_trace_id();
         data.set_tx_channel(tx);
-        executor.init_per_tx_state(&mut data).await;
+        executor.init_per_tx_state(&mut data, gdata).await;
 
         let tx = ctx.commit_with_data(data).await;
         let val = tx.per_transaction_data().get_tx_channel();

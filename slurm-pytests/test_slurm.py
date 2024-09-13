@@ -37,3 +37,19 @@ def test_simple_slurm():
     assert (
         observed_reexec == expected_tests
     ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
+
+
+def create_sealed(container_name: str, committed_img_name: str, smelt_file_path: str):
+    """
+    Smelt file path should always be relative to root
+    """
+    root = get_git_root()
+    bash_script_path = f"{root}/test_utils/create_sealed.sh"
+    smelt_file_path = f"{root}/{smelt_file_path}"
+
+    subprocess.run(
+        [bash_script_path, container_name, committed_img_name, smelt_file_path]
+    )
+
+
+create_sealed("dog5", "dog6", "test_data/smelt_files/simple_graph.smelt.yaml")
