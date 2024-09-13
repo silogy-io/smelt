@@ -11,6 +11,7 @@ from pysmelt.path_utils import get_git_root
 from pysmelt.proto.smelt_client.commands import (
     CfgSlurm,
     ConfigureSmelt,
+    DockerWorkspace,
     ProfilerCfg,
     ProfilingSelection,
     CfgDocker,
@@ -26,6 +27,7 @@ def test_simple_slurm():
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.slurm = CfgSlurm()
+        cfg.slurm.none = True
         return cfg
 
     graph = create_graph(test_list, cfg_init=init_slurm)
@@ -52,4 +54,23 @@ def create_sealed(container_name: str, committed_img_name: str, smelt_file_path:
     )
 
 
-create_sealed("dog5", "dog6", "test_data/smelt_files/simple_graph.smelt.yaml")
+def test_sealed_slurm():
+    """ """
+    test_list = f"{get_git_root()}/test_data/smelt_files/simple_graph.smelt.yaml"
+
+    def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.slurm = CfgSlurm()
+        cfg.slurm.dockerws = DockerWorkspace(
+            container_name="sealed_example", workspace_smelt_root="/opt"
+        )
+        return cfg
+
+    graph = create_graph(test_list, cfg_init=init_slurm)
+    graph.run_all_typed_commands("test")
+
+    expected_tests = 3
+    observed_reexec = graph.retcode_tracker.total_executed()
+
+    assert (
+        observed_reexec == expected_tests
+    ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"

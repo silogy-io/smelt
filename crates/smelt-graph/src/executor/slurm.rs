@@ -1,15 +1,10 @@
-use std::{
-    fs::{set_permissions, Permissions},
-    net::SocketAddr,
-    os::unix::fs::PermissionsExt,
-    path::Path,
-};
+use std::{fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use scc::HashMap;
-use smelt_core::get_target_root;
+use smelt_core::{get_target_root, SmeltErr};
 
 use std::io::Write;
 
@@ -45,6 +40,64 @@ struct SlurmWorkspace {
     sbatch_file: PathBuf,
 }
 
+fn create_slurm_command(
+    command: &Command,
+    smelt_root: PathBuf,
+    worker_bin_path: &Path,
+    trace_id: &str,
+    server_addr: &str,
+    ws: &SealedWorkspace,
+) -> Result<String, SmeltErr> {
+    let working_dir = command.default_target_root(smelt_root.as_path())?;
+    let script_file = working_dir.join(Command::script_file());
+
+    match ws {
+        SealedWorkspace::None(_) => {
+            let arrrggs = [
+                "--command-path".to_string(),
+                script_file.to_string_lossy().to_string(),
+                "--command-name".to_string(),
+                command.name.clone(),
+                "--trace-id".to_string(),
+                trace_id.to_string(),
+                "--host".to_string(),
+                format!("http://{}", server_addr),
+            ];
+
+            Ok(format!(
+                "{} {}\n",
+                worker_bin_path.to_string_lossy(),
+                arrrggs.join(" ")
+            ))
+        }
+        SealedWorkspace::Dockerws(DockerWorkspace {
+            container_name,
+            workspace_smelt_root,
+        }) => {
+            let sealed_working_dir =
+                command.default_target_root(PathBuf::from(workspace_smelt_root))?;
+            let sealed_script_file = sealed_working_dir.join(Command::script_file());
+
+            let arrrggs = [
+                "--command-path".to_string(),
+                sealed_script_file.to_string_lossy().to_string(),
+                "--command-name".to_string(),
+                command.name.clone(),
+                "--trace-id".to_string(),
+                trace_id.to_string(),
+                "--host".to_string(),
+                format!("http://{}", server_addr),
+            ];
+
+            Ok(format!(
+                "docker run {} {} {}\n",
+                container_name,
+                WORKER_PATH,
+                arrrggs.join(" ")
+            ))
+        }
+    }
+}
 async fn prepare_slurm_workspace(
     command: &Command,
     smelt_root: PathBuf,
@@ -85,55 +138,16 @@ async fn prepare_slurm_workspace(
 
     writeln!(buf2, "#!/bin/bash")?;
 
-    match ws {
-        SealedWorkspace::None(_) => {
-            let arrrggs = [
-                "--command-path".to_string(),
-                script_file.to_string_lossy().to_string(),
-                "--command-name".to_string(),
-                command.name.clone(),
-                "--trace-id".to_string(),
-                trace_id.to_string(),
-                "--host".to_string(),
-                format!("http://{}", server_addr),
-            ];
+    let slurm_command = create_slurm_command(
+        command,
+        smelt_root.clone(),
+        worker_bin_path,
+        trace_id,
+        server_addr,
+        ws,
+    )?;
 
-            writeln!(
-                buf2,
-                "{} {}\n",
-                worker_bin_path.to_string_lossy(),
-                arrrggs.join(" ")
-            )?;
-        }
-        SealedWorkspace::Dockerws(DockerWorkspace {
-            container_name,
-            workspace_smelt_root,
-        }) => {
-            let sealed_working_dir =
-                command.default_target_root(PathBuf::from(workspace_smelt_root))?;
-            let sealed_script_file = sealed_working_dir.join(Command::script_file());
-
-            let arrrggs = [
-                "--command-path".to_string(),
-                sealed_script_file.to_string_lossy().to_string(),
-                "--command-name".to_string(),
-                command.name.clone(),
-                "--trace-id".to_string(),
-                trace_id.to_string(),
-                "--host".to_string(),
-                format!("http://{}", server_addr),
-            ];
-
-            writeln!(
-                buf2,
-                "docker run {} {} {}\n",
-                container_name,
-                WORKER_PATH,
-                arrrggs.join(" ")
-            )?;
-        }
-    }
-
+    writeln!(buf2, "{}\n", slurm_command)?;
     sbatch_file_real.write_all(&buf2).await?;
 
     file.write_all(&buf).await?;
@@ -291,16 +305,6 @@ impl Executor for SlurmExecutor {
         let worker_bin = Self::get_bin(cfg);
         let addr = pertxstate.server_addr;
 
-        let SlurmWorkspace { sbatch_file, .. } = prepare_slurm_workspace(
-            command,
-            root.clone(),
-            command.working_dir.as_path(),
-            worker_bin.as_path(),
-            trace_id.as_str(),
-            addr.to_string().as_str(),
-            &self.sealed_workspace,
-        )
-        .await?;
         let (sender, rcv) = oneshot::channel();
         tracing::trace!("Trying to insert {}", command.name);
 
@@ -309,14 +313,43 @@ impl Executor for SlurmExecutor {
             .insert_async(command.name.clone(), sender)
             .await
             .expect("Command should only be inserted once");
-        let mut commandlocal = tokio::process::Command::new("sbatch");
+        let _sbatch_handle = match &self.sealed_workspace {
+            SealedWorkspace::None(_) => {
+                let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
+                    command,
+                    root.clone(),
+                    command.working_dir.as_path(),
+                    worker_bin.as_path(),
+                    trace_id.as_str(),
+                    addr.to_string().as_str(),
+                    &self.sealed_workspace,
+                )
+                .await?;
 
-        commandlocal.arg(&sbatch_file);
-        //commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
+                let mut commandlocal = tokio::process::Command::new("sbatch");
 
-        //tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
+                commandlocal.arg(&sbatch_file);
+                //commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-        let _comm_handle = commandlocal.spawn()?;
+                //tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
+
+                commandlocal.spawn()?
+            }
+            SealedWorkspace::Dockerws(DockerWorkspace { .. }) => {
+                let slurm_command = create_slurm_command(
+                    command,
+                    root.clone(),
+                    worker_bin.as_path(),
+                    trace_id.as_str(),
+                    addr.to_string().as_str(),
+                    &self.sealed_workspace,
+                )?;
+                let mut commandlocal = tokio::process::Command::new("sbatch");
+
+                commandlocal.arg(format!("--wrap=\"{}\"", slurm_command));
+                commandlocal.spawn()?
+            }
+        };
         //let stderr = comm_handle.stderr.take().unwrap();
         //let stderr_reader = BufReader::new(stderr);
         //let mut stderr_lines = stderr_reader.lines();
