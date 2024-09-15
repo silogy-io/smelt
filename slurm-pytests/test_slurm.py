@@ -57,11 +57,14 @@ def create_sealed(container_name: str, committed_img_name: str, smelt_file_path:
 def test_sealed_slurm():
     """ """
     test_list = f"{get_git_root()}/test_data/smelt_files/simple_graph.smelt.yaml"
+    img = "test_sealed_slurm_img"
+    create_sealed("sealed_example", img, test_list)
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
+        cfg.test_only = True
         cfg.slurm = CfgSlurm()
         cfg.slurm.dockerws = DockerWorkspace(
-            container_name="sealed_example", workspace_smelt_root="/opt"
+            container_name=img, workspace_smelt_root="/opt"
         )
         return cfg
 

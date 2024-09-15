@@ -6,7 +6,7 @@ if [ "$1" == "-h" ]; then
   echo "Argument 3: Command to execute"
   exit 0
 fi
-docker run -d --platform linux/amd64 --name $1 sealed_example smelt execute $3 --prepare-workspace
+docker run --platform linux/amd64 --name $1 sealed_example smelt execute $3 --prepare-workspace
 # wait for the container to finish its task (optional)
 # add any necessary delay or wait logic here
 # commit the changes to a new image
