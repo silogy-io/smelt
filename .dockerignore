@@ -1,0 +1,4 @@
+target/
+dist/
+Dockerfile.dev
+smelt-out/
