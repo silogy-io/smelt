@@ -345,8 +345,10 @@ impl Executor for SlurmExecutor {
                     &self.sealed_workspace,
                 )?;
                 let mut commandlocal = tokio::process::Command::new("sbatch");
+                let inner_str = format!("--wrap=\"{}\"", slurm_command);
+                tracing::info!("submit string is {inner_str}");
 
-                commandlocal.arg(format!("--wrap=\"{}\"", slurm_command));
+                commandlocal.arg(inner_str);
                 commandlocal.spawn()?
             }
         };
