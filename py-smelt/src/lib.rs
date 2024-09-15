@@ -18,7 +18,7 @@ use pyo3::{
     types::{PyBytes, PyType},
 };
 use smelt_events::{ClientCommandBundle, ClientCommandResp, EventStreams};
-use smelt_graph::{init_worker_binary, spawn_graph_server, SmeltServerHandle};
+use smelt_graph::{init_worker_binary, spawn_graph_server, spawn_test_server, SmeltServerHandle};
 
 use std::sync::Arc;
 use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedSender};
@@ -34,6 +34,8 @@ fn pysmelt(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyController>()?;
     m.add_class::<PyEventStream>()?;
     m.add_function(wrap_pyfunction!(create_worker_binary, &m)?)?;
+    m.add_function(wrap_pyfunction!(spawn_dummy_server, &m)?)?;
+
     Ok(())
 }
 
@@ -61,6 +63,13 @@ impl PyEventStream {
 /// Writes the worker binary to the input path
 fn create_worker_binary() -> PyResult<()> {
     init_worker_binary()?;
+    Ok(())
+}
+
+#[pyfunction]
+/// Writes the worker binary to the input path
+fn spawn_dummy_server(port: u64) -> PyResult<()> {
+    spawn_test_server(port).map_err(|err| PyRuntimeError::new_err(err.to_string()))?;
     Ok(())
 }
 

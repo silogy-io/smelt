@@ -169,6 +169,8 @@ struct RemoteServer {
     connections: TRMap,
 }
 
+struct TestRemoteServer {}
+
 pub const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
 async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Result<PathBuf> {
@@ -205,6 +207,28 @@ impl SlurmExecutor {
     }
     fn get_bin(cfg: &ConfigureSmelt) -> PathBuf {
         PathBuf::from(format!("{}/workerguy", cfg.smelt_root))
+    }
+}
+
+#[tonic::async_trait]
+impl smelt_data::event_listener_server::EventListener for TestRemoteServer {
+    async fn send_event(
+        &self,
+        request: tonic::Request<Event>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let inner_event = request.into_inner();
+
+        println!("inner event is {:?}", inner_event);
+        Ok(Response::new(()))
+    }
+    async fn send_outputs(
+        &self,
+        request: tonic::Request<TestResult>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let val = request.into_inner();
+        tracing::info!("result is {:?}", val);
+
+        Ok(Response::new(()))
     }
 }
 
@@ -400,5 +424,33 @@ pub fn init_worker_binary() -> Result<(), std::io::Error> {
     let mut perms = std::fs::metadata(WORKER_PATH)?.permissions();
     perms.set_mode(777);
     set_permissions(WORKER_PATH, perms)?;
+    Ok(())
+}
+
+pub fn spawn_test_server(port: u64) -> anyhow::Result<()> {
+    let hostname = whoami::fallible::hostname().unwrap_or("unknown_host".to_string());
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let test_server = TestRemoteServer {};
+
+    let fut = async move {
+        tracing::trace!("Spawning server!");
+        println!("{hostname}:{port}");
+        let listener = TcpListener::bind(format!("{hostname}:{port}"))
+            .await
+            .unwrap();
+        Server::builder()
+            .add_service(smelt_data::event_listener_server::EventListenerServer::new(
+                test_server,
+            ))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .unwrap();
+    };
+    rt.block_on(fut);
     Ok(())
 }
