@@ -47,17 +47,17 @@ def create_sealed(container_name: str, committed_img_name: str, smelt_file_path:
     """
     root = get_git_root()
     bash_script_path = f"{root}/test_utils/create_sealed.sh"
-    smelt_file_path = f"{root}/{smelt_file_path}"
+    smelt_file_path = f"{smelt_file_path}"
 
     subprocess.run(
         [bash_script_path, container_name, committed_img_name, smelt_file_path]
     )
 
 
+test_list = f"test_data/smelt_files/simple_graph.smelt.yaml"
+img = "test_sealed_slurm_img"
 def test_sealed_slurm():
-    """ """
-    test_list = f"{get_git_root()}/test_data/smelt_files/simple_graph.smelt.yaml"
-    img = "test_sealed_slurm_img"
+    """ """   
     create_sealed("sealed_example", img, test_list)
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
@@ -77,3 +77,5 @@ def test_sealed_slurm():
     assert (
         observed_reexec == expected_tests
     ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
+
+test_sealed_slurm()
