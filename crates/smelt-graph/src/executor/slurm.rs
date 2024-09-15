@@ -90,7 +90,7 @@ fn create_slurm_command(
             ];
 
             Ok(format!(
-                "docker run {} {} {}\n",
+                "docker run {} {} {}",
                 container_name,
                 WORKER_PATH,
                 arrrggs.join(" ")
@@ -214,8 +214,9 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         &self,
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        
         let inner_event = request.into_inner();
-
+        tracing::info!("Fwding event to end user {:?}",inner_event);
         let _resp = self.tx_chan.send(inner_event).await;
         Ok(Response::new(()))
     }
@@ -344,11 +345,11 @@ impl Executor for SlurmExecutor {
                     addr.to_string().as_str(),
                     &self.sealed_workspace,
                 )?;
-                let mut commandlocal = tokio::process::Command::new("sbatch");
-                let inner_str = format!("--wrap=\"{}\"", slurm_command);
+                
+                let inner_str = format!("sbatch --wrap=\"{}\"", slurm_command);
                 tracing::info!("submit string is {inner_str}");
-
-                commandlocal.arg(inner_str);
+                let mut commandlocal = tokio::process::Command::new(inner_str);
+                
                 commandlocal.spawn()?
             }
         };
@@ -375,6 +376,7 @@ impl Executor for SlurmExecutor {
         //    );
         //}
 
+        tracing::info!("Waiting for the message...");
         let output = rcv.await?;
 
         Ok(create_test_result(
