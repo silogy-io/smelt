@@ -13,7 +13,6 @@ mod local;
 #[cfg(test)]
 mod remote;
 
-mod profiler;
 mod slurm;
 
 use async_trait::async_trait;

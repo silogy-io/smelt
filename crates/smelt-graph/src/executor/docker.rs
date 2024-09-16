@@ -21,9 +21,9 @@ use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
 use smelt_data::{executed_tests::ExecutedTestResult, Event};
 use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
-use crate::executor::profiler::profile_cmd_docker;
 use crate::executor::Executor;
 use crate::Command;
+use smelt_rt::profile_cmd_docker;
 
 use super::common::{create_test_result, get_target_root, handle_line, prepare_workspace};
 

@@ -1,6 +1,7 @@
 use std::{path::PathBuf, process::Stdio};
 
 mod aws;
+mod profiler;
 use anyhow::Result;
 use smelt_core::Command;
 use smelt_data::{
@@ -8,6 +9,7 @@ use smelt_data::{
     executed_tests::{TestOutputs, TestResult},
     Event,
 };
+use smelt_rt::profile_cmd;
 use tokio::{
     fs::File,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -56,13 +58,28 @@ pub async fn execute_command(
 
     println!("starting to execute {script_file:?}");
     let mut commandlocal = tokio::process::Command::new(shell);
-    
 
     commandlocal
         .arg(script_file)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut comm_handle = commandlocal.spawn()?;
+    let maybe_pid = comm_handle.id();
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    //TODO: maybe nudge this lower or higher
+    // currently we are sampling 300 ms
+    let freq = 300;
+    let sample_task = maybe_pid.and_then(|pid| {
+        Some(tokio::spawn(profile_cmd(
+            pid,
+            tx.clone(),
+            freq,
+            command_name.to_string(),
+            trace_id.clone(),
+        )))
+    });
+
     let stderr = comm_handle.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);
     let mut stderr_lines = stderr_reader.lines();
@@ -72,6 +89,7 @@ pub async fn execute_command(
     let _maybe_pid = comm_handle.id();
     let silent = true;
 
+    // This is the "control loop" for our runtime
     let cstatus: TestOutputs = loop {
         tokio::select!(
             Ok(Some(line)) = lines.next_line() => {
@@ -79,14 +97,13 @@ pub async fn execute_command(
             }
             Ok(Some(line)) = stderr_lines.next_line() => {
                 handle_line(command_name,line, trace_id.as_str(), &mut stdout, silent,&mut stream).await;
-
-
+            }
+            Some(message) = rx.recv() => {
+                let _mayberr = stream.send_event(message).await;
             }
             status_code = comm_handle.wait() => {
                 break status_code.map(|val| TestOutputs{ exit_code: val.code().unwrap_or(-555), artifacts: vec![]});
             }
-
-
         );
     }?;
 
@@ -106,6 +123,9 @@ pub async fn execute_command(
         outputs: Some(cstatus),
     };
     let _ = stream.send_outputs(res).await;
+    if let Some(task) = sample_task {
+        task.abort()
+    }
 
     Ok(())
 }

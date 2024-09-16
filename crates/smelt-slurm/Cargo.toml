@@ -8,8 +8,8 @@ edition.workspace = true
 
 [dependencies]
 smelt-core = { workspace = true }
-
 smelt-data = { workspace = true }
+smelt-rt = { workspace = true }
 anyhow = { workspace = true }
 tonic = { workspace = true }
 tokio = { workspace = true }
@@ -19,6 +19,7 @@ aws-sdk-s3 = "1.48.0"
 aws-smithy-types = "1.2.6"
 rand = "0.8.5"
 uuid = "1.10.0"
+
 
 [[bin]]
 path = "src/main.rs"
