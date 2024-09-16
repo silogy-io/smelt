@@ -1,0 +1,17 @@
+[package]
+name = "smelt-rt"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+bollard = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+smelt-data = { workspace = true }
+tokio = { workspace = true }
+libproc = { workspace = true }
+
+
+[target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dependencies]
+mach2 = "0.4.2"
