@@ -32,6 +32,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build and run Docker image
         run: |
+          bash test_utils/build_base_sealed.sh
           bash test_utils/exec_slurm_tests.sh
   py-test-linux:
     runs-on: ubuntu-latest
