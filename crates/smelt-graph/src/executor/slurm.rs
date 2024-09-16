@@ -369,7 +369,7 @@ impl Executor for SlurmExecutor {
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
 
-                commandlocal.arg(format!("--wrap='{}'", command));
+                commandlocal.arg(format!("--wrap={}", command));
 
                 commandlocal.spawn()?
 
