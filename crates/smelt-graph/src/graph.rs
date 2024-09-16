@@ -567,13 +567,11 @@ impl CommandGraph {
         let executor = ctx.existing_state().await.global_data().get_executor();
 
         let mut data = UserComputationData::new();
-        let global = ctx.existing_state().await;
-        let gdata = global.global_data();
 
         data.set_hostname();
         data.init_trace_id();
         data.set_tx_channel(tx);
-        executor.init_per_tx_state(&mut data, gdata).await;
+        executor.init_per_tx_state(&mut data).await;
 
         let tx = ctx.commit_with_data(data).await;
         let val = tx.per_transaction_data().get_tx_channel();
@@ -841,7 +839,10 @@ mod tests {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data.as_str());
 
         let _script = script.unwrap();
-        graph.set_commands(_script).await;
+        let _ = graph
+            .set_commands(_script)
+            .await
+            .expect("Setting commands failed!");
 
         let (tx, rx_handle) = channel(100);
 

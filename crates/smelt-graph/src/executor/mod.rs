@@ -38,12 +38,7 @@ pub trait Executor: Send + Sync {
 
     /// Initialization of per execution state. This is particularly useful for executors that need
     /// to create transient services see the slurm executor
-    async fn init_per_tx_state(
-        &self,
-        _dice_data: &mut UserComputationData,
-        global_dice_data: &DiceData,
-    ) {
-    }
+    async fn init_per_tx_state(&self, _dice_data: &mut UserComputationData) {}
 
     /// The "free"-ing side of the per tx initialization
     async fn drop_per_tx_state(&self, _dice_data: &UserComputationData) {}

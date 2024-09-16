@@ -110,7 +110,7 @@ impl RemoteHelpers for UserComputationData {
 
 #[async_trait]
 impl Executor for RemoteExecutor {
-    async fn init_per_tx_state(&self, data: &mut UserComputationData, _global_data: &DiceData) {
+    async fn init_per_tx_state(&self, data: &mut UserComputationData) {
         // This is bad! we could collide on port! I dont care
         let port = 9213;
         let tx_chan = data.get_tx_channel();

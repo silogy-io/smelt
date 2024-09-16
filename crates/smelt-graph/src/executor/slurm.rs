@@ -282,7 +282,7 @@ impl Executor for SlurmExecutor {
         data.get_pertx_state().server_handle.abort();
     }
 
-    async fn init_per_tx_state(&self, data: &mut UserComputationData, _global_data: &DiceData) {
+    async fn init_per_tx_state(&self, data: &mut UserComputationData) {
         let tx_chan = data.get_tx_channel();
         let connections = Arc::new(HashMap::new());
         let remote_server = RemoteServer {
@@ -434,7 +434,7 @@ pub fn init_worker_binary() -> Result<(), std::io::Error> {
     let _tohandle = std::fs::create_dir_all(wpath.parent().unwrap());
     std::fs::write(WORKER_PATH, WORKER_BIN)?;
     let mut perms = std::fs::metadata(WORKER_PATH)?.permissions();
-    perms.set_mode(777);
+    perms.set_mode(0o777);
     set_permissions(WORKER_PATH, perms)?;
     Ok(())
 }

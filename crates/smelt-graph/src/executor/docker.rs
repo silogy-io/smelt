@@ -1,5 +1,3 @@
-use std::{collections::HashMap, sync::Arc};
-mod sealed;
 use anyhow::Error;
 use async_trait::async_trait;
 use bollard::container::LogOutput;
@@ -15,6 +13,7 @@ use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use std::{collections::HashMap, sync::Arc};
 use tokio::fs::File;
 
 use smelt_core::SmeltErr;
