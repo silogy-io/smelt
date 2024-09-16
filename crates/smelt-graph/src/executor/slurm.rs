@@ -338,18 +338,33 @@ impl Executor for SlurmExecutor {
             .insert_async(command.name.clone(), sender)
             .await
             .expect("Command should only be inserted once");
+
+        let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
+            command,
+            root.clone(),
+            command.working_dir.as_path(),
+            worker_bin.as_path(),
+            trace_id.as_str(),
+            addr.to_string().as_str(),
+            &self.sealed_workspace,
+        )
+        .await?;
+
+
+
+
         let _sbatch_handle = match &self.sealed_workspace {
-            SealedWorkspace::None(_) => {
-                let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
-                    command,
-                    root.clone(),
-                    command.working_dir.as_path(),
-                    worker_bin.as_path(),
-                    trace_id.as_str(),
-                    addr.to_string().as_str(),
-                    &self.sealed_workspace,
-                )
-                .await?;
+           _ => {
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
 
@@ -360,22 +375,28 @@ impl Executor for SlurmExecutor {
 
                 commandlocal.spawn()?
             }
-            SealedWorkspace::Dockerws(DockerWorkspace { .. }) => {
-                let slurm_command = create_slurm_command(
-                    command,
-                    root.clone(),
-                    worker_bin.as_path(),
-                    trace_id.as_str(),
-                    addr.to_string().as_str(),
-                    &self.sealed_workspace,
-                )?;
-                
-                let inner_str = format!("sbatch --wrap=\"{}\"", slurm_command);
-                tracing::info!("submit string is {inner_str}");
-                let mut commandlocal = tokio::process::Command::new(inner_str);
-                
-                commandlocal.spawn()?
-            }
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+
+            
+            
+            
+            
+            
+            
+            
+            
         };
         //let stderr = comm_handle.stderr.take().unwrap();
         //let stderr_reader = BufReader::new(stderr);
