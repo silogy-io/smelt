@@ -226,8 +226,7 @@ impl smelt_data::event_listener_server::EventListener for TestRemoteServer {
         request: tonic::Request<TestResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
-        tracing::info!("result is {:?}", val);
-
+        println!("result is {:?}", val);
         Ok(Response::new(()))
     }
 }
@@ -239,7 +238,6 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let inner_event = request.into_inner();
-        tracing::info!("Fwding event to end user {:?}", inner_event);
         let _resp = self.tx_chan.send(inner_event).await;
         Ok(Response::new(()))
     }
@@ -372,21 +370,6 @@ impl Executor for SlurmExecutor {
                 commandlocal.arg(format!("--wrap={}", command));
 
                 commandlocal.spawn()?
-
-                //let mut buf2: Vec<u8> = Vec::new();
-
-                //writeln!(buf2, "#!/bin/bash")?;
-
-                //let slurm_command = create_slurm_command(
-                //    command,
-                //    smelt_root.clone(),
-                //    worker_bin_path,
-                //    trace_id,
-                //    server_addr,
-                //    ws,
-                //)?;
-
-                //writeln!(buf2, "{}\n", slurm_command)?;
             }
         };
         //let stderr = comm_handle.stderr.take().unwrap();

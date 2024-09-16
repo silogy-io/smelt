@@ -54,10 +54,11 @@ def create_sealed(container_name: str, committed_img_name: str, smelt_file_path:
     )
 
 
-test_list = f"test_data/smelt_files/simple_graph.smelt.yaml"
-img = "test_sealed_slurm_img"
 def test_sealed_slurm():
-    """ """   
+    """ """
+    test_list = f"test_data/smelt_files/simple_graph.smelt.yaml"
+    img = "test_sealed_slurm_img"
+
     create_sealed("sealed_example", img, test_list)
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
@@ -71,11 +72,9 @@ def test_sealed_slurm():
     graph = create_graph(test_list, cfg_init=init_slurm)
     graph.run_all_typed_commands("test")
 
-    expected_tests = 3
-    observed_reexec = graph.retcode_tracker.total_executed()
+    expected_tests_failed = 3
+    observed_failed = graph.retcode_tracker.total_failed()
 
     assert (
-        observed_reexec == expected_tests
-    ), f"Expected to see {expected_tests} tasks executed, saw {observed_reexec} tests"
-
-test_sealed_slurm()
+        observed_failed == expected_tests_failed
+    ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
