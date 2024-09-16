@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ubuntu:22.04 as base
+FROM --platform=linux/amd64 debian:bookworm-slim as base
 
 WORKDIR /opt
 COPY test_utils/install_cached_deps.sh .
@@ -21,9 +21,8 @@ RUN cargo +nightly-2024-06-08 chef cook --recipe-path recipe.json
 
 COPY . .
 
-RUN  maturin build  --manifest-path py-smelt/Cargo.toml --out dist
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install dist/*.whl
+RUN  maturin build  --manifest-path py-smelt/Cargo.toml --out dist && rm -rf target/
+RUN python3 -m pip install  --break-system-packages  dist/*.whl
 
 
 
