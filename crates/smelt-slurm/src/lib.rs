@@ -1,7 +1,7 @@
 use std::{path::PathBuf, process::Stdio};
 
 mod aws;
-mod profiler;
+
 use anyhow::Result;
 use smelt_core::Command;
 use smelt_data::{
