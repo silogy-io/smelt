@@ -72,7 +72,7 @@ def test_sealed_slurm():
     graph = create_graph(test_list, cfg_init=init_slurm)
     graph.run_all_typed_commands("test")
 
-    expected_tests_failed = 3
+    expected_tests_failed = 2
     observed_failed = graph.retcode_tracker.total_failed()
 
     assert (
