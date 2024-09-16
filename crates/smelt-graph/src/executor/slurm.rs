@@ -238,9 +238,8 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         &self,
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        
         let inner_event = request.into_inner();
-        tracing::info!("Fwding event to end user {:?}",inner_event);
+        tracing::info!("Fwding event to end user {:?}", inner_event);
         let _resp = self.tx_chan.send(inner_event).await;
         Ok(Response::new(()))
     }
@@ -339,64 +338,56 @@ impl Executor for SlurmExecutor {
             .await
             .expect("Command should only be inserted once");
 
-        let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
-            command,
-            root.clone(),
-            command.working_dir.as_path(),
-            worker_bin.as_path(),
-            trace_id.as_str(),
-            addr.to_string().as_str(),
-            &self.sealed_workspace,
-        )
-        .await?;
-
-
-
-
         let _sbatch_handle = match &self.sealed_workspace {
-           _ => {
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
+            SealedWorkspace::None(_) => {
+                let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
+                    command,
+                    root.clone(),
+                    command.working_dir.as_path(),
+                    worker_bin.as_path(),
+                    trace_id.as_str(),
+                    addr.to_string().as_str(),
+                    &self.sealed_workspace,
+                )
+                .await?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
 
                 commandlocal.arg(&sbatch_file);
-                //commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-                //tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
 
                 commandlocal.spawn()?
             }
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+            SealedWorkspace::Dockerws(_) => {
+                let command = create_slurm_command(
+                    command,
+                    root.clone(),
+                    worker_bin.as_path(),
+                    trace_id.as_str(),
+                    addr.to_string().as_str(),
+                    &self.sealed_workspace,
+                )?;
 
-            
-            
-            
-            
-            
-            
-            
-            
+                let mut commandlocal = tokio::process::Command::new("sbatch");
+
+                commandlocal.arg(format!("--wrap='{}'", command));
+
+                commandlocal.spawn()?
+
+                //let mut buf2: Vec<u8> = Vec::new();
+
+                //writeln!(buf2, "#!/bin/bash")?;
+
+                //let slurm_command = create_slurm_command(
+                //    command,
+                //    smelt_root.clone(),
+                //    worker_bin_path,
+                //    trace_id,
+                //    server_addr,
+                //    ws,
+                //)?;
+
+                //writeln!(buf2, "{}\n", slurm_command)?;
+            }
         };
         //let stderr = comm_handle.stderr.take().unwrap();
         //let stderr_reader = BufReader::new(stderr);
