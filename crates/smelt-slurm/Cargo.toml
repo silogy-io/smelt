@@ -19,6 +19,7 @@ aws-sdk-s3 = "1.48.0"
 aws-smithy-types = "1.2.6"
 rand = "0.8.5"
 uuid = "1.10.0"
+aws-credential-types = "1.2.1"
 
 
 [[bin]]
