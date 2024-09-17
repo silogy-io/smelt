@@ -14,13 +14,13 @@ crate-type = ["cdylib"]
 [dependencies]
 
 smelt-core = { workspace = true }
-smelt-graph = { workspace = true, features = ["docker"] }
+smelt-graph = { workspace = true }
 smelt-events = { workspace = true }
 smelt-data = { workspace = true }
 
 
 anyhow = { workspace = true }
-
+bollard = { workspace = true }
 dice = { workspace = true }
 allocative = { workspace = true }
 dupe = { workspace = true }

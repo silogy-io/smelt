@@ -58,7 +58,8 @@ impl Command {
         "command.out"
     }
 
-    pub fn default_target_root(&self, root: &Path) -> Result<PathBuf, SmeltErr> {
+    pub fn default_target_root<AP: AsRef<Path>>(&self, root: AP) -> Result<PathBuf, SmeltErr> {
+        let root = root.as_ref();
         Ok(root.join("smelt-out").join(&self.name))
     }
 

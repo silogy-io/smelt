@@ -8,12 +8,19 @@ edition.workspace = true
 
 [dependencies]
 smelt-core = { workspace = true }
-
 smelt-data = { workspace = true }
+smelt-rt = { workspace = true }
 anyhow = { workspace = true }
 tonic = { workspace = true }
 tokio = { workspace = true }
 argh = "0.1.12"
+aws-config = "1.5.6"
+aws-sdk-s3 = "1.48.0"
+aws-smithy-types = "1.2.6"
+rand = "0.8.5"
+uuid = "1.10.0"
+aws-credential-types = "1.2.1"
+
 
 [[bin]]
 path = "src/main.rs"

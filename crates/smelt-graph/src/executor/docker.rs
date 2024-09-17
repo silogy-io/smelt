@@ -1,5 +1,3 @@
-use std::{collections::HashMap, sync::Arc};
-
 use anyhow::Error;
 use async_trait::async_trait;
 use bollard::container::LogOutput;
@@ -15,6 +13,7 @@ use dice::{DiceData, UserComputationData};
 use futures::StreamExt;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use std::{collections::HashMap, sync::Arc};
 use tokio::fs::File;
 
 use smelt_core::SmeltErr;
@@ -22,9 +21,9 @@ use smelt_data::client_commands::{CfgDocker, RunMode, Ulimit};
 use smelt_data::{executed_tests::ExecutedTestResult, Event};
 use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
-use crate::executor::profiler::profile_cmd_docker;
 use crate::executor::Executor;
 use crate::Command;
+use smelt_rt::profile_cmd_docker;
 
 use super::common::{create_test_result, get_target_root, handle_line, prepare_workspace};
 

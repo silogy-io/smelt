@@ -37,5 +37,8 @@ class RetcodeTracker:
     def total_passed(self) -> int:
         return sum(1 for rc in self.retcode_dict.values() if rc == 0)
 
+    def total_failed(self) -> int:
+        return sum(1 for rc in self.retcode_dict.values() if rc != 0)
+
     def reset(self):
         self.retcode_dict = {}

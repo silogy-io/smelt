@@ -19,10 +19,8 @@ use smelt_events::runtime_support::{
 use crate::executor::{common::handle_line, Executor};
 use crate::Command;
 
-use super::{
-    common::{create_test_result, prepare_workspace, Workspace},
-    profiler::profile_cmd,
-};
+use super::common::{create_test_result, prepare_workspace, Workspace};
+use smelt_rt::profile_cmd;
 
 pub struct LocalExecutor {}
 

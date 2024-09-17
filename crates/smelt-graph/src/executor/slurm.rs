@@ -1,10 +1,10 @@
-use std::{net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
+use std::{fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use dice::{DiceData, UserComputationData};
 use scc::HashMap;
-use smelt_core::get_target_root;
+use smelt_core::{get_target_root, SmeltErr};
 
 use std::io::Write;
 
@@ -17,7 +17,9 @@ use tokio::{
 use tonic::{transport::Server, Response};
 
 use smelt_data::{
-    client_commands::ConfigureSmelt,
+    client_commands::{
+        cfg_slurm::SealedWorkspace, configure_smelt::InitExecutor, ConfigureSmelt, DockerWorkspace,
+    },
     executed_tests::{ExecutedTestResult, TestResult},
     Event,
 };
@@ -38,6 +40,64 @@ struct SlurmWorkspace {
     sbatch_file: PathBuf,
 }
 
+fn create_slurm_command(
+    command: &Command,
+    smelt_root: PathBuf,
+    worker_bin_path: &Path,
+    trace_id: &str,
+    server_addr: &str,
+    ws: &SealedWorkspace,
+) -> Result<String, SmeltErr> {
+    let working_dir = command.default_target_root(smelt_root.as_path())?;
+    let script_file = working_dir.join(Command::script_file());
+
+    match ws {
+        SealedWorkspace::None(_) => {
+            let arrrggs = [
+                "--command-path".to_string(),
+                script_file.to_string_lossy().to_string(),
+                "--command-name".to_string(),
+                command.name.clone(),
+                "--trace-id".to_string(),
+                trace_id.to_string(),
+                "--host".to_string(),
+                format!("http://{}", server_addr),
+            ];
+
+            Ok(format!(
+                "{} {}\n",
+                worker_bin_path.to_string_lossy(),
+                arrrggs.join(" ")
+            ))
+        }
+        SealedWorkspace::Dockerws(DockerWorkspace {
+            container_name,
+            workspace_smelt_root,
+        }) => {
+            let sealed_working_dir =
+                command.default_target_root(PathBuf::from(workspace_smelt_root))?;
+            let sealed_script_file = sealed_working_dir.join(Command::script_file());
+
+            let arrrggs = [
+                "--command-path".to_string(),
+                sealed_script_file.to_string_lossy().to_string(),
+                "--command-name".to_string(),
+                command.name.clone(),
+                "--trace-id".to_string(),
+                trace_id.to_string(),
+                "--host".to_string(),
+                format!("http://{}", server_addr),
+            ];
+
+            Ok(format!(
+                "docker run {} {} {}",
+                container_name,
+                WORKER_PATH,
+                arrrggs.join(" ")
+            ))
+        }
+    }
+}
 async fn prepare_slurm_workspace(
     command: &Command,
     smelt_root: PathBuf,
@@ -45,6 +105,7 @@ async fn prepare_slurm_workspace(
     worker_bin_path: &Path,
     trace_id: &str,
     server_addr: &str,
+    ws: &SealedWorkspace,
 ) -> anyhow::Result<SlurmWorkspace> {
     let working_dir = command.default_target_root(smelt_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
@@ -71,28 +132,22 @@ async fn prepare_slurm_workspace(
     for script_line in &command.script {
         writeln!(buf, "{}", script_line)?;
     }
-    let arrrggs = [
-        "--command-path".to_string(),
-        script_file.to_string_lossy().to_string(),
-        "--command-name".to_string(),
-        command.name.clone(),
-        "--trace-id".to_string(),
-        trace_id.to_string(),
-        "--host".to_string(),
-        format!("http://{}", server_addr),
-    ];
+
     //TODO: add sbatch directives
     let mut buf2: Vec<u8> = Vec::new();
 
     writeln!(buf2, "#!/bin/bash")?;
 
-    writeln!(
-        buf2,
-        "{} {}\n",
-        worker_bin_path.to_string_lossy(),
-        arrrggs.join(" ")
+    let slurm_command = create_slurm_command(
+        command,
+        smelt_root.clone(),
+        worker_bin_path,
+        trace_id,
+        server_addr,
+        ws,
     )?;
 
+    writeln!(buf2, "{}\n", slurm_command)?;
     sbatch_file_real.write_all(&buf2).await?;
 
     file.write_all(&buf).await?;
@@ -104,7 +159,9 @@ type TRMap = Arc<HashMap<String, tokio::sync::oneshot::Sender<TestResult>>>;
 
 /// This is a dummy executor to test all of the logic of the slurm executor, with none of the
 /// overhead of creating a slurm cluster
-pub struct SlurmExecutor {}
+pub struct SlurmExecutor {
+    sealed_workspace: SealedWorkspace,
+}
 
 #[derive(Debug, Clone)]
 struct RemoteServer {
@@ -112,7 +169,9 @@ struct RemoteServer {
     connections: TRMap,
 }
 
-const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
+struct TestRemoteServer {}
+
+pub const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
 async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Result<PathBuf> {
     let file = SlurmExecutor::get_bin(cfg);
@@ -133,10 +192,42 @@ struct PerTxRemoteState {
 impl SlurmExecutor {
     pub async fn new(global_cfg: &ConfigureSmelt) -> Self {
         let _res = make_temp_executable(global_cfg, WORKER_BIN).await.unwrap();
-        Self {}
+        if let Some(ref executor) = global_cfg.init_executor {
+            match executor {
+                InitExecutor::Slurm(slurm) => Self {
+                    sealed_workspace: slurm.sealed_workspace.clone().unwrap(),
+                },
+                _ => {
+                    panic!("Trying to init a slurm executor without the slurm variant -- something is wrong with the slurm init logic!")
+                }
+            }
+        } else {
+            panic!("No executor provided -- was expecting the slurm executor");
+        }
     }
     fn get_bin(cfg: &ConfigureSmelt) -> PathBuf {
         PathBuf::from(format!("{}/workerguy", cfg.smelt_root))
+    }
+}
+
+#[tonic::async_trait]
+impl smelt_data::event_listener_server::EventListener for TestRemoteServer {
+    async fn send_event(
+        &self,
+        request: tonic::Request<Event>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let inner_event = request.into_inner();
+
+        println!("inner event is {:?}", inner_event);
+        Ok(Response::new(()))
+    }
+    async fn send_outputs(
+        &self,
+        request: tonic::Request<TestResult>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let val = request.into_inner();
+        println!("result is {:?}", val);
+        Ok(Response::new(()))
     }
 }
 
@@ -147,7 +238,6 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let inner_event = request.into_inner();
-
         let _resp = self.tx_chan.send(inner_event).await;
         Ok(Response::new(()))
     }
@@ -191,8 +281,6 @@ impl Executor for SlurmExecutor {
     }
 
     async fn init_per_tx_state(&self, data: &mut UserComputationData) {
-        // This is bad! we could collide on port! I dont care
-
         let tx_chan = data.get_tx_channel();
         let connections = Arc::new(HashMap::new());
         let remote_server = RemoteServer {
@@ -239,15 +327,6 @@ impl Executor for SlurmExecutor {
         let worker_bin = Self::get_bin(cfg);
         let addr = pertxstate.server_addr;
 
-        let SlurmWorkspace { sbatch_file, .. } = prepare_slurm_workspace(
-            command,
-            root.clone(),
-            command.working_dir.as_path(),
-            worker_bin.as_path(),
-            trace_id.as_str(),
-            addr.to_string().as_str(),
-        )
-        .await?;
         let (sender, rcv) = oneshot::channel();
         tracing::trace!("Trying to insert {}", command.name);
 
@@ -256,14 +335,43 @@ impl Executor for SlurmExecutor {
             .insert_async(command.name.clone(), sender)
             .await
             .expect("Command should only be inserted once");
-        let mut commandlocal = tokio::process::Command::new("sbatch");
 
-        commandlocal.arg(&sbatch_file);
-        //commandlocal.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let _sbatch_handle = match &self.sealed_workspace {
+            SealedWorkspace::None(_) => {
+                let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
+                    command,
+                    root.clone(),
+                    command.working_dir.as_path(),
+                    worker_bin.as_path(),
+                    trace_id.as_str(),
+                    addr.to_string().as_str(),
+                    &self.sealed_workspace,
+                )
+                .await?;
 
-        //tracing::info!("just spawned command with contents sbatch {sbatch_file:?}");
+                let mut commandlocal = tokio::process::Command::new("sbatch");
 
-        let _comm_handle = commandlocal.spawn()?;
+                commandlocal.arg(&sbatch_file);
+
+                commandlocal.spawn()?
+            }
+            SealedWorkspace::Dockerws(_) => {
+                let command = create_slurm_command(
+                    command,
+                    root.clone(),
+                    worker_bin.as_path(),
+                    trace_id.as_str(),
+                    addr.to_string().as_str(),
+                    &self.sealed_workspace,
+                )?;
+
+                let mut commandlocal = tokio::process::Command::new("sbatch");
+
+                commandlocal.arg(format!("--wrap={}", command));
+
+                commandlocal.spawn()?
+            }
+        };
         //let stderr = comm_handle.stderr.take().unwrap();
         //let stderr_reader = BufReader::new(stderr);
         //let mut stderr_lines = stderr_reader.lines();
@@ -287,6 +395,7 @@ impl Executor for SlurmExecutor {
         //    );
         //}
 
+        tracing::info!("Waiting for the message...");
         let output = rcv.await?;
 
         Ok(create_test_result(
@@ -298,4 +407,45 @@ impl Executor for SlurmExecutor {
             global_data,
         ))
     }
+}
+
+pub const WORKER_PATH: &str = "/tmp/smelt/smelt-worker";
+
+pub fn init_worker_binary() -> Result<(), std::io::Error> {
+    let wpath = std::path::PathBuf::from(WORKER_PATH);
+    //TODO -- maybe handle this
+    let _tohandle = std::fs::create_dir_all(wpath.parent().unwrap());
+    std::fs::write(WORKER_PATH, WORKER_BIN)?;
+    let mut perms = std::fs::metadata(WORKER_PATH)?.permissions();
+    perms.set_mode(0o777);
+    set_permissions(WORKER_PATH, perms)?;
+    Ok(())
+}
+
+pub fn spawn_test_server(port: u64) -> anyhow::Result<()> {
+    let hostname = whoami::fallible::hostname().unwrap_or("unknown_host".to_string());
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let test_server = TestRemoteServer {};
+
+    let fut = async move {
+        tracing::trace!("Spawning server!");
+        println!("{hostname}:{port}");
+        let listener = TcpListener::bind(format!("{hostname}:{port}"))
+            .await
+            .unwrap();
+        Server::builder()
+            .add_service(smelt_data::event_listener_server::EventListenerServer::new(
+                test_server,
+            ))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .unwrap();
+    };
+    rt.block_on(fut);
+    Ok(())
 }

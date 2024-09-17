@@ -42,10 +42,7 @@ struct RemoteServer {
 const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
 async fn make_temp_executable(data: &[u8]) -> anyhow::Result<PathBuf> {
-    let file = PathBuf::from(format!(
-        "{}/workerguy",
-        std::env!("CARGO_MANIFEST_DIR")
-    ));
+    let file = PathBuf::from(format!("{}/workerguy", std::env!("CARGO_MANIFEST_DIR")));
 
     tokio::fs::write(file.as_path(), data).await?;
     let mut perms = tokio::fs::metadata(file.as_path()).await?.permissions();

@@ -65,11 +65,7 @@ fn sample_memory_and_load(ppid: u32) -> Option<SampleStruct> {
     })
 }
 
-
-async fn docker_sample(
-    docker_client: &Docker,
-    command_ref: &String,
-) -> Option<Stats> {
+async fn docker_sample(docker_client: &Docker, command_ref: &String) -> Option<Stats> {
     // TODO This should return a stream of stats. AFAIK the way Docker stats
     //  works is that the daemon constantly polls each container once per
     //  second for statistics. The /stats/ API call, once it starts, waits for
@@ -78,10 +74,17 @@ async fn docker_sample(
     //  compute rate-related information such as CPU load. This means that if
     //  we set stream=False, our rate of fetching stats is limited to once
     //  every _two_ seconds.
-    let stats = docker_client.stats(command_ref, Some(StatsOptions {
-        stream: false,
-        ..Default::default()
-    })).try_collect::<Vec<_>>().await.unwrap();
+    let stats = docker_client
+        .stats(
+            command_ref,
+            Some(StatsOptions {
+                stream: false,
+                ..Default::default()
+            }),
+        )
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap();
 
     for stat in stats {
         return Some(stat);
@@ -89,22 +92,20 @@ async fn docker_sample(
     None
 }
 
-
 fn docker_stats_to_event(
     trace_id: &String,
     command_ref: &String,
     stats: &Stats,
     profile_start_time_ms: u64,
 ) -> Option<Event> {
-    let parsed = stats
-        .read
-        .parse::<DateTime<Utc>>();
+    let parsed = stats.read.parse::<DateTime<Utc>>();
     // Sometimes the first Stats object returned by the library has everything zeroed out, with a
     // date of 0001-01-01T00:00:00Z, which corresponds to a negative timestamp. We ignore these.
     let sample_timestamp_ms: u64 = parsed
         .expect("failed to parse datetime")
         .timestamp_millis()
-        .try_into().ok()?;
+        .try_into()
+        .ok()?;
 
     docker_profile_event(
         trace_id,
@@ -113,7 +114,6 @@ fn docker_stats_to_event(
         sample_timestamp_ms.saturating_sub(profile_start_time_ms),
     )
 }
-
 
 pub async fn profile_cmd_docker(
     tx: Sender<Event>,
@@ -128,13 +128,11 @@ pub async fn profile_cmd_docker(
         let new_sample = docker_sample(&docker_client, container_name).await;
 
         if let Some(ref stats) = new_sample {
-            match docker_stats_to_event(&trace_id, &command_ref, stats, profile_start_time_ms) {
-                Some(event) => {
-                    let _ = tx.send(event).await;
-                }
-                None => {}
+            if let Some(event) =
+                docker_stats_to_event(&trace_id, &command_ref, stats, profile_start_time_ms)
+            {
+                let _ = tx.send(event).await;
             }
-
         }
     }
 }
@@ -146,14 +144,23 @@ fn docker_profile_event(
     time_since_start_ms: u64,
 ) -> Option<Event> {
     // Calculations based on https://docs.docker.com/engine/api/v1.45/#tag/Container/operation/ContainerStats
-    let cpu_delta_us = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-    let system_cpu_delta_us = match (stats.cpu_stats.system_cpu_usage, stats.precpu_stats.system_cpu_usage) {
+    let cpu_delta_us =
+        stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+    let system_cpu_delta_us = match (
+        stats.cpu_stats.system_cpu_usage,
+        stats.precpu_stats.system_cpu_usage,
+    ) {
         (None, _) => return None,
         (_, None) => return None,
-        (Some(system_cpu_usage), Some(prev_system_cpu_usage)) => system_cpu_usage.saturating_sub(prev_system_cpu_usage)
+        (Some(system_cpu_usage), Some(prev_system_cpu_usage)) => {
+            system_cpu_usage.saturating_sub(prev_system_cpu_usage)
+        }
     };
 
-    let number_cpus = match (stats.cpu_stats.online_cpus, stats.cpu_stats.cpu_usage.percpu_usage.clone()) {
+    let number_cpus = match (
+        stats.cpu_stats.online_cpus,
+        stats.cpu_stats.cpu_usage.percpu_usage.clone(),
+    ) {
         (Some(cpus), _) => cpus,
         (_, Some(percpu_usage)) => percpu_usage.len().try_into().unwrap(),
         (_, _) => return None,
@@ -169,7 +176,9 @@ fn docker_profile_event(
         // value of cache field. On cgroup v2 hosts, the cache usage is defined
         // as the value of inactive_file field.
         (Some(usage), Some(MemoryStatsStats::V1(mem_stats_v1))) => usage - mem_stats_v1.cache,
-        (Some(usage), Some(MemoryStatsStats::V2(mem_stats_v2))) => usage - mem_stats_v2.inactive_file,
+        (Some(usage), Some(MemoryStatsStats::V2(mem_stats_v2))) => {
+            usage - mem_stats_v2.inactive_file
+        }
     };
 
     let variant = CommandVariant::Profile(CommandProfile {
@@ -177,7 +186,11 @@ fn docker_profile_event(
         cpu_load,
         time_since_start_ms,
     });
-    Some(Event::from_command_variant(command_ref.clone(), trace_id.clone(), variant))
+    Some(Event::from_command_variant(
+        command_ref.clone(),
+        trace_id.clone(),
+        variant,
+    ))
 }
 
 pub async fn profile_cmd(
@@ -224,7 +237,7 @@ fn profile_event(
     sample: &SampleStruct,
     prev: &SampleStruct,
     time_since_previous_us: u64,
-    time_since_start_ms: u64
+    time_since_start_ms: u64,
 ) -> Event {
     let variant = CommandVariant::Profile(CommandProfile {
         memory_used: sample.memory_used,
