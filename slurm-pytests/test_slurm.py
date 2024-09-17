@@ -59,13 +59,13 @@ def test_sealed_slurm():
     test_list = f"test_data/smelt_files/simple_graph.smelt.yaml"
     img = "test_sealed_slurm_img"
 
-    create_sealed("smelt_dev", img, test_list)
+    create_sealed("sealed_example", img, test_list)
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.test_only = True
         cfg.slurm = CfgSlurm()
         cfg.slurm.dockerws = DockerWorkspace(
-            container_name=img, workspace_smelt_root="/src"
+            container_name=img, workspace_smelt_root="/opt"
         )
         return cfg
 
@@ -78,3 +78,4 @@ def test_sealed_slurm():
     assert (
         observed_failed == expected_tests_failed
     ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
+test_sealed_slurm()
