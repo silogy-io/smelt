@@ -121,8 +121,21 @@ class CfgLocal(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CfgSlurm(betterproto.Message):
+    creds: "AwsCreds" = betterproto.message_field(1)
     none: bool = betterproto.bool_field(10, group="SealedWorkspace")
     dockerws: "DockerWorkspace" = betterproto.message_field(11, group="SealedWorkspace")
+
+
+@dataclass(eq=False, repr=False)
+class AwsCreds(betterproto.Message):
+    """
+    credentials required to create an S3 Client and upload artifacts to it
+    """
+
+    key_id: str = betterproto.string_field(1)
+    key: str = betterproto.string_field(2)
+    bucket: str = betterproto.string_field(3)
+    key_base_path: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
