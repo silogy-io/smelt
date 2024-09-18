@@ -25,6 +25,7 @@ anyhow = "1.0.82"
 tracing = "0.1.40"
 whoami = "1.5.1"
 libproc = "0.14.8"
+
 [profile.opt-dev]
 inherits = "dev"
 opt-level = 1

@@ -185,6 +185,7 @@ impl Key for CommandRef {
                         workspace_smelt_root,
                         ..
                     })),
+                ..
             })) = &cfg.init_executor
             {
                 let command_working_dir = command.default_target_root(root)?;
