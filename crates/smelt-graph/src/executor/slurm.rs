@@ -65,14 +65,13 @@ fn create_slurm_command(
     ws: &CfgSlurm,
 ) -> Result<String, SmeltErr> {
     let working_dir = command.default_target_root(smelt_root.as_path())?;
-    let script_file = working_dir.join(Command::script_file());
     let maybe_aws_cli = aws_awgs(ws);
 
     match ws.sealed_workspace.clone().expect("We need this") {
         SealedWorkspace::None(_) => {
             let mut arrrggs = vec![
                 "--command-path".to_string(),
-                script_file.to_string_lossy().to_string(),
+                working_dir.to_string_lossy().to_string(),
                 "--command-name".to_string(),
                 command.name.clone(),
                 "--trace-id".to_string(),

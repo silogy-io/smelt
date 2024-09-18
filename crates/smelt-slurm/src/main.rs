@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use argh::FromArgs;
 use smelt_slurm::{execute_command, AwsCreds};
 
-#[derive(FromArgs, Debug)]
+#[derive(FromArgs, Debug, Clone)]
 /// Worker args
 struct WorkerArgs {
     #[argh(option)]
@@ -48,12 +48,13 @@ fn main() {
         .enable_all()
         .build()
         .unwrap();
+    // keep them around to printout if we fail
+    let dbg_args = args.clone();
 
     let WorkerArgs {
         command_name,
         command_path,
         host,
-
         trace_id,
         aws_key,
         aws_key_id,
@@ -80,5 +81,7 @@ fn main() {
         host,
         creds,
     ))
-    .expect("There was a failure executing the command!");
+    .expect(
+        format!("There was a failure executing the command!\n\ncli args are {dbg_args:?}").as_ref(),
+    );
 }
