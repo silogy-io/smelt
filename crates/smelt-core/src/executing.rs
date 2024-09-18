@@ -63,7 +63,7 @@ pub async fn prepare_artifact_file(
     command_working_dir: &Path,
 ) -> anyhow::Result<()> {
     let working_dir = command.default_target_root(&root)?;
-    let artifact_json = working_dir.join(Command::script_file());
+
     let artifacts_json_file = working_dir.join(Command::artifacts_json());
     tokio::fs::create_dir_all(&working_dir).await?;
     let mut artifacts_json_file = File::create(&artifacts_json_file).await?;

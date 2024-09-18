@@ -14,12 +14,8 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 tokio = { workspace = true }
-futures = { workspace = true }
 derive_more = { workspace = true }
-async-trait = { workspace = true }
-fuzzy-matcher = { workspace = true }
 pyo3 = { workspace = true }
-pythonize = { workspace = true }
 serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }

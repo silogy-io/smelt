@@ -19,6 +19,6 @@ dupe = { workspace = true }
 prost-types = { workspace = true }
 serde = { workspace = true }
 tonic = { workspace = true }
-hex = { workspace = true }
+
 allocative = { workspace = true }
 tracing = { workspace = true }

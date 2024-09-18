@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use allocative::Allocative;
 use async_trait::async_trait;
@@ -187,7 +187,7 @@ impl Key for CommandRef {
                     })),
             })) = &cfg.init_executor
             {
-                let command_working_dir = command.default_target_root(PathBuf::from(root))?;
+                let command_working_dir = command.default_target_root(root)?;
                 let _ = prepare_artifact_file(
                     command,
                     workspace_smelt_root.to_string(),
@@ -866,7 +866,7 @@ mod tests {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data.as_str());
 
         let _script = script.unwrap();
-        let _ = graph
+        graph
             .set_commands(_script)
             .await
             .expect("Setting commands failed!");

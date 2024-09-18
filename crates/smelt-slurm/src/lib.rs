@@ -78,15 +78,13 @@ pub async fn execute_command(
     //TODO: maybe nudge this lower or higher
     // currently we are sampling 300 ms
     let freq = 300;
-    let sample_task = maybe_pid.and_then(|pid| {
-        Some(tokio::spawn(profile_cmd(
+    let sample_task = maybe_pid.map(|pid| tokio::spawn(profile_cmd(
             pid,
             tx.clone(),
             freq,
             command_name.to_string(),
             trace_id.clone(),
-        )))
-    });
+        )));
 
     let stderr = comm_handle.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);

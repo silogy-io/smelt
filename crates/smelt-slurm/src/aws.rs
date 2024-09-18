@@ -1,10 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow;
 use aws_config::BehaviorVersion;
 use aws_sdk_s3 as s3;
 
-use aws_credential_types::{provider::ProvideCredentials, Credentials};
+use aws_credential_types::Credentials;
 
 use aws_smithy_types::byte_stream::{ByteStream, Length};
 use s3::{
@@ -16,7 +15,7 @@ const AWS_REGION: &str = "us-west-1";
 
 // these constants are arbitrarily chosen, tbh
 // 1mb chunk size
-const CHUNK_SIZE: u64 = 1024 * 1024 * 1;
+const CHUNK_SIZE: u64 = 1024 * 1024;
 // 10gb max artifact size
 const MAX_CHUNKS: u64 = 10000;
 

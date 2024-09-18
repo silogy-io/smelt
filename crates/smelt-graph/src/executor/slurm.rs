@@ -76,7 +76,6 @@ fn create_slurm_command(
         }) => {
             let sealed_working_dir =
                 command.default_target_root(PathBuf::from(workspace_smelt_root))?;
-            let sealed_script_file = sealed_working_dir.join(Command::script_file());
 
             let arrrggs = [
                 "--command-path".to_string(),
