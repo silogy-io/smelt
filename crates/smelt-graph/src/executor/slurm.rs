@@ -18,7 +18,8 @@ use tonic::{transport::Server, Response};
 
 use smelt_data::{
     client_commands::{
-        cfg_slurm::SealedWorkspace, configure_smelt::InitExecutor, ConfigureSmelt, DockerWorkspace,
+        cfg_slurm::SealedWorkspace, configure_smelt::InitExecutor, CfgSlurm, ConfigureSmelt,
+        DockerWorkspace,
     },
     executed_tests::{ExecutedTestResult, TestResult},
     Event,
@@ -40,22 +41,37 @@ struct SlurmWorkspace {
     sbatch_file: PathBuf,
 }
 
+fn aws_awgs(cfg: &CfgSlurm) -> Option<Vec<String>> {
+    cfg.creds.clone().map(|creds| {
+        vec![
+            "--aws-key".to_string(),
+            creds.key,
+            "--aws_key-id".to_string(),
+            creds.key_id,
+            "--aws-bucket".to_string(),
+            creds.bucket,
+            "--s3-key-base-path".to_string(),
+            creds.key_base_path,
+        ]
+    })
+}
+
 fn create_slurm_command(
     command: &Command,
     smelt_root: PathBuf,
     worker_bin_path: &Path,
     trace_id: &str,
     server_addr: &str,
-    ws: &SealedWorkspace,
+    ws: &CfgSlurm,
 ) -> Result<String, SmeltErr> {
     let working_dir = command.default_target_root(smelt_root.as_path())?;
-    let script_file = working_dir.join(Command::script_file());
+    let maybe_aws_cli = aws_awgs(ws);
 
-    match ws {
+    match ws.sealed_workspace.clone().expect("We need this") {
         SealedWorkspace::None(_) => {
-            let arrrggs = [
+            let mut arrrggs = vec![
                 "--command-path".to_string(),
-                script_file.to_string_lossy().to_string(),
+                working_dir.to_string_lossy().to_string(),
                 "--command-name".to_string(),
                 command.name.clone(),
                 "--trace-id".to_string(),
@@ -63,6 +79,10 @@ fn create_slurm_command(
                 "--host".to_string(),
                 format!("http://{}", server_addr),
             ];
+
+            if let Some(mut aws) = maybe_aws_cli {
+                arrrggs.append(&mut aws);
+            }
 
             Ok(format!(
                 "{} {}\n",
@@ -76,11 +96,10 @@ fn create_slurm_command(
         }) => {
             let sealed_working_dir =
                 command.default_target_root(PathBuf::from(workspace_smelt_root))?;
-            let sealed_script_file = sealed_working_dir.join(Command::script_file());
 
-            let arrrggs = [
+            let mut arrrggs = vec![
                 "--command-path".to_string(),
-                sealed_script_file.to_string_lossy().to_string(),
+                sealed_working_dir.to_string_lossy().to_string(),
                 "--command-name".to_string(),
                 command.name.clone(),
                 "--trace-id".to_string(),
@@ -88,6 +107,10 @@ fn create_slurm_command(
                 "--host".to_string(),
                 format!("http://{}", server_addr),
             ];
+
+            if let Some(mut aws) = maybe_aws_cli {
+                arrrggs.append(&mut aws);
+            }
 
             Ok(format!(
                 "docker run {} {} {}",
@@ -105,7 +128,7 @@ async fn prepare_slurm_workspace(
     worker_bin_path: &Path,
     trace_id: &str,
     server_addr: &str,
-    ws: &SealedWorkspace,
+    ws: &CfgSlurm,
 ) -> anyhow::Result<SlurmWorkspace> {
     let working_dir = command.default_target_root(smelt_root.as_path())?;
     let script_file = working_dir.join(Command::script_file());
@@ -160,7 +183,7 @@ type TRMap = Arc<HashMap<String, tokio::sync::oneshot::Sender<TestResult>>>;
 /// This is a dummy executor to test all of the logic of the slurm executor, with none of the
 /// overhead of creating a slurm cluster
 pub struct SlurmExecutor {
-    sealed_workspace: SealedWorkspace,
+    cfg: CfgSlurm,
 }
 
 #[derive(Debug, Clone)]
@@ -194,9 +217,7 @@ impl SlurmExecutor {
         let _res = make_temp_executable(global_cfg, WORKER_BIN).await.unwrap();
         if let Some(ref executor) = global_cfg.init_executor {
             match executor {
-                InitExecutor::Slurm(slurm) => Self {
-                    sealed_workspace: slurm.sealed_workspace.clone().unwrap(),
-                },
+                InitExecutor::Slurm(slurm) => Self { cfg: slurm.clone() },
                 _ => {
                     panic!("Trying to init a slurm executor without the slurm variant -- something is wrong with the slurm init logic!")
                 }
@@ -336,7 +357,8 @@ impl Executor for SlurmExecutor {
             .await
             .expect("Command should only be inserted once");
 
-        let _sbatch_handle = match &self.sealed_workspace {
+        // TODO:  minimize unwraps
+        let _sbatch_handle = match &self.cfg.sealed_workspace.clone().unwrap() {
             SealedWorkspace::None(_) => {
                 let SlurmWorkspace { sbatch_file } = prepare_slurm_workspace(
                     command,
@@ -345,7 +367,7 @@ impl Executor for SlurmExecutor {
                     worker_bin.as_path(),
                     trace_id.as_str(),
                     addr.to_string().as_str(),
-                    &self.sealed_workspace,
+                    &self.cfg,
                 )
                 .await?;
 
@@ -362,7 +384,7 @@ impl Executor for SlurmExecutor {
                     worker_bin.as_path(),
                     trace_id.as_str(),
                     addr.to_string().as_str(),
-                    &self.sealed_workspace,
+                    &self.cfg,
                 )?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");

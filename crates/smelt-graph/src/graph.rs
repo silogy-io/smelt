@@ -16,10 +16,13 @@ use futures::{
 };
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
-use smelt_core::SmeltErr;
+use smelt_core::{prepare_artifact_file, SmeltErr};
 use smelt_core::{prepare_workspace, CommandDefPath};
 use smelt_data::{
-    client_commands::{client_command::ClientCommands, client_resp::ClientResponses, *},
+    client_commands::{
+        cfg_slurm::SealedWorkspace, client_command::ClientCommands, client_resp::ClientResponses,
+        DockerWorkspace, *,
+    },
     executed_tests::ExecutedTestResult,
 };
 use smelt_events::{
@@ -165,13 +168,38 @@ impl Key for CommandRef {
         if prepare_only && self.0.target_type.test_only_valid() {
             let command = self.0.as_ref();
             let root = ctx.global_data().get_smelt_root();
-            let val = prepare_workspace(command, root.clone(), command.working_dir.as_path()).await;
-            if let Err(err) = val {
-                tracing::info!(
-                    "Preparing the workspace for {:?} failed with err {:?}",
-                    command.name,
-                    err
-                );
+            let cfg = ctx.global_data().get_smelt_cfg();
+            let _ = prepare_workspace(command, root.clone(), command.working_dir.as_path())
+                .await
+                .inspect_err(|err| {
+                    tracing::info!(
+                        "Preparing the workspace for {:?} failed with err {:?}",
+                        command.name,
+                        err
+                    )
+                });
+
+            if let Some(configure_smelt::InitExecutor::Slurm(CfgSlurm {
+                sealed_workspace:
+                    Some(SealedWorkspace::Dockerws(DockerWorkspace {
+                        workspace_smelt_root,
+                        ..
+                    })),
+                ..
+            })) = &cfg.init_executor
+            {
+                let command_working_dir = command.default_target_root(root)?;
+                let _ = prepare_artifact_file(
+                    command,
+                    workspace_smelt_root.to_string(),
+                    command_working_dir.as_path(),
+                )
+                .await
+                .inspect_err(|err| {
+                    tracing::error!(
+                        "Creating the artifact json file failed while creating the workspace with err {err}"
+                    )
+                });
             }
             return Ok(Arc::new(ExecutedTestResult::Skipped));
         }
@@ -839,7 +867,7 @@ mod tests {
         let script: Result<Vec<Command>, _> = serde_yaml::from_str(yaml_data.as_str());
 
         let _script = script.unwrap();
-        let _ = graph
+        graph
             .set_commands(_script)
             .await
             .expect("Setting commands failed!");

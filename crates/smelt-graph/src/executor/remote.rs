@@ -159,11 +159,12 @@ impl Executor for RemoteExecutor {
             prepare_workspace(command, root.clone(), command.working_dir.as_path()).await?;
         let (sender, rcv) = oneshot::channel();
         let _ = pertxstate.connections.insert(command.name.clone(), sender);
+        let working_dir = command.default_target_root(root.as_path())?;
 
         let mut commandlocal = tokio::process::Command::new(self.binary_path.as_path());
         let arrrggs = [
             "--command-path".to_string(),
-            script_file.to_string_lossy().to_string(),
+            working_dir.to_string_lossy().to_string(),
             "--command-name".to_string(),
             command.name.clone(),
             "--trace-id".to_string(),

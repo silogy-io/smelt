@@ -1,28 +1,43 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow;
 use aws_config::BehaviorVersion;
 use aws_sdk_s3 as s3;
 
-use aws_credential_types::{provider::ProvideCredentials, Credentials};
+use aws_credential_types::Credentials;
 
 use aws_smithy_types::byte_stream::{ByteStream, Length};
 use s3::{
     operation::create_multipart_upload::CreateMultipartUploadOutput,
     types::{CompletedMultipartUpload, CompletedPart},
 };
-use tokio::io::AsyncWriteExt;
 
 const AWS_REGION: &str = "us-west-1";
 
 // these constants are arbitrarily chosen, tbh
 // 1mb chunk size
-const CHUNK_SIZE: u64 = 1024 * 1024 * 1;
+const CHUNK_SIZE: u64 = 1024 * 1024;
 // 10gb max artifact size
 const MAX_CHUNKS: u64 = 10000;
 
-pub async fn create_s3_client(key_id: &str, key: &str) -> Result<s3::Client, s3::Error> {
-    let creds = Credentials::new(key_id, key, None, None, "smelt-worker");
+/// All of the required data to create an AWS Client and upload artifacts to an s3 bucket
+pub struct AwsCreds {
+    pub key_id: String,
+    pub key: String,
+    // the name of the bucket
+    pub bucket: String,
+    // the key base path for when we're uploading each object
+    // useful for "namespacing" across executions
+    pub key_base_path: String,
+}
+
+pub async fn create_s3_client(cred: &AwsCreds) -> Result<s3::Client, s3::Error> {
+    let creds = Credentials::new(
+        cred.key_id.as_str(),
+        cred.key.as_str(),
+        None,
+        None,
+        "smelt-worker",
+    );
 
     // Look man, i dont know why credentials_provider has a static trait bound
     // whatever works
@@ -43,15 +58,14 @@ pub async fn create_s3_client(key_id: &str, key: &str) -> Result<s3::Client, s3:
 }
 
 pub async fn upload_file(
-    client: s3::Client,
-    bucket_name: &str,
-    key: &str,
+    client: &s3::Client,
+    creds: &AwsCreds,
     file_path: PathBuf,
 ) -> anyhow::Result<()> {
     let multipart_upload_res: CreateMultipartUploadOutput = client
         .create_multipart_upload()
-        .bucket(bucket_name)
-        .key(key)
+        .bucket(&creds.bucket)
+        .key(&creds.key)
         .send()
         .await?;
 
@@ -98,8 +112,8 @@ pub async fn upload_file(
         let part_number = (chunk_index as i32) + 1;
         let upload_part_res = client
             .upload_part()
-            .key(key)
-            .bucket(bucket_name)
+            .key(&creds.key)
+            .bucket(&creds.bucket)
             .upload_id(upload_id)
             .body(stream)
             .part_number(part_number)
@@ -121,8 +135,8 @@ pub async fn upload_file(
 
     let _complete_multipart_upload_res = client
         .complete_multipart_upload()
-        .bucket(bucket_name)
-        .key(key)
+        .bucket(&creds.bucket)
+        .key(&creds.key)
         .multipart_upload(completed_multipart_upload)
         .upload_id(upload_id)
         .send()
