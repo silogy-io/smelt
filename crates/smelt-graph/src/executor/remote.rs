@@ -183,7 +183,7 @@ impl Executor for RemoteExecutor {
                 .outputs
                 .map(|outs| outs.exit_code)
                 .expect("Need to have an output"),
-            global_data,
+            global_data.get_smelt_root(),
         ))
     }
 }

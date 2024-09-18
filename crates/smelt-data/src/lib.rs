@@ -174,6 +174,14 @@ impl Event {
         Event::new(et, trace_id)
     }
 
+    pub fn runtime_warn(payload: String, trace_id: String) -> Event {
+        let et = Et::Error(SmeltError {
+            sig: SmeltErrorType::InternalWarn.into(),
+            error_payload: payload,
+        });
+        Event::new(et, trace_id)
+    }
+
     pub fn graph_validate_error(payload: String) -> Event {
         Self::runtime_error(payload, "VALIDATE_ERROR".to_string())
     }

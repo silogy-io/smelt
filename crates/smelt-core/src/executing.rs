@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::{collections::HashMap, fmt::Display};
 
 use crate::Command;
 
@@ -55,4 +55,32 @@ pub async fn prepare_workspace(
         script_file,
         stdout,
     })
+}
+
+pub async fn prepare_artifact_file(
+    command: &Command,
+    root: String,
+    command_working_dir: &Path,
+) -> anyhow::Result<()> {
+    let working_dir = command.default_target_root(&root)?;
+    let artifact_json = working_dir.join(Command::script_file());
+    let artifacts_json_file = working_dir.join(Command::artifacts_json());
+    tokio::fs::create_dir_all(&working_dir).await?;
+    let mut artifacts_json_file = File::create(&artifacts_json_file).await?;
+
+    let mut map = HashMap::new();
+    for output in command.outputs.iter() {
+        let path = output.to_path(command_working_dir, root.as_ref());
+        let filename = path.file_name();
+        if let Some(filename) = filename {
+            map.insert(
+                filename.to_string_lossy().to_string(),
+                path.to_string_lossy().to_string(),
+            );
+        };
+    }
+    let jsstr = serde_json::to_string(&map)?;
+    artifacts_json_file.write(jsstr.as_bytes()).await?;
+
+    Ok(())
 }

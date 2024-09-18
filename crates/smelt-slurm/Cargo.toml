@@ -13,6 +13,7 @@ smelt-rt = { workspace = true }
 anyhow = { workspace = true }
 tonic = { workspace = true }
 tokio = { workspace = true }
+serde_json = { workspace = true }
 argh = "0.1.12"
 aws-config = "1.5.6"
 aws-sdk-s3 = "1.48.0"

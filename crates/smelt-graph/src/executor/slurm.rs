@@ -80,7 +80,7 @@ fn create_slurm_command(
 
             let arrrggs = [
                 "--command-path".to_string(),
-                sealed_script_file.to_string_lossy().to_string(),
+                sealed_working_dir.to_string_lossy().to_string(),
                 "--command-name".to_string(),
                 command.name.clone(),
                 "--trace-id".to_string(),

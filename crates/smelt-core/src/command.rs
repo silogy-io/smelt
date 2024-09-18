@@ -46,14 +46,22 @@ pub struct Command {
 }
 
 impl Command {
+    /// Name of the shell script that will be executed by each command
     pub const fn script_file() -> &'static str {
         "command.sh"
     }
-
+    /// Name of the json file that is used to track expected artifacts -- only used for the sealed
+    /// configuration of the smelt executor
+    pub const fn artifacts_json() -> &'static str {
+        "artifacts.json"
+    }
+    /// Name of the file that contains stderr output
+    ///
     pub const fn stderr_file() -> &'static str {
         "command.err"
     }
 
+    /// Name of the file that contains stdout output for each command
     pub const fn stdout_file() -> &'static str {
         "command.out"
     }
