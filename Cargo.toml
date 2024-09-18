@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-version = "0.7.5"
+version = "0.8.0"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
@@ -110,6 +110,7 @@ default-features = false
 
 [workspace.dependencies.smelt-graph]
 path = "crates/smelt-graph"
+
 [workspace.dependencies.smelt-rt]
 path = "crates/smelt-rt"
 
