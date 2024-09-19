@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-version = "0.8.1"
+version = "0.8.2"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
