@@ -142,6 +142,7 @@ class AwsCreds(betterproto.Message):
 class DockerWorkspace(betterproto.Message):
     container_name: str = betterproto.string_field(1)
     workspace_smelt_root: str = betterproto.string_field(2)
+    docker_args: List[str] = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
