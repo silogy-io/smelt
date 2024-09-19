@@ -93,6 +93,7 @@ fn create_slurm_command(
         SealedWorkspace::Dockerws(DockerWorkspace {
             container_name,
             workspace_smelt_root,
+            docker_args,
         }) => {
             let sealed_working_dir =
                 command.default_target_root(PathBuf::from(workspace_smelt_root))?;
@@ -112,8 +113,11 @@ fn create_slurm_command(
                 arrrggs.append(&mut aws);
             }
 
+            let docker_run_args = docker_args.join(" ");
+
             Ok(format!(
-                "docker run {} {} {}",
+                "docker run {} {} {} {}",
+                docker_run_args,
                 container_name,
                 WORKER_PATH,
                 arrrggs.join(" ")
@@ -372,6 +376,8 @@ impl Executor for SlurmExecutor {
                 .await?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
+                commandlocal.arg("--output=/dev/null");
+                commandlocal.arg("--error=/dev/null");
 
                 commandlocal.arg(&sbatch_file);
 
@@ -388,7 +394,8 @@ impl Executor for SlurmExecutor {
                 )?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
-
+                commandlocal.arg("--output=/dev/null");
+                commandlocal.arg("--error=/dev/null");
                 commandlocal.arg(format!("--wrap={}", command));
 
                 commandlocal.spawn()?

@@ -82,11 +82,10 @@ message AwsCreds {
 }
 
 
-
-
 message DockerWorkspace {
   string container_name = 1;
   string workspace_smelt_root = 2;
+  repeated string docker_args = 3;
 }
 
 

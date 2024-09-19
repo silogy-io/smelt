@@ -137,7 +137,7 @@ pub async fn execute_command(
     }
 
     if let Some(awscreds) = maybe_creds {
-        let upload = handle_artifacts(working_dir.as_path(), awscreds).await;
+        let upload = handle_artifacts(command_name, working_dir.as_path(), awscreds).await;
         if let Err(err) = upload {
             let _ = stream
                 .send_event(Event::runtime_warn(
@@ -151,7 +151,11 @@ pub async fn execute_command(
     Ok(())
 }
 /// Uploads all of the visible artifacts
-pub(crate) async fn handle_artifacts(working_dir: &Path, creds: AwsCreds) -> anyhow::Result<()> {
+pub(crate) async fn handle_artifacts(
+    command_name: &str,
+    working_dir: &Path,
+    creds: AwsCreds,
+) -> anyhow::Result<()> {
     let artifact_json = working_dir.join(Command::artifacts_json());
     let artifact_map: HashMap<String, String> = tokio::fs::read(artifact_json)
         .await
@@ -165,7 +169,7 @@ pub(crate) async fn handle_artifacts(working_dir: &Path, creds: AwsCreds) -> any
             .await
             .is_ok_and(|val| val.is_file())
         {
-            let _err = upload_file(&client, &creds, artifactpb)
+            let _err = upload_file(command_name, &client, &creds, artifactpb)
                 .await
                 .inspect_err(|_e| {
                     println!("Failed to upload artifact to s3 at path {artifact} with err {_e}")

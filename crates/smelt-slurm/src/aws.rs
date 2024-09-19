@@ -58,14 +58,21 @@ pub async fn create_s3_client(cred: &AwsCreds) -> Result<s3::Client, s3::Error> 
 }
 
 pub async fn upload_file(
+    command_name: &str,
     client: &s3::Client,
     creds: &AwsCreds,
     file_path: PathBuf,
 ) -> anyhow::Result<()> {
+    let key = format!(
+        "{}/{}/artifacts/{}",
+        creds.key_base_path,
+        command_name,
+        file_path.file_name().unwrap().to_string_lossy()
+    );
     let multipart_upload_res: CreateMultipartUploadOutput = client
         .create_multipart_upload()
         .bucket(&creds.bucket)
-        .key(&creds.key)
+        .key(&key)
         .send()
         .await?;
 
@@ -112,7 +119,7 @@ pub async fn upload_file(
         let part_number = (chunk_index as i32) + 1;
         let upload_part_res = client
             .upload_part()
-            .key(&creds.key)
+            .key(&key)
             .bucket(&creds.bucket)
             .upload_id(upload_id)
             .body(stream)
@@ -136,7 +143,7 @@ pub async fn upload_file(
     let _complete_multipart_upload_res = client
         .complete_multipart_upload()
         .bucket(&creds.bucket)
-        .key(&creds.key)
+        .key(&key)
         .multipart_upload(completed_multipart_upload)
         .upload_id(upload_id)
         .send()
