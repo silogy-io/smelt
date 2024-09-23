@@ -1,4 +1,9 @@
-use std::{fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
+use std::{
+    fs::set_permissions,
+    net::{IpAddr, SocketAddr},
+    os::unix::fs::PermissionsExt,
+    path::Path,
+};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -212,7 +217,8 @@ async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Resu
 
 struct PerTxRemoteState {
     connections: TRMap,
-    server_addr: SocketAddr,
+    hostname: String,
+    client_port: u16,
     server_handle: JoinHandle<()>,
 }
 
@@ -313,19 +319,22 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
-        let (mut hn, port) = self
+        let (mut chn, mut server_port, mut client_port) = self
             .cfg
             .maybe_info
             .clone()
-            .map(|info| (info.hostname, info.server_port))
-            .unwrap_or_else(|| (data.get_hostname(), 0));
+            .map(|info| (info.hostname, info.server_port, info.worker_port))
+            .unwrap_or_else(|| (data.get_hostname(), 0, 0));
 
-        if hn.is_empty() {
-            hn = data.get_hostname();
-        }
+        let hn = data.get_hostname();
 
-        let listener = TcpListener::bind(format!("{hn}:{port}")).await.unwrap();
+        let listener = TcpListener::bind(format!("{hn}:{server_port}"))
+            .await
+            .unwrap();
         let addr = listener.local_addr().unwrap();
+        if client_port == 0 {
+            client_port = addr.port() as u32;
+        }
 
         let server_handle = tokio::spawn(async move {
             tracing::trace!("Spawning server!");
@@ -340,7 +349,8 @@ impl Executor for SlurmExecutor {
 
         let pertx = PerTxRemoteState {
             connections,
-            server_addr: addr,
+            hostname: hn,
+            client_port: client_port as u16,
             server_handle,
         };
         data.set_pertx_state(pertx);
@@ -360,7 +370,7 @@ impl Executor for SlurmExecutor {
         let pertxstate = dd.get_pertx_state();
         let cfg = global_data.get_smelt_cfg();
         let worker_bin = Self::get_bin(cfg);
-        let addr = pertxstate.server_addr;
+        let addr = format!("{}:{}", pertxstate.hostname, pertxstate.client_port);
 
         let (sender, rcv) = oneshot::channel();
         tracing::trace!("Trying to insert {}", command.name);
@@ -404,8 +414,8 @@ impl Executor for SlurmExecutor {
                 )?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
-                commandlocal.arg("--output=/dev/null");
-                commandlocal.arg("--error=/dev/null");
+                commandlocal.arg("--output=/tmp/smelt");
+                commandlocal.arg("--error=/tmp/smelt");
                 commandlocal.arg(format!("--wrap={}", command));
 
                 commandlocal.env_clear().spawn()?
