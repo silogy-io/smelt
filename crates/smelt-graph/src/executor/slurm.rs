@@ -313,8 +313,18 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
-        let hn = data.get_hostname();
-        let listener = TcpListener::bind(format!("{hn}:0")).await.unwrap();
+        let (mut hn, port) = self
+            .cfg
+            .maybe_info
+            .clone()
+            .map(|info| (info.hostname, info.server_port))
+            .unwrap_or_else(|| (data.get_hostname(), 0));
+
+        if hn.is_empty() {
+            hn = data.get_hostname();
+        }
+
+        let listener = TcpListener::bind(format!("{hn}:{port}")).await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let server_handle = tokio::spawn(async move {
@@ -381,7 +391,7 @@ impl Executor for SlurmExecutor {
 
                 commandlocal.arg(&sbatch_file);
 
-                commandlocal.spawn()?
+                commandlocal.env_clear().spawn()?
             }
             SealedWorkspace::Dockerws(_) => {
                 let command = create_slurm_command(
@@ -398,7 +408,7 @@ impl Executor for SlurmExecutor {
                 commandlocal.arg("--error=/dev/null");
                 commandlocal.arg(format!("--wrap={}", command));
 
-                commandlocal.spawn()?
+                commandlocal.env_clear().spawn()?
             }
         };
         //let stderr = comm_handle.stderr.take().unwrap();

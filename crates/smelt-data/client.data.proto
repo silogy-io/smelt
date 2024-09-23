@@ -66,12 +66,36 @@ enum ProfilingSelection {
 message CfgLocal {}
 message CfgSlurm {
   AwsCreds creds = 1;
+  ServerInfo maybe_info = 2;
   oneof SealedWorkspace {
     bool none = 10;
     DockerWorkspace dockerws = 11;
   } 
   
 }
+
+
+// Populate info for the slurm server
+// 
+// This is configured from the end-user side. 
+// if these data is not provided, then smelt will execute `whoami` to derive hostname and will let the OS select the port
+message ServerInfo {
+  string hostname = 1;
+  // This is port supplied to each worker. Sometimes you'll have a proxy in front of your smelt server to make deployment easier. e.g. 
+  //
+  //  ┌────────┐        ┌───────┐      ┌─────────┐
+  //  │        │        │       │      │         │
+  //  │ WORKER │───────►│ PROXY │─────►│ SMELT   │
+  //  │        │        │       │      │ SLURM   │
+  //  └────────┘        └───────┘      └─────────┘
+  // this is practical for  deploying in non-LAN networking environments
+  uint32 worker_port = 2;
+
+  //forces the server to bind to a port 
+  //in expectation, this _should_ be zero so the OS can provide a unique port per smelt invocation 
+  uint32 server_port = 3;
+}
+
 
 // credentials required to create an S3 Client and upload artifacts to it 
 message AwsCreds {

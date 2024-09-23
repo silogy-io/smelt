@@ -64,8 +64,6 @@ pub async fn execute_command(
 
     let mut stdout = File::create(&stdout).await?;
 
-    println!("owrking dir is: {working_dir:?}");
-    println!("starting to execute {script_file:?}");
     let mut commandlocal = tokio::process::Command::new(shell);
 
     commandlocal

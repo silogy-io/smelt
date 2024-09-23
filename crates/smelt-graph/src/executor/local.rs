@@ -79,7 +79,7 @@ async fn execute_local_command(
         .arg(script_file)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut comm_handle = commandlocal.spawn()?;
+    let mut comm_handle = commandlocal.env_clear().spawn()?;
     let stderr = comm_handle.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);
     let mut stderr_lines = stderr_reader.lines();
