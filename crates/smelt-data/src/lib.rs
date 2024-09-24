@@ -60,7 +60,7 @@ pub mod smelt_telemetry {
 
     tonic::include_proto!("smelt_telemetry");
 }
-use executed_tests::TestResult;
+use executed_tests::{TestOutputs, TestResult};
 pub use smelt_telemetry::*;
 
 impl Event {
@@ -125,6 +125,25 @@ impl Event {
             command_variant: Some(CommandVariant::Stdout(CommandStdout { output: stdout })),
         });
         Self::new(et, trace_id)
+    }
+
+    pub fn as_result(&self) -> Option<TestResult> {
+        match self {
+            Event {
+                et:
+                    Some(Et::Command(CommandEvent {
+                        command_variant:
+                            Some(CommandVariant::Finished(CommandFinished { outputs, .. })),
+                        command_ref,
+                    })),
+                ..
+            } => Some(TestResult {
+                test_name: command_ref.clone(),
+                outputs: outputs.clone(),
+            }),
+
+            _ => None,
+        }
     }
 
     pub fn finished_event(&self) -> bool {

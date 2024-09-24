@@ -3,6 +3,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     os::unix::fs::PermissionsExt,
     path::Path,
+    sync::{Mutex, RwLock},
 };
 use std::{path::PathBuf, sync::Arc};
 
@@ -27,7 +28,7 @@ use smelt_data::{
         DockerWorkspace,
     },
     executed_tests::{ExecutedTestResult, TestResult},
-    Event,
+    Event, TaggedResult,
 };
 use smelt_events::runtime_support::{
     GetHostname, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
@@ -44,6 +45,46 @@ fn sbatch_file() -> &'static str {
 
 struct SlurmWorkspace {
     sbatch_file: PathBuf,
+}
+
+struct ProxyState {
+    servers: ServerMap,
+    jh: std::thread::JoinHandle<()>,
+}
+const MAYBE_PROXY: RwLock<Option<ProxyState>> = RwLock::new(None);
+type ServerMap = HashMap<String, RemoteServer>;
+
+pub fn init_proxy(port: u64) {
+    let servers = HashMap::new();
+    let srv = RemoteServerProxy {
+        all_servers: servers.clone(),
+    };
+
+    let handle = std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async move {
+            tracing::trace!("Spawning server!");
+            let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
+            Server::builder()
+                .add_service(smelt_data::event_listener_server::EventListenerServer::new(
+                    srv,
+                ))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+    });
+    let binding = MAYBE_PROXY;
+    let mut val = binding.write().unwrap();
+
+    *val = Some(ProxyState {
+        servers,
+        jh: handle,
+    });
 }
 
 fn aws_awgs(cfg: &CfgSlurm) -> Option<Vec<String>> {
@@ -195,6 +236,50 @@ pub struct SlurmExecutor {
     cfg: CfgSlurm,
 }
 
+struct RemoteServerProxy {
+    all_servers: HashMap<String, RemoteServer>,
+}
+
+#[tonic::async_trait]
+impl smelt_data::event_listener_server::EventListener for RemoteServerProxy {
+    async fn send_event(
+        &self,
+        request: tonic::Request<Event>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let inner_event = request.into_inner();
+        let server = self
+            .all_servers
+            .get_async(&inner_event.trace_id)
+            .await
+            .unwrap();
+
+        let _resp = server.tx_chan.send(inner_event).await;
+        Ok(Response::new(()))
+    }
+    async fn send_outputs(
+        &self,
+        request: tonic::Request<TaggedResult>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let val = request.into_inner();
+
+        let trace = val.trace_id;
+        let server = self.all_servers.get_async(&trace).await.unwrap();
+        let val = val.results.expect("No results");
+
+        tracing::trace!("Trying to remove {}", val.test_name);
+        let v = server.connections.remove_async(&val.test_name).await;
+        match v {
+            None => {
+                tracing::error!("Missing entry in the remote server!");
+            }
+            Some(entry) => {
+                let _ = entry.1.send(val);
+            }
+        };
+        Ok(Response::new(()))
+    }
+}
+
 #[derive(Debug, Clone)]
 struct RemoteServer {
     tx_chan: Sender<Event>,
@@ -254,7 +339,7 @@ impl smelt_data::event_listener_server::EventListener for TestRemoteServer {
     }
     async fn send_outputs(
         &self,
-        request: tonic::Request<TestResult>,
+        request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
         println!("result is {:?}", val);
@@ -274,9 +359,10 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
     }
     async fn send_outputs(
         &self,
-        request: tonic::Request<TestResult>,
+        request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
+        let val = val.results.unwrap();
         tracing::trace!("Trying to remove {}", val.test_name);
         let v = self.connections.remove_async(&val.test_name).await;
         match v {
@@ -319,7 +405,7 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
-        tracing::info!("cfg info is {:?}",self.cfg.maybe_info);
+        tracing::info!("cfg info is {:?}", self.cfg.maybe_info);
 
         let (mut chn, mut server_port, mut client_port) = self
             .cfg
@@ -350,7 +436,6 @@ impl Executor for SlurmExecutor {
         });
         tracing::info!("Created server with addr {addr:?}");
         tracing::info!("sending messages to {chn} ");
-
 
         let pertx = PerTxRemoteState {
             connections,

@@ -13,7 +13,7 @@ use smelt_core::Command;
 use smelt_data::{
     event_listener_client::EventListenerClient,
     executed_tests::{TestOutputs, TestResult},
-    Event,
+    Event, TaggedResult,
 };
 use smelt_rt::profile_cmd;
 use tokio::{
@@ -129,7 +129,12 @@ pub async fn execute_command(
         test_name: command_name.to_string(),
         outputs: Some(cstatus),
     };
-    let _ = stream.send_outputs(res).await;
+    let _ = stream
+        .send_outputs(TaggedResult {
+            trace_id: trace_id.clone(),
+            results: Some(res),
+        })
+        .await;
     if let Some(task) = sample_task {
         task.abort()
     }

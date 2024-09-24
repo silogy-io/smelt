@@ -16,7 +16,7 @@ use tonic::{transport::Server, Response};
 
 use smelt_data::{
     executed_tests::{ExecutedTestResult, TestResult},
-    Event,
+    Event, TaggedResult,
 };
 use smelt_events::runtime_support::{GetSmeltRoot, GetTraceId, GetTxChannel};
 
@@ -77,9 +77,10 @@ impl smelt_data::event_listener_server::EventListener for RemoteServer {
     }
     async fn send_outputs(
         &self,
-        request: tonic::Request<TestResult>,
+        request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
+        let val = val.results.unwrap();
         let v = self.connections.remove(&val.test_name);
         match v {
             None => {
