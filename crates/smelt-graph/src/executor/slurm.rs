@@ -319,6 +319,8 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
+        tracing::info!("cfg info is {:?}",self.cfg.maybe_info);
+
         let (mut chn, mut server_port, mut client_port) = self
             .cfg
             .maybe_info
@@ -328,7 +330,7 @@ impl Executor for SlurmExecutor {
 
         let hn = data.get_hostname();
 
-        let listener = TcpListener::bind(format!("{hn}:{server_port}"))
+        let listener = TcpListener::bind(format!("0.0.0.0:{server_port}"))
             .await
             .unwrap();
         let addr = listener.local_addr().unwrap();
@@ -346,6 +348,9 @@ impl Executor for SlurmExecutor {
                 .await
                 .unwrap();
         });
+        tracing::info!("Created server with addr {addr:?}");
+        tracing::info!("sending messages to {chn} ");
+
 
         let pertx = PerTxRemoteState {
             connections,
@@ -414,9 +419,10 @@ impl Executor for SlurmExecutor {
                 )?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
-                commandlocal.arg("--output=/tmp/smelt");
-                commandlocal.arg("--error=/tmp/smelt");
+                commandlocal.arg("--output=/tmp/smelt/out.log");
+                commandlocal.arg("--error=/tmp/smelt/err.log");
                 commandlocal.arg(format!("--wrap={}", command));
+                tracing::info!("Command executed is {command}");
 
                 commandlocal.env_clear().spawn()?
             }
