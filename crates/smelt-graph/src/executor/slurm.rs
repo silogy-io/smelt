@@ -349,7 +349,7 @@ impl Executor for SlurmExecutor {
 
         let pertx = PerTxRemoteState {
             connections,
-            hostname: hn,
+            hostname: chn,
             client_port: client_port as u16,
             server_handle,
         };
