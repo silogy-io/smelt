@@ -55,7 +55,7 @@ type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
 pub fn init_proxy(port: u16) -> u16 {
     let innited_port = {
-        let binding = MAYBE_PROXY;
+        let binding = MAYBE_PROXY.clone();
         let val = binding.read().unwrap().as_ref().map(|val| val.port.clone());
         val
     };
@@ -94,15 +94,15 @@ pub fn init_proxy(port: u16) -> u16 {
             });
         });
 
-        {
-            *MAYBE_PROXY.write().unwrap() = Some(ProxyState {
-                servers,
-                jh: handle,
-                port,
-            });
-        }
+        let local = MAYBE_PROXY.clone();
+        *local.write().unwrap() = Some(ProxyState {
+            servers,
+            jh: handle,
+            port,
+        });
+
         tracing::info!("successfully wrote?");
-        tracing::info!("reading val, the val is {:?}", MAYBE_PROXY.read());
+        tracing::info!("reading val, the val is {:?}", local.read());
 
         bound_port
     }
@@ -112,7 +112,7 @@ async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow:
     tracing::info!("Inserting server with trace id {trace_id}");
 
     let srvs = {
-        let binding = MAYBE_PROXY;
+        let binding = MAYBE_PROXY.clone();
         let val = binding.read().unwrap();
         tracing::info!("Val is {:?}", val);
         let val2 = val.as_ref();
@@ -135,7 +135,7 @@ async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow:
 }
 
 async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
-    let binding = MAYBE_PROXY;
+    let binding = MAYBE_PROXY.clone();
     let mut val = binding.write().unwrap();
     let val2 = val.as_mut();
     if let Some(sh) = val2 {
