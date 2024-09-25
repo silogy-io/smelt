@@ -1,4 +1,6 @@
-use std::{fs::set_permissions, os::unix::fs::PermissionsExt, path::Path, sync::LazyLock};
+use std::{
+    fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::LazyLock,
+};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -41,13 +43,13 @@ struct SlurmWorkspace {
 #[derive(Debug)]
 struct ProxyState {
     servers: ServerMap,
-    port: u16,
+    port: SocketAddr,
 }
 static MAYBE_PROXY: LazyLock<Arc<tokio::sync::RwLock<Option<ProxyState>>>> =
     LazyLock::new(|| Arc::new(tokio::sync::RwLock::new(None)));
 type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
-pub async fn init_proxy(port: u16) -> u16 {
+pub async fn init_proxy(in_port: u16) -> SocketAddr {
     let innited_port = {
         let binding = MAYBE_PROXY.clone();
         let val = binding.read().await.as_ref().map(|val| val.port);
@@ -62,11 +64,11 @@ pub async fn init_proxy(port: u16) -> u16 {
             all_live_traces: servers.clone(),
         };
 
-        let listener = std::net::TcpListener::bind(format!("0.0.0.0:{port}")).unwrap();
+        let listener = std::net::TcpListener::bind(format!("0.0.0.0:{in_port}")).unwrap();
         listener
             .set_nonblocking(true)
             .expect("Cannot set nonblocking");
-        let bound_port = listener.local_addr().expect("Binding failed").port();
+        let bound_port = listener.local_addr().expect("Binding failed");
 
         let _handle = tokio::spawn(async move {
             let listener = TcpListener::from_std(listener).expect("Could not convert from std");
@@ -80,7 +82,10 @@ pub async fn init_proxy(port: u16) -> u16 {
                 .unwrap();
         });
 
-        *MAYBE_PROXY.write().await = Some(ProxyState { servers, port });
+        *MAYBE_PROXY.write().await = Some(ProxyState {
+            servers,
+            port: bound_port,
+        });
 
         bound_port
     }
@@ -348,8 +353,8 @@ async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Resu
 
 struct PerTxRemoteState {
     connections: TRMap,
-    hostname: String,
-    client_port: u16,
+    hostname: Option<String>,
+    client_addr: SocketAddr,
 }
 
 impl SlurmExecutor {
@@ -426,10 +431,10 @@ impl Executor for SlurmExecutor {
             .cfg
             .maybe_info
             .clone()
-            .map(|info| (info.hostname, info.port))
-            .unwrap_or_else(|| (data.get_hostname(), 0));
-        if chn.is_empty() {
-            chn = data.get_hostname();
+            .map(|info| (Some(info.hostname), info.port))
+            .unwrap_or_else(|| (None, 0));
+        if chn.is_some() && chn.as_ref().is_some_and(|val| val.is_empty()) {
+            chn = None;
         }
 
         let port = init_proxy(port as u16).await;
@@ -442,12 +447,11 @@ impl Executor for SlurmExecutor {
             .inspect_err(|err| tracing::error!("Failed to init pertx server with err {err}"));
 
         tracing::trace!("Created server with addr {addr:?}");
-        tracing::trace!("sending messages to {chn} ");
 
         let pertx = PerTxRemoteState {
             connections,
             hostname: chn,
-            client_port: port,
+            client_addr: port,
         };
         data.set_pertx_state(pertx);
     }
@@ -466,7 +470,12 @@ impl Executor for SlurmExecutor {
         let pertxstate = dd.get_pertx_state();
         let cfg = global_data.get_smelt_cfg();
         let worker_bin = Self::get_bin(cfg);
-        let addr = format!("{}:{}", pertxstate.hostname, pertxstate.client_port);
+
+        let addr = if let Some(ref hostname) = pertxstate.hostname {
+            format!("{}:{}", hostname, pertxstate.client_addr.port())
+        } else {
+            pertxstate.client_addr.to_string()
+        };
 
         let (sender, rcv) = oneshot::channel();
         tracing::trace!("Trying to insert {}", command.name);
@@ -486,7 +495,7 @@ impl Executor for SlurmExecutor {
                     command.working_dir.as_path(),
                     worker_bin.as_path(),
                     trace_id.as_str(),
-                    addr.to_string().as_str(),
+                    addr.as_str(),
                     &self.cfg,
                 )
                 .await?;
@@ -505,7 +514,7 @@ impl Executor for SlurmExecutor {
                     root.clone(),
                     worker_bin.as_path(),
                     trace_id.as_str(),
-                    addr.to_string().as_str(),
+                    addr.as_str(),
                     &self.cfg,
                 )?;
 
