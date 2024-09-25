@@ -1,10 +1,4 @@
-use std::{
-    fs::set_permissions,
-    net::{IpAddr, SocketAddr},
-    os::unix::fs::PermissionsExt,
-    path::Path,
-    sync::{Mutex, RwLock},
-};
+use std::{fs::set_permissions, os::unix::fs::PermissionsExt, path::Path, sync::RwLock};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -16,10 +10,7 @@ use std::io::Write;
 
 use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener};
 
-use tokio::{
-    sync::{mpsc::Sender, oneshot},
-    task::JoinHandle,
-};
+use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{transport::Server, Response};
 
 use smelt_data::{
@@ -50,41 +41,93 @@ struct SlurmWorkspace {
 struct ProxyState {
     servers: ServerMap,
     jh: std::thread::JoinHandle<()>,
+    port: u16,
 }
 const MAYBE_PROXY: RwLock<Option<ProxyState>> = RwLock::new(None);
 type ServerMap = HashMap<String, RemoteServer>;
 
-pub fn init_proxy(port: u64) {
-    let servers = HashMap::new();
-    let srv = RemoteServerProxy {
-        all_servers: servers.clone(),
+pub fn init_proxy(port: u16) -> u16 {
+    let innited_port = {
+        let binding = MAYBE_PROXY;
+        let val = binding.read().unwrap().as_ref().map(|val| val.port.clone());
+        val
     };
+    if let Some(port) = innited_port {
+        tracing::info!("Previously initialized server -- we are just returning the port");
+        port
+    } else {
+        let servers = HashMap::new();
+        let srv = GlobalSlurmServer {
+            all_live_traces: servers.clone(),
+        };
 
-    let handle = std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
+        let listener = std::net::TcpListener::bind(format!("0.0.0.0:{port}")).unwrap();
+        listener
+            .set_nonblocking(true)
+            .expect("Cannot set nonblocking");
+        let bound_port = listener.local_addr().expect("Binding failed").port();
+        tracing::info!("Already ");
 
-        rt.block_on(async move {
-            tracing::trace!("Spawning server!");
-            let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
-            Server::builder()
-                .add_service(smelt_data::event_listener_server::EventListenerServer::new(
-                    srv,
-                ))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
-                .await
+        let handle = std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
                 .unwrap();
+
+            rt.block_on(async move {
+                let listener = TcpListener::from_std(listener).expect("Could not convert from std");
+
+                Server::builder()
+                    .add_service(smelt_data::event_listener_server::EventListenerServer::new(
+                        srv,
+                    ))
+                    .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                    .await
+                    .unwrap();
+            });
         });
-    });
+        let binding = MAYBE_PROXY;
+        let mut val = binding.write().unwrap();
+
+        *val = Some(ProxyState {
+            servers,
+            jh: handle,
+            port,
+        });
+        bound_port
+    }
+}
+
+async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow::Result<()> {
     let binding = MAYBE_PROXY;
     let mut val = binding.write().unwrap();
+    let val2 = val.as_mut();
+    if let Some(sh) = val2 {
+        let _ = sh
+            .servers
+            .insert_async(trace_id.clone(), server)
+            .await
+            .inspect_err(|e| {
+                tracing::error!(
+                    "Could not insert remote server for trace_id: {trace_id}, failed with {e:?}"
+                )
+            });
+        Ok(())
+    } else {
+        anyhow::bail!("NOT INITIALIZED")
+    }
+}
 
-    *val = Some(ProxyState {
-        servers,
-        jh: handle,
-    });
+async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
+    let binding = MAYBE_PROXY;
+    let mut val = binding.write().unwrap();
+    let val2 = val.as_mut();
+    if let Some(sh) = val2 {
+        sh.servers.remove(&trace_id)
+    } else {
+        anyhow::bail!("NOT INITIALIZED");
+    };
+    Ok(())
 }
 
 fn aws_awgs(cfg: &CfgSlurm) -> Option<Vec<String>> {
@@ -236,19 +279,19 @@ pub struct SlurmExecutor {
     cfg: CfgSlurm,
 }
 
-struct RemoteServerProxy {
-    all_servers: HashMap<String, RemoteServer>,
+struct GlobalSlurmServer {
+    all_live_traces: HashMap<String, RemoteServer>,
 }
 
 #[tonic::async_trait]
-impl smelt_data::event_listener_server::EventListener for RemoteServerProxy {
+impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
     async fn send_event(
         &self,
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let inner_event = request.into_inner();
         let server = self
-            .all_servers
+            .all_live_traces
             .get_async(&inner_event.trace_id)
             .await
             .unwrap();
@@ -263,7 +306,7 @@ impl smelt_data::event_listener_server::EventListener for RemoteServerProxy {
         let val = request.into_inner();
 
         let trace = val.trace_id;
-        let server = self.all_servers.get_async(&trace).await.unwrap();
+        let server = self.all_live_traces.get_async(&trace).await.unwrap();
         let val = val.results.expect("No results");
 
         tracing::trace!("Trying to remove {}", val.test_name);
@@ -304,7 +347,6 @@ struct PerTxRemoteState {
     connections: TRMap,
     hostname: String,
     client_port: u16,
-    server_handle: JoinHandle<()>,
 }
 
 impl SlurmExecutor {
@@ -347,36 +389,6 @@ impl smelt_data::event_listener_server::EventListener for TestRemoteServer {
     }
 }
 
-#[tonic::async_trait]
-impl smelt_data::event_listener_server::EventListener for RemoteServer {
-    async fn send_event(
-        &self,
-        request: tonic::Request<Event>,
-    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        let inner_event = request.into_inner();
-        let _resp = self.tx_chan.send(inner_event).await;
-        Ok(Response::new(()))
-    }
-    async fn send_outputs(
-        &self,
-        request: tonic::Request<TaggedResult>,
-    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        let val = request.into_inner();
-        let val = val.results.unwrap();
-        tracing::trace!("Trying to remove {}", val.test_name);
-        let v = self.connections.remove_async(&val.test_name).await;
-        match v {
-            None => {
-                tracing::error!("Missing entry in the remote server!");
-            }
-            Some(entry) => {
-                let _ = entry.1.send(val);
-            }
-        };
-        Ok(Response::new(()))
-    }
-}
-
 trait RemoteHelpers {
     fn set_pertx_state(&mut self, pertxstate: PerTxRemoteState);
     fn get_pertx_state(&self) -> Arc<PerTxRemoteState>;
@@ -394,7 +406,7 @@ impl RemoteHelpers for UserComputationData {
 #[async_trait]
 impl Executor for SlurmExecutor {
     async fn drop_per_tx_state(&self, data: &UserComputationData) {
-        data.get_pertx_state().server_handle.abort();
+        let _ = remove_remote_server(data.get_trace_id()).await;
     }
 
     async fn init_per_tx_state(&self, data: &mut UserComputationData) {
@@ -407,41 +419,28 @@ impl Executor for SlurmExecutor {
 
         tracing::info!("cfg info is {:?}", self.cfg.maybe_info);
 
-        let (mut chn, mut server_port, mut client_port) = self
+        let (mut chn, port) = self
             .cfg
             .maybe_info
             .clone()
-            .map(|info| (info.hostname, info.server_port, info.worker_port))
-            .unwrap_or_else(|| (data.get_hostname(), 0, 0));
-
-        let hn = data.get_hostname();
-
-        let listener = TcpListener::bind(format!("0.0.0.0:{server_port}"))
-            .await
-            .unwrap();
-        let addr = listener.local_addr().unwrap();
-        if client_port == 0 {
-            client_port = addr.port() as u32;
+            .map(|info| (info.hostname, info.port))
+            .unwrap_or_else(|| (data.get_hostname(), 0));
+        if chn.is_empty() {
+            chn = data.get_hostname();
         }
 
-        let server_handle = tokio::spawn(async move {
-            tracing::trace!("Spawning server!");
-            Server::builder()
-                .add_service(smelt_data::event_listener_server::EventListenerServer::new(
-                    remote_server,
-                ))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
-                .await
-                .unwrap();
-        });
+        let port = init_proxy(port as u16);
+        let addr = format!("0:0:0:0:{port}");
+        let trace = data.get_trace_id();
+        let _ = insert_remote_server(trace, remote_server);
+
         tracing::info!("Created server with addr {addr:?}");
         tracing::info!("sending messages to {chn} ");
 
         let pertx = PerTxRemoteState {
             connections,
             hostname: chn,
-            client_port: client_port as u16,
-            server_handle,
+            client_port: port,
         };
         data.set_pertx_state(pertx);
     }
