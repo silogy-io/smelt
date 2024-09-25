@@ -49,7 +49,8 @@ struct ProxyState {
     jh: std::thread::JoinHandle<()>,
     port: u16,
 }
-const MAYBE_PROXY: LazyLock<RwLock<Option<ProxyState>>> = LazyLock::new(|| RwLock::new(None));
+const MAYBE_PROXY: LazyLock<Arc<RwLock<Option<ProxyState>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(None)));
 type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
 pub fn init_proxy(port: u16) -> u16 {
@@ -93,17 +94,15 @@ pub fn init_proxy(port: u16) -> u16 {
             });
         });
 
-        let local_proxy = LazyLock::new(|| RwLock::new(None));
-
         {
-            *local_proxy.write().unwrap() = Some(ProxyState {
+            *MAYBE_PROXY.write().unwrap() = Some(ProxyState {
                 servers,
                 jh: handle,
                 port,
             });
         }
         tracing::info!("successfully wrote?");
-        tracing::info!("reading val, the val is {:?}", local_proxy.read());
+        tracing::info!("reading val, the val is {:?}", MAYBE_PROXY.read());
 
         bound_port
     }
