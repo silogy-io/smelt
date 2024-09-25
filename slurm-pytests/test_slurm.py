@@ -78,4 +78,6 @@ def test_sealed_slurm():
     assert (
         observed_failed == expected_tests_failed
     ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
+
+
 test_sealed_slurm()
