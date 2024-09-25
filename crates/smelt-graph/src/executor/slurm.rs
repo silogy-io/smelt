@@ -93,11 +93,13 @@ pub fn init_proxy(port: u16) -> u16 {
             });
         });
 
-        *MAYBE_PROXY.write().unwrap() = Some(ProxyState {
-            servers,
-            jh: handle,
-            port,
-        });
+        {
+            *MAYBE_PROXY.write().unwrap() = Some(ProxyState {
+                servers,
+                jh: handle,
+                port,
+            });
+        }
         tracing::info!("successfully wrote?");
         tracing::info!("reading val, the val is {:?}", MAYBE_PROXY.read());
 
