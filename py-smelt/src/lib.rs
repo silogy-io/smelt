@@ -5,9 +5,15 @@ use smelt_data::{client_commands::ConfigureSmelt, Event};
 mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 
-use std::sync::Once;
+use std::{
+    cell::OnceCell,
+    sync::{Once, OnceLock},
+};
+use tokio::runtime::{Builder, Runtime};
 
 static START: Once = Once::new();
+
+static TOKIO_RT: OnceLock<Runtime> = OnceLock::new();
 
 // run initialization here
 
@@ -111,7 +117,16 @@ impl PyController {
             let subscriber = get_subscriber("smelt".into(), "info".into(), std::io::stdout);
             init_subscriber(subscriber);
         });
-        let handle = spawn_graph_server(cfg);
+
+        let rt = TOKIO_RT.get_or_init(|| {
+            Builder::new_multi_thread()
+                .worker_threads(4) // specify the number of threads here
+                .enable_all()
+                .build()
+                .unwrap()
+        });
+
+        let handle = spawn_graph_server(cfg, rt);
         Ok(PyController { handle })
     }
 

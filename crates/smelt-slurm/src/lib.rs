@@ -129,12 +129,15 @@ pub async fn execute_command(
         test_name: command_name.to_string(),
         outputs: Some(cstatus),
     };
-    let _ = stream
-        .send_outputs(TaggedResult {
-            trace_id: trace_id.clone(),
-            results: Some(res),
-        })
-        .await;
+
+    let tr = TaggedResult {
+        trace_id: trace_id.clone(),
+        results: Some(res),
+    };
+
+    println!("Sent tr {tr:?}");
+    let _ = stream.send_outputs(tr).await;
+
     if let Some(task) = sample_task {
         task.abort()
     }
