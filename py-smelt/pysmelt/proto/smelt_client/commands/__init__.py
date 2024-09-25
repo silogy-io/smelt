@@ -136,20 +136,11 @@ class ServerInfo(betterproto.Message):
     """
 
     hostname: str = betterproto.string_field(1)
-    worker_port: int = betterproto.uint32_field(2)
+    port: int = betterproto.uint32_field(2)
     """
-    This is port supplied to each worker. Sometimes you'll have a proxy in
-    front of your smelt server to make deployment easier. e.g.   ┌────────┐
-    ┌───────┐      ┌─────────┐  │        │        │       │      │         │  │
-    WORKER │───────►│ PROXY │─────►│ SMELT   │  │        │        │       │
-    │ SLURM   │  └────────┘        └───────┘      └─────────┘ this is practical
-    for  deploying in non-LAN networking environments
-    """
-
-    server_port: int = betterproto.uint32_field(3)
-    """
-    forces the server to bind to a port in expectation, this _should_ be zero
-    so the OS can provide a unique port per smelt invocation
+    This is port supplied to each worker a. Sometimes you'll have a proxy in
+    front of your smelt server to make deployment easier. e.g.  this is
+    practical for  deploying in non-LAN networking environments
     """
 
 

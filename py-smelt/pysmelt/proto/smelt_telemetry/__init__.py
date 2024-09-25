@@ -147,6 +147,12 @@ class SmeltError(betterproto.Message):
     error_payload: str = betterproto.string_field(2)
 
 
+@dataclass(eq=False, repr=False)
+class TaggedResult(betterproto.Message):
+    trace_id: str = betterproto.string_field(1)
+    results: "_executed_tests__.TestResult" = betterproto.message_field(2)
+
+
 class EventListenerStub(betterproto.ServiceStub):
     async def send_event(
         self,
@@ -167,7 +173,7 @@ class EventListenerStub(betterproto.ServiceStub):
 
     async def send_outputs(
         self,
-        executed_tests_test_result: "_executed_tests__.TestResult",
+        tagged_result: "TaggedResult",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
@@ -175,7 +181,7 @@ class EventListenerStub(betterproto.ServiceStub):
     ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
             "/smelt_telemetry.EventListener/SendOutputs",
-            executed_tests_test_result,
+            tagged_result,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
@@ -191,7 +197,7 @@ class EventListenerBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def send_outputs(
-        self, executed_tests_test_result: "_executed_tests__.TestResult"
+        self, tagged_result: "TaggedResult"
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -205,7 +211,7 @@ class EventListenerBase(ServiceBase):
 
     async def __rpc_send_outputs(
         self,
-        stream: "grpclib.server.Stream[_executed_tests__.TestResult, betterproto_lib_google_protobuf.Empty]",
+        stream: "grpclib.server.Stream[TaggedResult, betterproto_lib_google_protobuf.Empty]",
     ) -> None:
         request = await stream.recv_message()
         response = await self.send_outputs(request)
@@ -222,7 +228,7 @@ class EventListenerBase(ServiceBase):
             "/smelt_telemetry.EventListener/SendOutputs": grpclib.const.Handler(
                 self.__rpc_send_outputs,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                _executed_tests__.TestResult,
+                TaggedResult,
                 betterproto_lib_google_protobuf.Empty,
             ),
         }
