@@ -99,6 +99,8 @@ pub fn init_proxy(port: u16) -> u16 {
 }
 
 async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow::Result<()> {
+    tracing::info!("Inserting server with trace id {trace_id}");
+
     let srvs = {
         let binding = MAYBE_PROXY;
         let val = binding.read().unwrap();
@@ -442,6 +444,7 @@ impl Executor for SlurmExecutor {
         let port = init_proxy(port as u16);
         let addr = format!("0:0:0:0:{port}");
         let trace = data.get_trace_id();
+        tracing::info!("Trying to insert server with trace id {trace}");
         let _ = insert_remote_server(trace, remote_server).await;
 
         tracing::info!("Created server with addr {addr:?}");
