@@ -354,7 +354,7 @@ async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Resu
 struct PerTxRemoteState {
     connections: TRMap,
     hostname: Option<String>,
-    client_addr: SocketAddr,
+    socketaddr: SocketAddr,
 }
 
 impl SlurmExecutor {
@@ -438,7 +438,6 @@ impl Executor for SlurmExecutor {
         }
 
         let port = init_proxy(port as u16).await;
-        let addr = format!("0:0:0:0:{port}");
 
         let trace = data.get_trace_id();
         tracing::trace!("Trying to insert server with trace id {trace}");
@@ -446,12 +445,10 @@ impl Executor for SlurmExecutor {
             .await
             .inspect_err(|err| tracing::error!("Failed to init pertx server with err {err}"));
 
-        tracing::trace!("Created server with addr {addr:?}");
-
         let pertx = PerTxRemoteState {
             connections,
             hostname: chn,
-            client_addr: port,
+            socketaddr: port,
         };
         data.set_pertx_state(pertx);
     }
@@ -472,9 +469,9 @@ impl Executor for SlurmExecutor {
         let worker_bin = Self::get_bin(cfg);
 
         let addr = if let Some(ref hostname) = pertxstate.hostname {
-            format!("{}:{}", hostname, pertxstate.client_addr.port())
+            format!("{}:{}", hostname, pertxstate.socketaddr.port())
         } else {
-            pertxstate.client_addr.to_string()
+            pertxstate.socketaddr.to_string()
         };
 
         let (sender, rcv) = oneshot::channel();
