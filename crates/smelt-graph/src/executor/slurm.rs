@@ -38,6 +38,7 @@ struct SlurmWorkspace {
     sbatch_file: PathBuf,
 }
 
+#[derive(Debug)]
 struct ProxyState {
     servers: ServerMap,
     jh: std::thread::JoinHandle<()>,
@@ -94,6 +95,8 @@ pub fn init_proxy(port: u16) -> u16 {
             jh: handle,
             port,
         });
+
+        tracing::info!("written val is {:?}", val);
         bound_port
     }
 }
@@ -104,6 +107,7 @@ async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow:
     let srvs = {
         let binding = MAYBE_PROXY;
         let val = binding.read().unwrap();
+        tracing::info!("Val is {:?}", val);
         let val2 = val.as_ref();
         if let Some(sh) = val2 {
             tracing::info!("Inserting server with trace id {trace_id}");
