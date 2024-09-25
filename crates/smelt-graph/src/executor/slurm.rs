@@ -99,24 +99,26 @@ pub fn init_proxy(port: u16) -> u16 {
 }
 
 async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow::Result<()> {
-    let binding = MAYBE_PROXY;
-    let mut val = binding.write().unwrap();
-    let val2 = val.as_mut();
-    if let Some(sh) = val2 {
-        tracing::info!("Inserting server with trace id {trace_id}");
-        let _ = sh
-            .servers
-            .insert_async(trace_id.clone(), server)
-            .await
-            .inspect_err(|e| {
-                tracing::error!(
-                    "Could not insert remote server for trace_id: {trace_id}, failed with {e:?}"
-                )
-            });
-        Ok(())
-    } else {
-        anyhow::bail!("NOT INITIALIZED")
-    }
+    let srvs = {
+        let binding = MAYBE_PROXY;
+        let val = binding.read().unwrap();
+        let val2 = val.as_ref();
+        if let Some(sh) = val2 {
+            tracing::info!("Inserting server with trace id {trace_id}");
+            sh.servers.clone()
+        } else {
+            anyhow::bail!("NOT INITIALIZED")
+        }
+    };
+    let _ = srvs
+        .insert_async(trace_id.clone(), server)
+        .await
+        .inspect_err(|e| {
+            tracing::error!(
+                "Could not insert remote server for trace_id: {trace_id}, failed with {e:?}"
+            )
+        });
+    Ok(())
 }
 
 async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
@@ -440,7 +442,7 @@ impl Executor for SlurmExecutor {
         let port = init_proxy(port as u16);
         let addr = format!("0:0:0:0:{port}");
         let trace = data.get_trace_id();
-        let _ = insert_remote_server(trace, remote_server);
+        let _ = insert_remote_server(trace, remote_server).await;
 
         tracing::info!("Created server with addr {addr:?}");
         tracing::info!("sending messages to {chn} ");
