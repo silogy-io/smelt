@@ -13,7 +13,7 @@ use smelt_core::{get_target_root, SmeltErr};
 
 use std::io::Write;
 
-use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener};
+use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener, task::JoinHandle};
 
 use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{transport::Server, Response};
@@ -46,17 +46,17 @@ struct SlurmWorkspace {
 #[derive(Debug)]
 struct ProxyState {
     servers: ServerMap,
-    jh: std::thread::JoinHandle<()>,
+    jh: JoinHandle<()>,
     port: u16,
 }
-const MAYBE_PROXY: LazyLock<Arc<RwLock<Option<ProxyState>>>> =
-    LazyLock::new(|| Arc::new(RwLock::new(None)));
+const MAYBE_PROXY: LazyLock<Arc<tokio::sync::RwLock<Option<ProxyState>>>> =
+    LazyLock::new(|| Arc::new(tokio::sync::RwLock::new(None)));
 type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
-pub fn init_proxy(port: u16) -> u16 {
+pub async fn init_proxy(port: u16) -> u16 {
     let innited_port = {
         let binding = MAYBE_PROXY.clone();
-        let val = binding.read().unwrap().as_ref().map(|val| val.port.clone());
+        let val = binding.read().await.as_ref().map(|val| val.port.clone());
         val
     };
     if let Some(port) = innited_port {
@@ -75,27 +75,20 @@ pub fn init_proxy(port: u16) -> u16 {
         let bound_port = listener.local_addr().expect("Binding failed").port();
         tracing::info!("Already ");
 
-        let handle = std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
+        let handle = tokio::spawn(async move {
+            let listener = TcpListener::from_std(listener).expect("Could not convert from std");
+
+            Server::builder()
+                .add_service(smelt_data::event_listener_server::EventListenerServer::new(
+                    srv,
+                ))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
                 .unwrap();
-
-            rt.block_on(async move {
-                let listener = TcpListener::from_std(listener).expect("Could not convert from std");
-
-                Server::builder()
-                    .add_service(smelt_data::event_listener_server::EventListenerServer::new(
-                        srv,
-                    ))
-                    .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
-                    .await
-                    .unwrap();
-            });
         });
 
         let local = MAYBE_PROXY.clone();
-        *local.write().unwrap() = Some(ProxyState {
+        *local.write().await = Some(ProxyState {
             servers,
             jh: handle,
             port,
@@ -103,7 +96,7 @@ pub fn init_proxy(port: u16) -> u16 {
         let local2 = MAYBE_PROXY.clone();
 
         tracing::info!("successfully wrote?");
-        tracing::info!("reading val, the val is {:?}", local2.read());
+        tracing::info!("reading val, the val is {:?}", local2.read().await);
 
         bound_port
     }
@@ -114,7 +107,7 @@ async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow:
 
     let srvs = {
         let binding = MAYBE_PROXY.clone();
-        let val = binding.read().unwrap();
+        let val = binding.read().await;
         tracing::info!("Val is {:?}", val);
         let val2 = val.as_ref();
         if let Some(sh) = val2 {
@@ -137,7 +130,7 @@ async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow:
 
 async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
     let binding = MAYBE_PROXY.clone();
-    let mut val = binding.write().unwrap();
+    let mut val = binding.write().await;
     let val2 = val.as_mut();
     if let Some(sh) = val2 {
         tracing::info!("cleaning up state for {trace_id} in the smelt slurm server");
@@ -453,11 +446,11 @@ impl Executor for SlurmExecutor {
             chn = data.get_hostname();
         }
 
-        let port = init_proxy(port as u16);
+        let port = init_proxy(port as u16).await;
         let addr = format!("0:0:0:0:{port}");
         {
             let binding = MAYBE_PROXY.clone();
-            let val = binding.read().unwrap();
+            let val = binding.read().await;
             tracing::info!("peeking at val, is {:?}", val);
         }
         let trace = data.get_trace_id();
