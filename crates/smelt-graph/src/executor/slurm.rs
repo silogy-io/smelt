@@ -103,6 +103,7 @@ async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow:
     let mut val = binding.write().unwrap();
     let val2 = val.as_mut();
     if let Some(sh) = val2 {
+        tracing::info!("Inserting server with trace id {trace_id}");
         let _ = sh
             .servers
             .insert_async(trace_id.clone(), server)
@@ -123,9 +124,10 @@ async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
     let mut val = binding.write().unwrap();
     let val2 = val.as_mut();
     if let Some(sh) = val2 {
+        tracing::info!("cleaning up state for {trace_id} in the smelt slurm server");
         sh.servers.remove(&trace_id)
     } else {
-        anyhow::bail!("NOT INITIALIZED");
+        anyhow::bail!("REMOTE SERER NOT INITIALIZED");
     };
     Ok(())
 }
@@ -290,13 +292,15 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
         request: tonic::Request<Event>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let inner_event = request.into_inner();
-        let server = self
-            .all_live_traces
-            .get_async(&inner_event.trace_id)
-            .await
-            .unwrap();
 
-        let _resp = server.tx_chan.send(inner_event).await;
+        let server = self.all_live_traces.get_async(&inner_event.trace_id).await;
+
+        if let Some(srv) = server {
+            let _resp = srv.tx_chan.send(inner_event).await;
+        } else {
+            tracing::warn!("Received event {inner_event:?} from unregistered trace");
+        }
+
         Ok(Response::new(()))
     }
     async fn send_outputs(
@@ -306,11 +310,15 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
         let val = request.into_inner();
 
         let trace = val.trace_id;
-        let server = self.all_live_traces.get_async(&trace).await.unwrap();
+        let server = self.all_live_traces.get_async(&trace).await;
         let val = val.results.expect("No results");
 
         tracing::trace!("Trying to remove {}", val.test_name);
-        let v = server.connections.remove_async(&val.test_name).await;
+        let v = if let Some(srv) = server {
+            srv.connections.remove_async(&val.test_name).await
+        } else {
+            None
+        };
         match v {
             None => {
                 tracing::error!("Missing entry in the remote server!");
