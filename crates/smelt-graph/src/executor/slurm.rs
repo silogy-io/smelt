@@ -320,10 +320,11 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
         let server = self.all_live_traces.get_async(&trace).await;
         let val = val.results.expect("No results");
 
-        tracing::trace!("Trying to remove {}", val.test_name);
         let v = if let Some(srv) = server {
+            tracing::info!("Trying to remove {}", val.test_name);
             srv.connections.remove_async(&val.test_name).await
         } else {
+            tracing::info!("Could not find server for trace {trace}");
             None
         };
         match v {
