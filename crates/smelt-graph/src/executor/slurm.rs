@@ -44,7 +44,7 @@ struct ProxyState {
     port: u16,
 }
 const MAYBE_PROXY: RwLock<Option<ProxyState>> = RwLock::new(None);
-type ServerMap = HashMap<String, RemoteServer>;
+type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
 pub fn init_proxy(port: u16) -> u16 {
     let innited_port = {
@@ -56,7 +56,7 @@ pub fn init_proxy(port: u16) -> u16 {
         tracing::info!("Previously initialized server -- we are just returning the port");
         port
     } else {
-        let servers = HashMap::new();
+        let servers = Arc::new(HashMap::new());
         let srv = GlobalSlurmServer {
             all_live_traces: servers.clone(),
         };
@@ -280,7 +280,7 @@ pub struct SlurmExecutor {
 }
 
 struct GlobalSlurmServer {
-    all_live_traces: HashMap<String, RemoteServer>,
+    all_live_traces: ServerMap,
 }
 
 #[tonic::async_trait]
