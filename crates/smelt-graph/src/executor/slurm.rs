@@ -1,4 +1,9 @@
-use std::{fs::set_permissions, os::unix::fs::PermissionsExt, path::Path, sync::RwLock};
+use std::{
+    fs::set_permissions,
+    os::unix::fs::PermissionsExt,
+    path::Path,
+    sync::{LazyLock, RwLock},
+};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -44,7 +49,7 @@ struct ProxyState {
     jh: std::thread::JoinHandle<()>,
     port: u16,
 }
-const MAYBE_PROXY: RwLock<Option<ProxyState>> = RwLock::new(None);
+const MAYBE_PROXY: LazyLock<RwLock<Option<ProxyState>>> = LazyLock::new(|| RwLock::new(None));
 type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
 pub fn init_proxy(port: u16) -> u16 {
@@ -87,16 +92,13 @@ pub fn init_proxy(port: u16) -> u16 {
                     .unwrap();
             });
         });
-        let binding = MAYBE_PROXY;
-        let mut val = binding.write().unwrap();
 
-        *val = Some(ProxyState {
+        *MAYBE_PROXY.write().unwrap() = Some(ProxyState {
             servers,
             jh: handle,
             port,
         });
 
-        tracing::info!("written val is {:?}", val);
         bound_port
     }
 }
