@@ -49,7 +49,7 @@ struct ProxyState {
     jh: JoinHandle<()>,
     port: u16,
 }
-const MAYBE_PROXY: LazyLock<Arc<tokio::sync::RwLock<Option<ProxyState>>>> =
+static MAYBE_PROXY: LazyLock<Arc<tokio::sync::RwLock<Option<ProxyState>>>> =
     LazyLock::new(|| Arc::new(tokio::sync::RwLock::new(None)));
 type ServerMap = Arc<HashMap<String, RemoteServer>>;
 
