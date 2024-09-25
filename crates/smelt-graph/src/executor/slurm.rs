@@ -98,6 +98,8 @@ pub fn init_proxy(port: u16) -> u16 {
             jh: handle,
             port,
         });
+        tracing::info!("successfully wrote?");
+        tracing::info!("reading val, the val is {:?}", MAYBE_PROXY.read());
 
         bound_port
     }
