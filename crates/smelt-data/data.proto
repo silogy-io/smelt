@@ -101,8 +101,5 @@ message SmeltError {
 message TaggedResult {
   string trace_id = 1;
   executed_tests.TestResult results = 2;
-
-
-
 }
 

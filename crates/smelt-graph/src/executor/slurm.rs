@@ -315,6 +315,7 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
         request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
+        tracing::info!("tagged result payload is {val:?}");
 
         let trace = val.trace_id;
         let server = self.all_live_traces.get_async(&trace).await;
