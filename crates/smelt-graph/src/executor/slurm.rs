@@ -60,7 +60,7 @@ pub async fn init_proxy(port: u16) -> u16 {
         val
     };
     if let Some(port) = innited_port {
-        tracing::info!("Previously initialized server -- we are just returning the port");
+        tracing::trace!("Previously initialized server -- we are just returning the port");
         port
     } else {
         let servers = Arc::new(HashMap::new());
@@ -73,7 +73,6 @@ pub async fn init_proxy(port: u16) -> u16 {
             .set_nonblocking(true)
             .expect("Cannot set nonblocking");
         let bound_port = listener.local_addr().expect("Binding failed").port();
-        tracing::info!("Already ");
 
         let handle = tokio::spawn(async move {
             let listener = TcpListener::from_std(listener).expect("Could not convert from std");
@@ -93,23 +92,20 @@ pub async fn init_proxy(port: u16) -> u16 {
             port,
         });
 
-        tracing::info!("successfully wrote?");
-        tracing::info!("reading val, the val is {:?}", MAYBE_PROXY.read().await);
-
         bound_port
     }
 }
 
 async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow::Result<()> {
-    tracing::info!("Inserting server with trace id {trace_id}");
+    tracing::trace!("Inserting server with trace id {trace_id}");
 
     let srvs = {
         let binding = MAYBE_PROXY.clone();
         let val = binding.read().await;
-        tracing::info!("Val is {:?}", val);
+
         let val2 = val.as_ref();
         if let Some(sh) = val2 {
-            tracing::info!("Inserting server with trace id {trace_id}");
+            tracing::trace!("Inserting server with trace id {trace_id}");
             sh.servers.clone()
         } else {
             anyhow::bail!("NOT INITIALIZED")
@@ -131,7 +127,7 @@ async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
     let mut val = binding.write().await;
     let val2 = val.as_mut();
     if let Some(sh) = val2 {
-        tracing::info!("cleaning up state for {trace_id} in the smelt slurm server");
+        tracing::trace!("cleaning up state for {trace_id} in the smelt slurm server");
         sh.servers.remove(&trace_id)
     } else {
         anyhow::bail!("REMOTE SERER NOT INITIALIZED");
@@ -315,17 +311,17 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
         request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
-        tracing::info!("tagged result payload is {val:?}");
+        tracing::trace!("tagged result payload is {val:?}");
 
         let trace = val.trace_id;
         let server = self.all_live_traces.get_async(&trace).await;
         let val = val.results.expect("No results");
 
         let v = if let Some(srv) = server {
-            tracing::info!("Trying to remove {}", val.test_name);
+            tracing::trace!("Trying to remove {}", val.test_name);
             srv.connections.remove_async(&val.test_name).await
         } else {
-            tracing::info!("Could not find server for trace {trace}");
+            tracing::trace!("Could not find server for trace {trace}");
             None
         };
         match v {
@@ -434,7 +430,7 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
-        tracing::info!("cfg info is {:?}", self.cfg.maybe_info);
+        tracing::trace!("cfg info is {:?}", self.cfg.maybe_info);
 
         let (mut chn, port) = self
             .cfg
@@ -448,19 +444,15 @@ impl Executor for SlurmExecutor {
 
         let port = init_proxy(port as u16).await;
         let addr = format!("0:0:0:0:{port}");
-        {
-            let binding = MAYBE_PROXY.clone();
-            let val = binding.read().await;
-            tracing::info!("peeking at val, is {:?}", val);
-        }
+
         let trace = data.get_trace_id();
-        tracing::info!("Trying to insert server with trace id {trace}");
+        tracing::trace!("Trying to insert server with trace id {trace}");
         let _ = insert_remote_server(trace, remote_server)
             .await
             .inspect_err(|err| tracing::error!("Failed to init pertx server with err {err}"));
 
-        tracing::info!("Created server with addr {addr:?}");
-        tracing::info!("sending messages to {chn} ");
+        tracing::trace!("Created server with addr {addr:?}");
+        tracing::trace!("sending messages to {chn} ");
 
         let pertx = PerTxRemoteState {
             connections,
@@ -531,7 +523,7 @@ impl Executor for SlurmExecutor {
                 commandlocal.arg("--output=/tmp/smelt/out.log");
                 commandlocal.arg("--error=/tmp/smelt/err.log");
                 commandlocal.arg(format!("--wrap={}", command));
-                tracing::info!("Command executed is {command}");
+                tracing::trace!("Command executed is {command}");
 
                 commandlocal.env_clear().spawn()?
             }
@@ -559,7 +551,7 @@ impl Executor for SlurmExecutor {
         //    );
         //}
 
-        tracing::info!("Waiting for the message...");
+        tracing::trace!("Waiting for the completed message...");
         let output = rcv.await?;
 
         Ok(create_test_result(
