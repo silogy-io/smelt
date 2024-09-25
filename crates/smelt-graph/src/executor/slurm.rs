@@ -1,9 +1,4 @@
-use std::{
-    fs::set_permissions,
-    os::unix::fs::PermissionsExt,
-    path::Path,
-    sync::LazyLock,
-};
+use std::{fs::set_permissions, os::unix::fs::PermissionsExt, path::Path, sync::LazyLock};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -13,7 +8,7 @@ use smelt_core::{get_target_root, SmeltErr};
 
 use std::io::Write;
 
-use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener, task::JoinHandle};
+use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener};
 
 use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{transport::Server, Response};
@@ -46,7 +41,6 @@ struct SlurmWorkspace {
 #[derive(Debug)]
 struct ProxyState {
     servers: ServerMap,
-    jh: JoinHandle<()>,
     port: u16,
 }
 static MAYBE_PROXY: LazyLock<Arc<tokio::sync::RwLock<Option<ProxyState>>>> =
@@ -74,7 +68,7 @@ pub async fn init_proxy(port: u16) -> u16 {
             .expect("Cannot set nonblocking");
         let bound_port = listener.local_addr().expect("Binding failed").port();
 
-        let handle = tokio::spawn(async move {
+        let _handle = tokio::spawn(async move {
             let listener = TcpListener::from_std(listener).expect("Could not convert from std");
 
             Server::builder()
@@ -86,11 +80,7 @@ pub async fn init_proxy(port: u16) -> u16 {
                 .unwrap();
         });
 
-        *MAYBE_PROXY.write().await = Some(ProxyState {
-            servers,
-            jh: handle,
-            port,
-        });
+        *MAYBE_PROXY.write().await = Some(ProxyState { servers, port });
 
         bound_port
     }
@@ -128,7 +118,7 @@ async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
     let val2 = val.as_mut();
     if let Some(sh) = val2 {
         tracing::trace!("cleaning up state for {trace_id} in the smelt slurm server");
-        sh.servers.remove(&trace_id)
+        let _state = sh.servers.remove(&trace_id);
     } else {
         anyhow::bail!("REMOTE SERER NOT INITIALIZED");
     };
