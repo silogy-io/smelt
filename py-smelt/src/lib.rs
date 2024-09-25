@@ -5,10 +5,7 @@ use smelt_data::{client_commands::ConfigureSmelt, Event};
 mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 
-use std::{
-    cell::OnceCell,
-    sync::{Once, OnceLock},
-};
+use std::sync::{Once, OnceLock};
 use tokio::runtime::{Builder, Runtime};
 
 static START: Once = Once::new();

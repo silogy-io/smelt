@@ -156,7 +156,7 @@ impl Executor for RemoteExecutor {
         let root = global_data.get_smelt_root();
         let command = command.as_ref();
         let pertxstate = dd.get_pertx_state();
-        let Workspace { script_file, .. } =
+        let Workspace {  .. } =
             prepare_workspace(command, root.clone(), command.working_dir.as_path()).await?;
         let (sender, rcv) = oneshot::channel();
         let _ = pertxstate.connections.insert(command.name.clone(), sender);

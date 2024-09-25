@@ -2,7 +2,7 @@ use std::{
     fs::set_permissions,
     os::unix::fs::PermissionsExt,
     path::Path,
-    sync::{LazyLock, RwLock},
+    sync::LazyLock,
 };
 use std::{path::PathBuf, sync::Arc};
 
@@ -56,7 +56,7 @@ type ServerMap = Arc<HashMap<String, RemoteServer>>;
 pub async fn init_proxy(port: u16) -> u16 {
     let innited_port = {
         let binding = MAYBE_PROXY.clone();
-        let val = binding.read().await.as_ref().map(|val| val.port.clone());
+        let val = binding.read().await.as_ref().map(|val| val.port);
         val
     };
     if let Some(port) = innited_port {
