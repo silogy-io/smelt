@@ -100,9 +100,10 @@ pub fn init_proxy(port: u16) -> u16 {
             jh: handle,
             port,
         });
+        let local2 = MAYBE_PROXY.clone();
 
         tracing::info!("successfully wrote?");
-        tracing::info!("reading val, the val is {:?}", local.read());
+        tracing::info!("reading val, the val is {:?}", local2.read());
 
         bound_port
     }
@@ -455,7 +456,7 @@ impl Executor for SlurmExecutor {
         let port = init_proxy(port as u16);
         let addr = format!("0:0:0:0:{port}");
         {
-            let binding = MAYBE_PROXY;
+            let binding = MAYBE_PROXY.clone();
             let val = binding.read().unwrap();
             tracing::info!("peeking at val, is {:?}", val);
         }
