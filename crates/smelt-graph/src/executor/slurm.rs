@@ -445,7 +445,9 @@ impl Executor for SlurmExecutor {
         let addr = format!("0:0:0:0:{port}");
         let trace = data.get_trace_id();
         tracing::info!("Trying to insert server with trace id {trace}");
-        let _ = insert_remote_server(trace, remote_server).await;
+        let _ = insert_remote_server(trace, remote_server)
+            .await
+            .inspect_err(|err| tracing::error!("Failed to init pertx server with err {err}"));
 
         tracing::info!("Created server with addr {addr:?}");
         tracing::info!("sending messages to {chn} ");
