@@ -447,6 +447,11 @@ impl Executor for SlurmExecutor {
 
         let port = init_proxy(port as u16);
         let addr = format!("0:0:0:0:{port}");
+        {
+            let binding = MAYBE_PROXY;
+            let val = binding.read().unwrap();
+            tracing::info!("peeking at val, is {:?}", val);
+        }
         let trace = data.get_trace_id();
         tracing::info!("Trying to insert server with trace id {trace}");
         let _ = insert_remote_server(trace, remote_server)
