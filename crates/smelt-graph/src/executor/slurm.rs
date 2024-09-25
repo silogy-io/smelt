@@ -87,16 +87,14 @@ pub async fn init_proxy(port: u16) -> u16 {
                 .unwrap();
         });
 
-        let local = MAYBE_PROXY.clone();
-        *local.write().await = Some(ProxyState {
+        *MAYBE_PROXY.write().await = Some(ProxyState {
             servers,
             jh: handle,
             port,
         });
-        let local2 = MAYBE_PROXY.clone();
 
         tracing::info!("successfully wrote?");
-        tracing::info!("reading val, the val is {:?}", local2.read().await);
+        tracing::info!("reading val, the val is {:?}", MAYBE_PROXY.read().await);
 
         bound_port
     }
