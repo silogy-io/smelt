@@ -135,7 +135,6 @@ pub async fn execute_command(
         results: Some(res),
     };
 
-    println!("Sent tr {tr:?}");
     let _ = stream.send_outputs(tr).await;
 
     if let Some(task) = sample_task {

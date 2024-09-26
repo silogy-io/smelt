@@ -97,8 +97,13 @@ class ConfigureSmelt(betterproto.Message):
 
     prepare_workspace: bool = betterproto.bool_field(6)
     """
-    if true, we will prepare the workspace to run tests in another stage this
-    is useful for splitting the work between a build and test stage
+    if true, smelt execution will prepare the workspace to run tests in another
+    stage this is useful for splitting the work between a build and test stage
+    """
+
+    sandbox_env: bool = betterproto.bool_field(7)
+    """
+    if true, all commands will have their environment variables sandboxed
     """
 
     local: "CfgLocal" = betterproto.message_field(10, group="InitExecutor")

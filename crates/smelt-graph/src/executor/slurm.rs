@@ -23,9 +23,7 @@ use smelt_data::{
     executed_tests::{ExecutedTestResult, TestResult},
     Event, TaggedResult,
 };
-use smelt_events::runtime_support::{
-    GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
-};
+use smelt_events::runtime_support::{GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel};
 
 use crate::executor::Executor;
 use crate::Command;
@@ -502,8 +500,11 @@ impl Executor for SlurmExecutor {
                 commandlocal.arg("--error=/dev/null");
 
                 commandlocal.arg(&sbatch_file);
+                if global_data.get_smelt_cfg().sandbox_env {
+                    commandlocal.env_clear();
+                }
 
-                commandlocal.env_clear().spawn()?
+                commandlocal.spawn()?
             }
             SealedWorkspace::Dockerws(_) => {
                 let command = create_slurm_command(
@@ -524,8 +525,11 @@ impl Executor for SlurmExecutor {
 
                 commandlocal.arg(format!("--wrap={}", command));
                 tracing::trace!("Command executed is {command}");
+                if global_data.get_smelt_cfg().sandbox_env {
+                    commandlocal.env_clear();
+                }
 
-                commandlocal.env_clear().spawn()?
+                commandlocal.spawn()?
             }
         };
         //let stderr = comm_handle.stderr.take().unwrap();

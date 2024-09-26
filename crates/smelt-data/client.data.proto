@@ -42,9 +42,11 @@ message ConfigureSmelt {
   bool test_only = 4;
   // If true, we do not transmit stdout from the server
   bool silent = 5;
-  // if true, we will prepare the workspace to run tests in another stage
+  // if true, smelt execution will prepare the workspace to run tests in another stage
   // this is useful for splitting the work between a build and test stage
   bool prepare_workspace = 6;
+  // if true, all commands will have their environment variables sandboxed 
+  bool sandbox_env= 7;
   oneof InitExecutor {
     CfgLocal local = 10;
     CfgDocker docker = 11;
