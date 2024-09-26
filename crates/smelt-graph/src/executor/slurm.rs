@@ -516,8 +516,12 @@ impl Executor for SlurmExecutor {
                 )?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
-                commandlocal.arg("--output=/tmp/smelt/out.log");
-                commandlocal.arg("--error=/tmp/smelt/err.log");
+                //TODO: gate this behind a flag -- it would be useful to configure this
+                //commandlocal.arg("--output=/tmp/smelt/out.log");
+                //commandlocal.arg("--error=/tmp/smelt/err.log");
+                commandlocal.arg("--output=/dev/null");
+                commandlocal.arg("--error=/dev/null");
+
                 commandlocal.arg(format!("--wrap={}", command));
                 tracing::trace!("Command executed is {command}");
 
