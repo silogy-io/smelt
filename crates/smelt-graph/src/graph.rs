@@ -834,6 +834,7 @@ mod tests {
             smelt_root: std::env!("CARGO_MANIFEST_DIR").to_string(),
             test_only: false,
             silent: true,
+            sandbox_env: false,
             job_slots: 1,
             init_executor: Some(configure_smelt::InitExecutor::Local(CfgLocal {})),
         }
