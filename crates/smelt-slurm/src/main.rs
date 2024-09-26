@@ -81,7 +81,5 @@ fn main() {
         host,
         creds,
     ))
-    .expect(
-        format!("There was a failure executing the command!\n\ncli args are {dbg_args:?}").as_ref(),
-    );
+    .unwrap_or_else(|_| panic!("There was a failure executing the command!\n\ncli args are {dbg_args:?}"));
 }

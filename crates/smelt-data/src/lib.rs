@@ -127,6 +127,25 @@ impl Event {
         Self::new(et, trace_id)
     }
 
+    pub fn as_result(&self) -> Option<TestResult> {
+        match self {
+            Event {
+                et:
+                    Some(Et::Command(CommandEvent {
+                        command_variant:
+                            Some(CommandVariant::Finished(CommandFinished { outputs, .. })),
+                        command_ref,
+                    })),
+                ..
+            } => Some(TestResult {
+                test_name: command_ref.clone(),
+                outputs: outputs.clone(),
+            }),
+
+            _ => None,
+        }
+    }
+
     pub fn finished_event(&self) -> bool {
         matches!(
             self.et.as_ref().unwrap(),

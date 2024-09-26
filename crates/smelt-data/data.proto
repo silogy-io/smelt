@@ -10,7 +10,8 @@ import "google/protobuf/empty.proto";
 service EventListener {
   // Sends an Event to the server.
   rpc SendEvent (Event) returns (google.protobuf.Empty) {}
-  rpc SendOutputs(executed_tests.TestResult) returns (google.protobuf.Empty) {}
+  // 
+  rpc SendOutputs(TaggedResult) returns (google.protobuf.Empty) {}
 }
 
 
@@ -95,3 +96,10 @@ message SmeltError {
   SmeltErrorType sig = 1;
   string error_payload = 2;
 }
+
+
+message TaggedResult {
+  string trace_id = 1;
+  executed_tests.TestResult results = 2;
+}
+

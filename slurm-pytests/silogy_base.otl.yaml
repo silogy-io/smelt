@@ -1,0 +1,41 @@
+- name: verilator_build
+  rule: raw_bash_build
+  rule_args:
+    cmds:
+      - make
+
+- name: test_0
+  rule: raw_bash
+  rule_args:
+    deps:
+      - verilator_build
+    cmds:
+      - sleep 5
+      - ./obj_dir/Vtop +trace
+    outputs:
+      waves: sim.vcd
+
+- name: test_1
+  rule: raw_bash
+  rule_args:
+    deps:
+      - verilator_build
+    cmds:
+      - ./obj_dir/Vtop +trace
+
+- name: test_2
+  rule: raw_bash
+  rule_args:
+    deps:
+      - verilator_build
+    cmds:
+      - ./obj_dir/Vtop +trace
+
+- name: test_3
+  rule: raw_bash
+  rule_args:
+    deps:
+      - verilator_build
+    cmds:
+      - ./test_default.sh
+

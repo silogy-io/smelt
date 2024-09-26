@@ -12,6 +12,7 @@ from pysmelt.proto.smelt_client.commands import (
     CfgSlurm,
     ConfigureSmelt,
     DockerWorkspace,
+    ServerInfo,
     ProfilerCfg,
     ProfilingSelection,
     CfgDocker,
@@ -54,6 +55,15 @@ def create_sealed(container_name: str, committed_img_name: str, smelt_file_path:
     )
 
 
+import socket
+
+
+def get_ip_address():
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    return ip_address
+
+
 def test_sealed_slurm():
     """ """
     test_list = f"test_data/smelt_files/simple_graph.smelt.yaml"
@@ -67,6 +77,8 @@ def test_sealed_slurm():
         cfg.slurm.dockerws = DockerWorkspace(
             container_name=img, workspace_smelt_root="/opt"
         )
+        # TODO: we need to investigate having this unset -- currently it breaks things, unfortunately, because ip 0.0.0.0 is given to
+        cfg.slurm.maybe_info = ServerInfo(hostname=get_ip_address(), port=0)
         return cfg
 
     graph = create_graph(test_list, cfg_init=init_slurm)
@@ -78,4 +90,6 @@ def test_sealed_slurm():
     assert (
         observed_failed == expected_tests_failed
     ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
+
+
 test_sealed_slurm()

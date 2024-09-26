@@ -1,4 +1,6 @@
-use std::{fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
+use std::{
+    fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::LazyLock,
+};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -10,10 +12,7 @@ use std::io::Write;
 
 use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener};
 
-use tokio::{
-    sync::{mpsc::Sender, oneshot},
-    task::JoinHandle,
-};
+use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{transport::Server, Response};
 
 use smelt_data::{
@@ -22,10 +21,10 @@ use smelt_data::{
         DockerWorkspace,
     },
     executed_tests::{ExecutedTestResult, TestResult},
-    Event,
+    Event, TaggedResult,
 };
 use smelt_events::runtime_support::{
-    GetHostname, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
+    GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
 };
 
 use crate::executor::Executor;
@@ -39,6 +38,96 @@ fn sbatch_file() -> &'static str {
 
 struct SlurmWorkspace {
     sbatch_file: PathBuf,
+}
+
+#[derive(Debug)]
+struct ProxyState {
+    servers: ServerMap,
+    port: SocketAddr,
+}
+static MAYBE_PROXY: LazyLock<Arc<tokio::sync::RwLock<Option<ProxyState>>>> =
+    LazyLock::new(|| Arc::new(tokio::sync::RwLock::new(None)));
+type ServerMap = Arc<HashMap<String, RemoteServer>>;
+
+pub async fn init_proxy(in_port: u16) -> SocketAddr {
+    let innited_port = {
+        let binding = MAYBE_PROXY.clone();
+        let val = binding.read().await.as_ref().map(|val| val.port);
+        val
+    };
+    if let Some(port) = innited_port {
+        tracing::trace!("Previously initialized server -- we are just returning the port");
+        port
+    } else {
+        let servers = Arc::new(HashMap::new());
+        let srv = GlobalSlurmServer {
+            all_live_traces: servers.clone(),
+        };
+
+        let listener = std::net::TcpListener::bind(format!("0.0.0.0:{in_port}")).unwrap();
+        listener
+            .set_nonblocking(true)
+            .expect("Cannot set nonblocking");
+        let bound_port = listener.local_addr().expect("Binding failed");
+
+        let _handle = tokio::spawn(async move {
+            let listener = TcpListener::from_std(listener).expect("Could not convert from std");
+
+            Server::builder()
+                .add_service(smelt_data::event_listener_server::EventListenerServer::new(
+                    srv,
+                ))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+
+        *MAYBE_PROXY.write().await = Some(ProxyState {
+            servers,
+            port: bound_port,
+        });
+
+        bound_port
+    }
+}
+
+async fn insert_remote_server(trace_id: String, server: RemoteServer) -> anyhow::Result<()> {
+    tracing::trace!("Inserting server with trace id {trace_id}");
+
+    let srvs = {
+        let binding = MAYBE_PROXY.clone();
+        let val = binding.read().await;
+
+        let val2 = val.as_ref();
+        if let Some(sh) = val2 {
+            tracing::trace!("Inserting server with trace id {trace_id}");
+            sh.servers.clone()
+        } else {
+            anyhow::bail!("NOT INITIALIZED")
+        }
+    };
+    let _ = srvs
+        .insert_async(trace_id.clone(), server)
+        .await
+        .inspect_err(|e| {
+            tracing::error!(
+                "Could not insert remote server for trace_id: {trace_id}, failed with {e:?}"
+            )
+        });
+    Ok(())
+}
+
+async fn remove_remote_server(trace_id: String) -> anyhow::Result<()> {
+    let binding = MAYBE_PROXY.clone();
+    let mut val = binding.write().await;
+    let val2 = val.as_mut();
+    if let Some(sh) = val2 {
+        tracing::trace!("cleaning up state for {trace_id} in the smelt slurm server");
+        let _state = sh.servers.remove(&trace_id);
+    } else {
+        anyhow::bail!("REMOTE SERER NOT INITIALIZED");
+    };
+    Ok(())
 }
 
 fn aws_awgs(cfg: &CfgSlurm) -> Option<Vec<String>> {
@@ -190,6 +279,58 @@ pub struct SlurmExecutor {
     cfg: CfgSlurm,
 }
 
+struct GlobalSlurmServer {
+    all_live_traces: ServerMap,
+}
+
+#[tonic::async_trait]
+impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
+    async fn send_event(
+        &self,
+        request: tonic::Request<Event>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let inner_event = request.into_inner();
+
+        let server = self.all_live_traces.get_async(&inner_event.trace_id).await;
+
+        if let Some(srv) = server {
+            let _resp = srv.tx_chan.send(inner_event).await;
+        } else {
+            tracing::warn!("Received event {inner_event:?} from unregistered trace");
+        }
+
+        Ok(Response::new(()))
+    }
+    async fn send_outputs(
+        &self,
+        request: tonic::Request<TaggedResult>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        let val = request.into_inner();
+        tracing::trace!("tagged result payload is {val:?}");
+
+        let trace = val.trace_id;
+        let server = self.all_live_traces.get_async(&trace).await;
+        let val = val.results.expect("No results");
+
+        let v = if let Some(srv) = server {
+            tracing::trace!("Trying to remove {}", val.test_name);
+            srv.connections.remove_async(&val.test_name).await
+        } else {
+            tracing::trace!("Could not find server for trace {trace}");
+            None
+        };
+        match v {
+            None => {
+                tracing::error!("Missing entry in the remote server!");
+            }
+            Some(entry) => {
+                let _ = entry.1.send(val);
+            }
+        };
+        Ok(Response::new(()))
+    }
+}
+
 #[derive(Debug, Clone)]
 struct RemoteServer {
     tx_chan: Sender<Event>,
@@ -212,8 +353,8 @@ async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Resu
 
 struct PerTxRemoteState {
     connections: TRMap,
-    server_addr: SocketAddr,
-    server_handle: JoinHandle<()>,
+    hostname: Option<String>,
+    socketaddr: SocketAddr,
 }
 
 impl SlurmExecutor {
@@ -248,39 +389,10 @@ impl smelt_data::event_listener_server::EventListener for TestRemoteServer {
     }
     async fn send_outputs(
         &self,
-        request: tonic::Request<TestResult>,
+        request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
         println!("result is {:?}", val);
-        Ok(Response::new(()))
-    }
-}
-
-#[tonic::async_trait]
-impl smelt_data::event_listener_server::EventListener for RemoteServer {
-    async fn send_event(
-        &self,
-        request: tonic::Request<Event>,
-    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        let inner_event = request.into_inner();
-        let _resp = self.tx_chan.send(inner_event).await;
-        Ok(Response::new(()))
-    }
-    async fn send_outputs(
-        &self,
-        request: tonic::Request<TestResult>,
-    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        let val = request.into_inner();
-        tracing::trace!("Trying to remove {}", val.test_name);
-        let v = self.connections.remove_async(&val.test_name).await;
-        match v {
-            None => {
-                tracing::error!("Missing entry in the remote server!");
-            }
-            Some(entry) => {
-                let _ = entry.1.send(val);
-            }
-        };
         Ok(Response::new(()))
     }
 }
@@ -302,7 +414,7 @@ impl RemoteHelpers for UserComputationData {
 #[async_trait]
 impl Executor for SlurmExecutor {
     async fn drop_per_tx_state(&self, data: &UserComputationData) {
-        data.get_pertx_state().server_handle.abort();
+        let _ = remove_remote_server(data.get_trace_id()).await;
     }
 
     async fn init_per_tx_state(&self, data: &mut UserComputationData) {
@@ -313,25 +425,30 @@ impl Executor for SlurmExecutor {
             connections: connections.clone(),
         };
 
-        let hn = data.get_hostname();
-        let listener = TcpListener::bind(format!("{hn}:0")).await.unwrap();
-        let addr = listener.local_addr().unwrap();
+        tracing::trace!("cfg info is {:?}", self.cfg.maybe_info);
 
-        let server_handle = tokio::spawn(async move {
-            tracing::trace!("Spawning server!");
-            Server::builder()
-                .add_service(smelt_data::event_listener_server::EventListenerServer::new(
-                    remote_server,
-                ))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
-                .await
-                .unwrap();
-        });
+        let (mut chn, port) = self
+            .cfg
+            .maybe_info
+            .clone()
+            .map(|info| (Some(info.hostname), info.port))
+            .unwrap_or_else(|| (None, 0));
+        if chn.is_some() && chn.as_ref().is_some_and(|val| val.is_empty()) {
+            chn = None;
+        }
+
+        let port = init_proxy(port as u16).await;
+
+        let trace = data.get_trace_id();
+        tracing::trace!("Trying to insert server with trace id {trace}");
+        let _ = insert_remote_server(trace, remote_server)
+            .await
+            .inspect_err(|err| tracing::error!("Failed to init pertx server with err {err}"));
 
         let pertx = PerTxRemoteState {
             connections,
-            server_addr: addr,
-            server_handle,
+            hostname: chn,
+            socketaddr: port,
         };
         data.set_pertx_state(pertx);
     }
@@ -350,7 +467,12 @@ impl Executor for SlurmExecutor {
         let pertxstate = dd.get_pertx_state();
         let cfg = global_data.get_smelt_cfg();
         let worker_bin = Self::get_bin(cfg);
-        let addr = pertxstate.server_addr;
+
+        let addr = if let Some(ref hostname) = pertxstate.hostname {
+            format!("{}:{}", hostname, pertxstate.socketaddr.port())
+        } else {
+            pertxstate.socketaddr.to_string()
+        };
 
         let (sender, rcv) = oneshot::channel();
         tracing::trace!("Trying to insert {}", command.name);
@@ -370,7 +492,7 @@ impl Executor for SlurmExecutor {
                     command.working_dir.as_path(),
                     worker_bin.as_path(),
                     trace_id.as_str(),
-                    addr.to_string().as_str(),
+                    addr.as_str(),
                     &self.cfg,
                 )
                 .await?;
@@ -381,7 +503,7 @@ impl Executor for SlurmExecutor {
 
                 commandlocal.arg(&sbatch_file);
 
-                commandlocal.spawn()?
+                commandlocal.env_clear().spawn()?
             }
             SealedWorkspace::Dockerws(_) => {
                 let command = create_slurm_command(
@@ -389,16 +511,21 @@ impl Executor for SlurmExecutor {
                     root.clone(),
                     worker_bin.as_path(),
                     trace_id.as_str(),
-                    addr.to_string().as_str(),
+                    addr.as_str(),
                     &self.cfg,
                 )?;
 
                 let mut commandlocal = tokio::process::Command::new("sbatch");
+                //TODO: gate this behind a flag -- it would be useful to configure this
+                //commandlocal.arg("--output=/tmp/smelt/out.log");
+                //commandlocal.arg("--error=/tmp/smelt/err.log");
                 commandlocal.arg("--output=/dev/null");
                 commandlocal.arg("--error=/dev/null");
-                commandlocal.arg(format!("--wrap={}", command));
 
-                commandlocal.spawn()?
+                commandlocal.arg(format!("--wrap={}", command));
+                tracing::trace!("Command executed is {command}");
+
+                commandlocal.env_clear().spawn()?
             }
         };
         //let stderr = comm_handle.stderr.take().unwrap();
@@ -424,7 +551,7 @@ impl Executor for SlurmExecutor {
         //    );
         //}
 
-        tracing::info!("Waiting for the message...");
+        tracing::trace!("Waiting for the completed message...");
         let output = rcv.await?;
 
         Ok(create_test_result(

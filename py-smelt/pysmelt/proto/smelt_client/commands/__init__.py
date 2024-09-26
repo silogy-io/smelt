@@ -122,8 +122,26 @@ class CfgLocal(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CfgSlurm(betterproto.Message):
     creds: "AwsCreds" = betterproto.message_field(1)
+    maybe_info: "ServerInfo" = betterproto.message_field(2)
     none: bool = betterproto.bool_field(10, group="SealedWorkspace")
     dockerws: "DockerWorkspace" = betterproto.message_field(11, group="SealedWorkspace")
+
+
+@dataclass(eq=False, repr=False)
+class ServerInfo(betterproto.Message):
+    """
+    Populate info for the slurm server  This is configured from the end-user
+    side.  if these data is not provided, then smelt will execute `whoami` to
+    derive hostname and will let the OS select the port
+    """
+
+    hostname: str = betterproto.string_field(1)
+    port: int = betterproto.uint32_field(2)
+    """
+    This is port supplied to each worker a. Sometimes you'll have a proxy in
+    front of your smelt server to make deployment easier. e.g.  this is
+    practical for  deploying in non-LAN networking environments
+    """
 
 
 @dataclass(eq=False, repr=False)

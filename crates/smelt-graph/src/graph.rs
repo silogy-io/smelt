@@ -14,7 +14,10 @@ use futures::{
     stream::FuturesUnordered,
     StreamExt,
 };
-use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
+use tokio::{
+    runtime::Runtime,
+    sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender},
+};
 
 use smelt_core::{prepare_artifact_file, SmeltErr};
 use smelt_core::{prepare_workspace, CommandDefPath};
@@ -483,15 +486,21 @@ impl CommandGraph {
 
     // This should hopefully never return
     pub async fn eat_commands(&mut self) {
+        use tokio::time::timeout;
+        //TODO: maybe this should be configurable
+        //      in practice for most end users, this shouldnt come up
+        let duration = tokio::time::Duration::from_secs(1200);
         loop {
-            if let Some(ClientCommandBundle {
+            let result = timeout(duration, self.rx_chan.recv()).await;
+
+            if let Ok(Some(ClientCommandBundle {
                 message:
                     ClientCommand {
                         client_commands: Some(command),
                     },
                 oneshot_confirmer,
                 event_streamer,
-            }) = self.rx_chan.recv().await
+            })) = result
             {
                 let rv = self
                     .eat_command(command, event_streamer.clone())
@@ -509,6 +518,8 @@ impl CommandGraph {
                         .await;
                 }
                 let _ = oneshot_confirmer.send(rv);
+            } else if result.is_err() {
+                tracing::warn!("We have elapsed on our timeout for new commands to come in -- exiting from the eatcommand loop");
             }
         }
     }
@@ -733,28 +744,19 @@ pub struct SmeltServerHandle {
     pub tx_client: UnboundedSender<ClientCommandBundle>,
 }
 
-pub fn spawn_graph_server(cfg: ConfigureSmelt) -> SmeltServerHandle {
+pub fn spawn_graph_server(cfg: ConfigureSmelt, runtime: &Runtime) -> SmeltServerHandle {
     let (tx_client, rx_client) = tokio::sync::mpsc::unbounded_channel();
 
     let server_handle = SmeltServerHandle { tx_client };
 
-    use tokio::runtime::Builder;
-
-    std::thread::spawn(move || {
-        let rt = Builder::new_multi_thread()
-            .worker_threads(4) // specify the number of threads here
-            .enable_all()
-            .build()
-            .unwrap();
-
+    runtime.spawn(async move {
         //todo -- add failure handling here
-        let mut graph = rt.block_on(CommandGraph::new(rx_client, cfg)).unwrap();
-        rt.block_on(async move {
-            // if either of these futures exit, we should head out
-            tokio::select! {
-                _graph = graph.eat_commands() => {}
-            }
-        });
+        let mut graph = CommandGraph::new(rx_client, cfg).await.unwrap();
+
+        // if either of these futures exit, we should head out
+        tokio::select! {
+            _graph = graph.eat_commands() => {}
+        }
     });
     server_handle
 }

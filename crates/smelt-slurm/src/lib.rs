@@ -13,7 +13,7 @@ use smelt_core::Command;
 use smelt_data::{
     event_listener_client::EventListenerClient,
     executed_tests::{TestOutputs, TestResult},
-    Event,
+    Event, TaggedResult,
 };
 use smelt_rt::profile_cmd;
 use tokio::{
@@ -64,8 +64,6 @@ pub async fn execute_command(
 
     let mut stdout = File::create(&stdout).await?;
 
-    println!("owrking dir is: {working_dir:?}");
-    println!("starting to execute {script_file:?}");
     let mut commandlocal = tokio::process::Command::new(shell);
 
     commandlocal
@@ -131,7 +129,15 @@ pub async fn execute_command(
         test_name: command_name.to_string(),
         outputs: Some(cstatus),
     };
-    let _ = stream.send_outputs(res).await;
+
+    let tr = TaggedResult {
+        trace_id: trace_id.clone(),
+        results: Some(res),
+    };
+
+    println!("Sent tr {tr:?}");
+    let _ = stream.send_outputs(tr).await;
+
     if let Some(task) = sample_task {
         task.abort()
     }
