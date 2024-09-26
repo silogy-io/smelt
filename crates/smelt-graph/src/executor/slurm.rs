@@ -24,7 +24,7 @@ use smelt_data::{
     Event, TaggedResult,
 };
 use smelt_events::runtime_support::{
-    GetHostname, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
+    GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel,
 };
 
 use crate::executor::Executor;

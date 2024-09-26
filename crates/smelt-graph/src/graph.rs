@@ -518,7 +518,7 @@ impl CommandGraph {
                         .await;
                 }
                 let _ = oneshot_confirmer.send(rv);
-            } else if let Err(_) = result {
+            } else if result.is_err() {
                 tracing::warn!("We have elapsed on our timeout for new commands to come in -- exiting from the eatcommand loop");
             }
         }
