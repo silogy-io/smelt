@@ -10,10 +10,15 @@ import "google/protobuf/empty.proto";
 service EventListener {
   // Sends an Event to the server.
   rpc SendEvent (Event) returns (google.protobuf.Empty) {}
-  // 
   rpc SendOutputs(TaggedResult) returns (google.protobuf.Empty) {}
 }
 
+
+
+service EventSubscriber {
+  rpc SubscribeReceivedEvents(ExecutionSubscribe) returns (stream Event);
+  rpc SubscriptionComplete(ExecutionFinish) returns(google.protobuf.Empty);
+}
 
 
 // Event flows from server -> client only
@@ -101,5 +106,14 @@ message SmeltError {
 message TaggedResult {
   string trace_id = 1;
   executed_tests.TestResult results = 2;
+}
+
+message ExecutionSubscribe {
+  string trace_id = 1;
+}
+
+message ExecutionFinish {
+  string trace_id = 1;
+
 }
 

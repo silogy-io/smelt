@@ -54,11 +54,13 @@ fn main() -> io::Result<()> {
             "#[derive(Copy, dupe::Dupe,Eq,Hash)]",
         )
         .field_attribute("time", "#[serde(with = \"crate::serialize_timestamp\")]")
-        .field_attribute("rundate", "#[serde(with = \"crate::serialize_timestamp\")]");
+        .field_attribute("time", "#[allocative(skip)]")
+        .field_attribute("rundate", "#[serde(with = \"crate::serialize_timestamp\")]")
+        .field_attribute("rundate", "#[allocative(skip)]");
 
     let proto_files = ["data.proto", "client.data.proto", "executed_tests.proto"];
     for proto_file in proto_files {
         println!("cargo:rerun-if-changed={}", proto_file);
     }
-    tonic.compile(&proto_files, &["."])
+    tonic.compile_protos(&proto_files, &["."])
 }

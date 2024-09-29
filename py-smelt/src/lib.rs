@@ -1,11 +1,16 @@
 use smelt_core::SmeltErr;
 use smelt_data::client_commands::{client_resp::ClientResponses, ClientCommand, ClientResp};
 use smelt_data::{client_commands::ConfigureSmelt, Event};
+use smelt_slurm_server::create_server;
 
 mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 
-use std::sync::{Once, OnceLock};
+use std::{
+    net::{SocketAddr, SocketAddrV4},
+    str::FromStr,
+    sync::{Once, OnceLock},
+};
 use tokio::runtime::{Builder, Runtime};
 
 static START: Once = Once::new();
@@ -38,6 +43,7 @@ fn pysmelt(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEventStream>()?;
     m.add_function(wrap_pyfunction!(create_worker_binary, &m)?)?;
     m.add_function(wrap_pyfunction!(spawn_dummy_server, &m)?)?;
+    m.add_function(wrap_pyfunction!(spawn_slurm_server, &m)?)?;
 
     Ok(())
 }
@@ -70,9 +76,34 @@ fn create_worker_binary() -> PyResult<()> {
 }
 
 #[pyfunction]
-/// Writes the worker binary to the input path
+/// Creates a dummy server for receiving events from workers
+///
+/// mostly useful for checking that your network _works_ and application logic can flow through the
+/// the server
 fn spawn_dummy_server(port: u64) -> PyResult<()> {
     spawn_test_server(port).map_err(|err| PyRuntimeError::new_err(err.to_string()))?;
+    Ok(())
+}
+
+#[pyfunction]
+fn spawn_slurm_server(port: u64, nonblocking: bool) -> PyResult<()> {
+    let closure = move || {
+        let rt = Builder::new_current_thread()
+            .worker_threads(4) // specify the number of threads here
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let addr = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).expect("Malformed addr");
+
+        rt.block_on(create_server(addr, nonblocking));
+    };
+    if nonblocking {
+        std::thread::spawn(closure);
+    } else {
+        closure();
+    }
+
     Ok(())
 }
 
