@@ -97,4 +97,6 @@ def test_sealed_slurm():
     ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
 
 
-test_sealed_slurm()
+spawn_slurm_server(4040, True)
+print("well done son")
+# test_sealed_slurm()

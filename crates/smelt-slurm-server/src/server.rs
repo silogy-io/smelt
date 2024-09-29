@@ -99,11 +99,11 @@ pub async fn create_server(addr: SocketAddr, nonblocking: bool) -> Option<Socket
                 senders: senders.clone(),
             },
         ))
-        .add_service(smelt_data::event_listener_server::EventListenerServer::new(
-            GlobalSlurmServer {
+        .add_service(
+            smelt_data::event_subscriber_server::EventSubscriberServer::new(GlobalSlurmServer {
                 senders: senders.clone(),
-            },
-        ));
+            }),
+        );
 
     let listener = TcpListener::bind(addr)
         .await
@@ -111,7 +111,8 @@ pub async fn create_server(addr: SocketAddr, nonblocking: bool) -> Option<Socket
     let local_addr = listener.local_addr().ok().clone();
     let srv_ftr =
         grpc.serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener));
-    tracing::info!("Listening on {local_addr:?}");
+    //tracing::info!("Listening on {local_addr:?}");
+    println!("Listening on {local_addr:?}");
     if nonblocking {
         tokio::spawn(srv_ftr);
     } else {
