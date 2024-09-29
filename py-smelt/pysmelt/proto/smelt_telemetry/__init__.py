@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
+    AsyncIterator,
     Dict,
     Optional,
 )
@@ -153,6 +154,16 @@ class TaggedResult(betterproto.Message):
     results: "_executed_tests__.TestResult" = betterproto.message_field(2)
 
 
+@dataclass(eq=False, repr=False)
+class ExecutionSubscribe(betterproto.Message):
+    trace_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class ExecutionFinish(betterproto.Message):
+    trace_id: str = betterproto.string_field(1)
+
+
 class EventListenerStub(betterproto.ServiceStub):
     async def send_event(
         self,
@@ -182,6 +193,43 @@ class EventListenerStub(betterproto.ServiceStub):
         return await self._unary_unary(
             "/smelt_telemetry.EventListener/SendOutputs",
             tagged_result,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+
+class EventSubscriberStub(betterproto.ServiceStub):
+    async def subscribe_received_events(
+        self,
+        execution_subscribe: "ExecutionSubscribe",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["Event"]:
+        async for response in self._unary_stream(
+            "/smelt_telemetry.EventSubscriber/SubscribeReceivedEvents",
+            execution_subscribe,
+            Event,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
+    async def subscription_complete(
+        self,
+        execution_finish: "ExecutionFinish",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/smelt_telemetry.EventSubscriber/SubscriptionComplete",
+            execution_finish,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
@@ -229,6 +277,54 @@ class EventListenerBase(ServiceBase):
                 self.__rpc_send_outputs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 TaggedResult,
+                betterproto_lib_google_protobuf.Empty,
+            ),
+        }
+
+
+class EventSubscriberBase(ServiceBase):
+
+    async def subscribe_received_events(
+        self, execution_subscribe: "ExecutionSubscribe"
+    ) -> AsyncIterator["Event"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield Event()
+
+    async def subscription_complete(
+        self, execution_finish: "ExecutionFinish"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_subscribe_received_events(
+        self, stream: "grpclib.server.Stream[ExecutionSubscribe, Event]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.subscribe_received_events,
+            stream,
+            request,
+        )
+
+    async def __rpc_subscription_complete(
+        self,
+        stream: "grpclib.server.Stream[ExecutionFinish, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.subscription_complete(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/smelt_telemetry.EventSubscriber/SubscribeReceivedEvents": grpclib.const.Handler(
+                self.__rpc_subscribe_received_events,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                ExecutionSubscribe,
+                Event,
+            ),
+            "/smelt_telemetry.EventSubscriber/SubscriptionComplete": grpclib.const.Handler(
+                self.__rpc_subscription_complete,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ExecutionFinish,
                 betterproto_lib_google_protobuf.Empty,
             ),
         }
