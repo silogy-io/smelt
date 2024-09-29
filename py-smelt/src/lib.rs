@@ -87,6 +87,12 @@ fn spawn_dummy_server(port: u64) -> PyResult<()> {
 
 #[pyfunction]
 fn spawn_slurm_server(port: u64, nonblocking: bool) -> PyResult<()> {
+    START.call_once(|| {
+        let subscriber =
+            get_subscriber("smelt-slurm-serverf".into(), "info".into(), std::io::stdout);
+        init_subscriber(subscriber);
+    });
+
     let closure = move || {
         let rt = Builder::new_current_thread()
             .worker_threads(4) // specify the number of threads here

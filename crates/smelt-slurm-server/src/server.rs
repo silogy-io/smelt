@@ -84,7 +84,7 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
         request: tonic::Request<TaggedResult>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let val = request.into_inner();
-        tracing::trace!("tagged result payload is {val:?}");
+        tracing::warn!("tagged result payload is {val:?}");
 
         Ok(tonic::Response::new(()))
     }
@@ -107,7 +107,7 @@ pub async fn create_server(addr: SocketAddr, nonblocking: bool) -> Option<Socket
 
     let listener = TcpListener::bind(addr)
         .await
-        .expect("Could not bind {addr:?}for server)");
+        .expect("Could not bind {addr} for server)");
     let local_addr = listener.local_addr().ok().clone();
     let srv_ftr =
         grpc.serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener));
@@ -116,7 +116,7 @@ pub async fn create_server(addr: SocketAddr, nonblocking: bool) -> Option<Socket
     if nonblocking {
         tokio::spawn(srv_ftr);
     } else {
-        srv_ftr.await;
+        let res = srv_ftr.await.expect("failed to serve future");
     };
     local_addr
 }
