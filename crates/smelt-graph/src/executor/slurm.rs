@@ -268,16 +268,16 @@ async fn foward_task(
         .await
         .inspect_err(|e| tracing::error!("Failed to subscribe to the server with err {e:?}"))?;
     let mut stream = stuff.into_inner();
-    tracing::info!(
+    tracing::trace!(
         "Successfully connected -- forwarding messages to the correct place, stream is {stream:?}"
     );
     while let Some(Ok(event)) = stream.next().await {
-        tracing::info!("Received event in smelt: {event:?}");
+        tracing::trace!("Received event in smelt: {event:?}");
 
         if let Some(result) = event.as_result() {
-            tracing::info!("We received a finish! we try to send");
+            tracing::trace!("We received a finish! we try to send");
 
-            tracing::info!("running results are {running_results:?}");
+            tracing::trace!("running results are {running_results:?}");
             let name = result.test_name.clone();
 
             let (_trace_id, unblocker) = running_results
@@ -285,11 +285,12 @@ async fn foward_task(
                 .await
                 .expect("Failed to remove a key from the result dict");
 
-            tracing::info!("We are sending!!");
+            tracing::trace!("We are sending!!");
             let _ = unblocker.send(result);
-            tracing::info!("We are done sending!!");
-        }
-        let _ = fwd.send(event).await;
+            tracing::trace!("We are done sending!!");
+        } else {
+            let _ = fwd.send(event).await;
+        };
     }
     tracing::warn!("Done with stream -- this is probably wrong");
 
@@ -340,8 +341,6 @@ impl Executor for SlurmExecutor {
         dd: &UserComputationData,
         global_data: &DiceData,
     ) -> anyhow::Result<ExecutedTestResult> {
-        let _tx = dd.get_tx_channel();
-
         let trace_id = dd.get_trace_id();
         let root = global_data.get_smelt_root();
         let command = command.as_ref();
