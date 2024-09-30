@@ -17,6 +17,7 @@ smelt-core = { workspace = true }
 smelt-graph = { workspace = true }
 smelt-events = { workspace = true }
 smelt-data = { workspace = true }
+smelt-slurm-server = { workspace = true }
 
 
 anyhow = { workspace = true }

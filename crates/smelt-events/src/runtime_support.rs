@@ -50,6 +50,31 @@ pub trait GetHostname {
     fn get_hostname(&self) -> String;
 }
 
+struct CmdDefPath(String);
+pub trait SetCmdDefPath {
+    fn set_cmd_def_path(&mut self, def_path: String);
+}
+
+pub trait GetCmdDefPath {
+    fn get_cmd_def_path(&self) -> String;
+}
+
+impl SetCmdDefPath for UserComputationData {
+    fn set_cmd_def_path(&mut self, def_path: String) {
+        self.data.set(CmdDefPath(def_path));
+    }
+}
+
+impl GetCmdDefPath for UserComputationData {
+    fn get_cmd_def_path(&self) -> String {
+        self.data
+            .get::<CmdDefPath>()
+            .expect("CmdDefPath should be set")
+            .0
+            .clone()
+    }
+}
+
 #[async_trait]
 pub trait SlotController {
     /// Gets the semaphore we use to control how many slots we're using in smelt

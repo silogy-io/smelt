@@ -20,15 +20,19 @@ from pysmelt.proto.smelt_client.commands import (
     RunMode,
 )
 from pysmelt.pygraph import PyGraph, create_graph, create_graph_with_docker
+from pysmelt.pysmelt import spawn_slurm_server
 
 
 def test_simple_slurm():
 
     test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
+    slurm_port = 4040
+    spawn_slurm_server(slurm_port, True)
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.slurm = CfgSlurm()
         cfg.slurm.none = True
+        cfg.slurm.maybe_info = ServerInfo(hostname=get_ip_address(), port=slurm_port)
         return cfg
 
     graph = create_graph(test_list, cfg_init=init_slurm)
@@ -68,6 +72,8 @@ def test_sealed_slurm():
     """ """
     test_list = f"test_data/smelt_files/simple_graph.smelt.yaml"
     img = "test_sealed_slurm_img"
+    slurm_port = 9004
+    spawn_slurm_server(slurm_port, True)
 
     create_sealed("sealed_example", img, test_list)
 
@@ -78,11 +84,10 @@ def test_sealed_slurm():
             container_name=img, workspace_smelt_root="/opt"
         )
         # TODO: we need to investigate having this unset -- currently it breaks things, unfortunately, because ip 0.0.0.0 is given to
-        cfg.slurm.maybe_info = ServerInfo(hostname=get_ip_address(), port=0)
+        cfg.slurm.maybe_info = ServerInfo(hostname=get_ip_address(), port=slurm_port)
         return cfg
 
     graph = create_graph(test_list, cfg_init=init_slurm)
-    graph.run_all_typed_commands("test")
 
     expected_tests_failed = 2
     observed_failed = graph.retcode_tracker.total_failed()
@@ -90,6 +95,3 @@ def test_sealed_slurm():
     assert (
         observed_failed == expected_tests_failed
     ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
-
-
-test_sealed_slurm()

@@ -373,3 +373,6 @@ def test_sanity_pygraph_new_build_test_only():
     assert (
         observed_reexec == expected_failing_tests
     ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
+
+
+test_simple_graph_smelt()

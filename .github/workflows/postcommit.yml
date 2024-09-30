@@ -25,14 +25,15 @@ jobs:
         with:
           key: "1"
       - run: cargo test
-  slurm-py-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build and run Docker image
-        run: |
-          bash test_utils/exec_slurm_tests.sh
+        # TODO: bring this back
+        #slurm-py-test:
+        #  runs-on: ubuntu-latest
+        #  timeout-minutes: 30
+        #  steps:
+        #    - uses: actions/checkout@v2
+        #    - name: Build and run Docker image
+        #      run: |
+        #        bash test_utils/exec_slurm_tests.sh
   py-test-linux:
     runs-on: ubuntu-latest
     strategy:

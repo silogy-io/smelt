@@ -62,7 +62,7 @@ pub async fn upload_file(
     client: &s3::Client,
     creds: &AwsCreds,
     file_path: PathBuf,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<String> {
     let key = format!(
         "{}/{}/artifacts/{}",
         creds.key_base_path,
@@ -74,7 +74,8 @@ pub async fn upload_file(
         .bucket(&creds.bucket)
         .key(&key)
         .send()
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create multipart obj with err {e:?}"))?;
 
     let upload_id = multipart_upload_res.upload_id().ok_or(anyhow::anyhow!(
         "Missing upload_id after CreateMultipartUpload",
@@ -125,7 +126,8 @@ pub async fn upload_file(
             .body(stream)
             .part_number(part_number)
             .send()
-            .await?;
+            .await
+            .map_err(|_| anyhow::anyhow!("Failed to upload chunk {part_number}"))?;
 
         upload_parts.push(
             CompletedPart::builder()
@@ -147,6 +149,8 @@ pub async fn upload_file(
         .multipart_upload(completed_multipart_upload)
         .upload_id(upload_id)
         .send()
-        .await?;
-    Ok(())
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to complete the upload with err {e:?}"))?;
+
+    Ok(key)
 }

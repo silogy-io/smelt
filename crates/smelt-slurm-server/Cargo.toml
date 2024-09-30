@@ -1,0 +1,21 @@
+[package]
+name = "smelt-slurm-server"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+smelt-core = { workspace = true }
+smelt-data = { workspace = true }
+smelt-rt = { workspace = true }
+anyhow = { workspace = true }
+tonic = { workspace = true }
+
+tokio = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+scc = "2.1.14"
+tokio-stream = "0.1.16"

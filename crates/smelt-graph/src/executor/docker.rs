@@ -44,9 +44,9 @@ pub struct DockerExecutor {
 impl DockerExecutor {
     pub fn new(cfg_docker: &CfgDocker) -> anyhow::Result<Self> {
         let docker_client = Docker::connect_with_defaults()?;
-        let run_mode = match RunMode::from_i32(cfg_docker.run_mode) {
-            Some(mode) => mode,
-            None => {
+        let run_mode = match RunMode::try_from(cfg_docker.run_mode) {
+            Ok(mode) => mode,
+            Err(_) => {
                 return Err(Error::from(SmeltErr::InvalidConfig {
                     reason: format!("Unknown docker run_mode: {}", cfg_docker.run_mode),
                 }))
