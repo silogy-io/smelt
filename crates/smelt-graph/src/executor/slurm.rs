@@ -268,7 +268,9 @@ async fn foward_task(
         .await
         .inspect_err(|e| tracing::error!("Failed to subscribe to the server with err {e:?}"))?;
     let mut stream = stuff.into_inner();
-    tracing::info!("Successfully connected -- forwarding messages to the correct place");
+    tracing::info!(
+        "Successfully connected -- forwarding messages to the correct place, stream is {stream:?}"
+    );
     while let Some(Ok(event)) = stream.next().await {
         tracing::info!("Received event in smelt: {event:?}");
 
