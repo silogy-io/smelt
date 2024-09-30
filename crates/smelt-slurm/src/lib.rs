@@ -145,7 +145,8 @@ pub async fn execute_command(
 
     if let Some(awscreds) = maybe_creds {
         let bucket = awscreds.bucket.clone();
-        let upload = handle_artifacts(command_name, working_dir.as_path(), awscreds).await;
+        let upload =
+            handle_artifacts(command_name, working_dir.as_path(), awscreds, &mut stream).await;
         if let Err(err) = upload {
             let _ = stream
                 .send_event(Event::runtime_warn(
@@ -154,7 +155,7 @@ pub async fn execute_command(
                 ))
                 .await;
         } else if let Ok(files) = upload {
-            stream
+            let _ = stream
                 .send_event(Event::runtime_warn(
                     format!(
                         "Successfully uploaded artifacts to bucket {} at paths {:?}",
@@ -183,6 +184,7 @@ pub(crate) async fn handle_artifacts(
     command_name: &str,
     working_dir: &Path,
     creds: AwsCreds,
+    stream: &mut EventListenerClient<Channel>,
 ) -> anyhow::Result<Vec<String>> {
     let artifact_json = working_dir.join(Command::artifacts_json());
     let artifact_map: HashMap<String, String> = tokio::fs::read(artifact_json)
@@ -207,12 +209,16 @@ pub(crate) async fn handle_artifacts(
                 .inspect(|_| println!("Sucessfully uploaded {artifact:?}"));
             if let Ok(path) = upload_path {
                 artifacts.push(path);
+            } else if let Err(e) = upload_path {
+                let _ = stream
+                    .send_event(Event::runtime_warn(
+                        format!("Failed to upload artifact to s3 at path {artifact} with err {e}"),
+                        "TESTINGONLY".to_string(),
+                    ))
+                    .await;
             }
         }
     }
 
     Ok(artifacts)
 }
-
-#[cfg(test)]
-mod tests {}
