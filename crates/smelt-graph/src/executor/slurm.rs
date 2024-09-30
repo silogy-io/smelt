@@ -268,7 +268,10 @@ async fn foward_task(
         .await
         .inspect_err(|e| tracing::error!("Failed to subscribe to the server with err {e:?}"))?;
     let mut stream = stuff.into_inner();
+    tracing::trace!("Successfully connected -- forwarding messages to the correct place");
     while let Some(Ok(event)) = stream.next().await {
+        tracing::trace!("Received event {event:?}");
+
         if let Some(result) = event.as_result() {
             let (_trace_id, unblocker) = running_results
                 .remove_async(&event.trace_id)
@@ -280,6 +283,7 @@ async fn foward_task(
         }
         let _ = fwd.send(event).await;
     }
+    tracing::warn!("Done with stream -- this is probably wrong");
 
     Ok(())
 }

@@ -45,7 +45,6 @@ impl EventSubscriber for GlobalSlurmServer {
         let _ = self.senders.insert_async(trace_id, send).await;
 
         let strm: EventStream = Box::pin(UnboundedReceiverStream::new(rcv).map(|val| Ok(val)));
-
         Ok(tonic::Response::new(strm))
     }
     async fn subscription_complete(
@@ -69,6 +68,7 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
             .senders
             .get(&inner_event.trace_id)
             .map(|val| {
+                tracing::info!("fwding event {val:?}");
                 let _ = val.get().send(inner_event);
                 tonic::Response::new(())
             })
