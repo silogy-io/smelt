@@ -275,13 +275,17 @@ async fn foward_task(
         tracing::info!("Received event in smelt: {event:?}");
 
         if let Some(result) = event.as_result() {
+            tracing::info!("We received a finish! we try to send");
+
             let (_trace_id, unblocker) = running_results
                 .remove_async(&event.trace_id)
                 .await
                 .ok_or(anyhow::anyhow!(
                     "No command channel found -- we must have had a command finish come here twice"
                 ))?;
+            tracing::info!("We are sending!!");
             let _ = unblocker.send(result);
+            tracing::info!("We are done sending!!");
         }
         let _ = fwd.send(event).await;
     }
