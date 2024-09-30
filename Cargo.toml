@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "py-smelt"]
 
 [workspace.package]
-version = "0.8.4"
+version = "0.8.5"
 authors = ["James Connolly <james@silogy.io>"]
 edition = "2021"
 
@@ -96,7 +96,6 @@ features = ["tls", "tls-webpki-roots"]
 version = "0.12.2"
 features = ["prost", "cleanup-markdown"]
 
-
 [workspace.dependencies.tokio]
 version = "1.37.0"
 features = ["full", "tracing"]
@@ -123,11 +122,9 @@ default-features = false
 path = "crates/smelt-slurm"
 default-features = false
 
-
 [workspace.dependencies.smelt-slurm-server]
 path = "crates/smelt-slurm-server"
 default-features = false
-
 
 [workspace.dependencies.py-smelt]
 path = "py-smelt"
