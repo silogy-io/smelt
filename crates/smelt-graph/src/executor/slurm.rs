@@ -277,12 +277,13 @@ async fn foward_task(
         if let Some(result) = event.as_result() {
             tracing::info!("We received a finish! we try to send");
 
+            tracing::info!("running results are {running_results:?}");
+
             let (_trace_id, unblocker) = running_results
                 .remove_async(&event.trace_id)
                 .await
-                .ok_or(anyhow::anyhow!(
-                    "No command channel found -- we must have had a command finish come here twice"
-                ))?;
+                .expect("Failed to remove a key from the result dict");
+
             tracing::info!("We are sending!!");
             let _ = unblocker.send(result);
             tracing::info!("We are done sending!!");
