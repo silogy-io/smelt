@@ -114,7 +114,7 @@ pub async fn create_server(addr: SocketAddr, nonblocking: bool) -> Option<Socket
     //tracing::info!("Listening on {local_addr:?}");
     println!("Listening on {local_addr:?}");
     if nonblocking {
-        tokio::spawn(srv_ftr);
+        tokio::spawn(async move { srv_ftr.await });
     } else {
         let res = srv_ftr.await.expect("failed to serve future");
     };

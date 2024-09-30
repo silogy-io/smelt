@@ -93,21 +93,24 @@ fn spawn_slurm_server(port: u64, nonblocking: bool) -> PyResult<()> {
         init_subscriber(subscriber);
     });
 
-    let closure = move || {
-        let rt = Builder::new_current_thread()
+    let rt = TOKIO_RT.get_or_init(|| {
+        Builder::new_multi_thread()
             .worker_threads(4) // specify the number of threads here
             .enable_all()
             .build()
-            .unwrap();
+            .unwrap()
+    });
 
-        let addr = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).expect("Malformed addr");
+    let addr = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).expect("Malformed addr");
 
-        rt.block_on(create_server(addr, nonblocking));
-    };
+    tracing::info!("Starting serving!");
+
+    let fut = create_server(addr, nonblocking);
+
     if nonblocking {
-        std::thread::spawn(closure);
+        rt.spawn(fut);
     } else {
-        closure();
+        rt.block_on(fut);
     }
 
     Ok(())

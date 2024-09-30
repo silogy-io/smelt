@@ -99,4 +99,6 @@ def test_sealed_slurm():
 
 print("well done son")
 
-spawn_slurm_server(4004, False)
+spawn_slurm_server(4004, True)
+while True:
+    pass
