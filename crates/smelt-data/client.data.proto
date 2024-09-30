@@ -83,6 +83,7 @@ message CfgSlurm {
 // This is configured from the end-user side. 
 // if these data is not provided, then smelt will execute `whoami` to derive hostname and will let the OS select the port
 message ServerInfo {
+  // this is the hostname used by smelt and all workers, by default
   string hostname = 1;
   // This is port supplied to each worker a. Sometimes you'll have a proxy in front of your smelt server to make deployment easier. e.g. 
   // this is practical for  deploying in non-LAN networking environments

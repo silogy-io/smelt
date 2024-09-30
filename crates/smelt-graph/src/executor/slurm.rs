@@ -46,7 +46,7 @@ fn aws_awgs(cfg: &CfgSlurm) -> Option<Vec<String>> {
         vec![
             "--aws-key".to_string(),
             creds.key,
-            "--aws_key-id".to_string(),
+            "--aws-key-id".to_string(),
             creds.key_id,
             "--aws-bucket".to_string(),
             creds.bucket,
