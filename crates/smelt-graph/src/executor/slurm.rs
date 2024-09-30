@@ -1,6 +1,4 @@
-use std::{
-    fs::set_permissions, os::unix::fs::PermissionsExt, path::Path,
-};
+use std::{fs::set_permissions, os::unix::fs::PermissionsExt, path::Path};
 use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
@@ -184,15 +182,15 @@ struct TestRemoteServer {}
 
 pub const WORKER_BIN: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_SMELT_SLURM_worker"));
 
-async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Result<PathBuf> {
-    let file = SlurmExecutor::get_bin(cfg);
-
-    tokio::fs::write(file.as_path(), data).await?;
-    let mut perms = tokio::fs::metadata(file.as_path()).await?.permissions();
-    perms.set_mode(0o755); // make exec
-    tokio::fs::set_permissions(file.as_path(), perms).await?;
-    Ok(file)
-}
+//async fn make_temp_executable(cfg: &ConfigureSmelt, data: &[u8]) -> anyhow::Result<PathBuf> {
+//    let file = SlurmExecutor::get_bin(cfg);
+//
+//    tokio::fs::write(file.as_path(), data).await?;
+//    let mut perms = tokio::fs::metadata(file.as_path()).await?.permissions();
+//    perms.set_mode(0o755); // make exec
+//    tokio::fs::set_permissions(file.as_path(), perms).await?;
+//    Ok(file)
+//}
 
 struct PerTxRemoteState {
     connections: TRMap,
@@ -213,9 +211,6 @@ impl SlurmExecutor {
         } else {
             panic!("No executor provided -- was expecting the slurm executor");
         }
-    }
-    fn get_bin(cfg: &ConfigureSmelt) -> PathBuf {
-        PathBuf::from(format!("{}/workerguy", cfg.smelt_root))
     }
 }
 
