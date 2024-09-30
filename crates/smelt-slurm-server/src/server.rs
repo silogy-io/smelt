@@ -68,7 +68,7 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
             .senders
             .get(&inner_event.trace_id)
             .map(|val| {
-                tracing::info!("fwding event {val:?}");
+                tracing::info!("fwding event {inner_event:?}");
                 let _ = val.get().send(inner_event);
                 tonic::Response::new(())
             })

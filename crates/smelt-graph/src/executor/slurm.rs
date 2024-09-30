@@ -268,9 +268,9 @@ async fn foward_task(
         .await
         .inspect_err(|e| tracing::error!("Failed to subscribe to the server with err {e:?}"))?;
     let mut stream = stuff.into_inner();
-    tracing::trace!("Successfully connected -- forwarding messages to the correct place");
+    tracing::info!("Successfully connected -- forwarding messages to the correct place");
     while let Some(Ok(event)) = stream.next().await {
-        tracing::trace!("Received event {event:?}");
+        tracing::info!("Received event in smelt: {event:?}");
 
         if let Some(result) = event.as_result() {
             let (_trace_id, unblocker) = running_results
