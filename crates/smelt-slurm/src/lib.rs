@@ -190,7 +190,8 @@ pub(crate) async fn handle_artifacts(
                 .await
                 .inspect_err(|_e| {
                     println!("Failed to upload artifact to s3 at path {artifact} with err {_e}")
-                });
+                })
+                .inspect(|_| println!("Sucessfully uploaded {artifact:?}"));
         }
     }
 
