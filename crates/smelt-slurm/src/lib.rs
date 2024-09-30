@@ -156,6 +156,16 @@ pub async fn execute_command(
 
     Ok(())
 }
+
+fn default_artifacts(working_dir: &Path) -> HashMap<String, String> {
+    HashMap::from([(
+        String::from("smelt_log"),
+        working_dir
+            .join("command.out")
+            .to_string_lossy()
+            .to_string(),
+    )])
+}
 /// Uploads all of the visible artifacts
 pub(crate) async fn handle_artifacts(
     command_name: &str,
@@ -165,8 +175,9 @@ pub(crate) async fn handle_artifacts(
     let artifact_json = working_dir.join(Command::artifacts_json());
     let artifact_map: HashMap<String, String> = tokio::fs::read(artifact_json)
         .await
-        .map(|bytes| serde_json::from_slice(&bytes))
-        .inspect_err(|e| println!("failed to deserialize artifact json with err {e}"))??;
+        .map(|bytes| serde_json::from_slice(&bytes).unwrap_or(default_artifacts(working_dir)))
+        .inspect_err(|e| println!("failed to deserialize artifact json with err {e}"))
+        .unwrap_or(default_artifacts(working_dir));
 
     let client = aws::create_s3_client(&creds).await?;
     for artifact in artifact_map.values() {

@@ -57,6 +57,16 @@ pub async fn prepare_workspace(
     })
 }
 
+fn default_artifacts(working_dir: &Path) -> HashMap<String, String> {
+    HashMap::from([(
+        String::from("smelt_log"),
+        working_dir
+            .join("command.out")
+            .to_string_lossy()
+            .to_string(),
+    )])
+}
+
 pub async fn prepare_artifact_file(
     command: &Command,
     root: String,
@@ -68,7 +78,7 @@ pub async fn prepare_artifact_file(
     tokio::fs::create_dir_all(&working_dir).await?;
     let mut artifacts_json_file = File::create(&artifacts_json_file).await?;
 
-    let mut map = HashMap::new();
+    let mut map = default_artifacts(command_working_dir);
     for output in command.outputs.iter() {
         let path = output.to_path(command_working_dir, root.as_ref());
         let filename = path.file_name();
