@@ -278,9 +278,10 @@ async fn foward_task(
             tracing::info!("We received a finish! we try to send");
 
             tracing::info!("running results are {running_results:?}");
+            let name = result.test_name.clone();
 
             let (_trace_id, unblocker) = running_results
-                .remove_async(&event.trace_id)
+                .remove_async(&name)
                 .await
                 .expect("Failed to remove a key from the result dict");
 
