@@ -12,8 +12,7 @@ use anyhow::Result;
 use smelt_core::Command;
 use smelt_data::{
     event_listener_client::EventListenerClient,
-    executed_tests::{TestOutputs, TestResult},
-    CommandFinished, Event, TaggedResult,
+    executed_tests::{TestOutputs, TestResult}, Event,
 };
 use smelt_rt::profile_cmd;
 use tokio::{

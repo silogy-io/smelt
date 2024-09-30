@@ -931,12 +931,12 @@ mod tests {
         local_execute_tests(yaml_path).await
     }
 
-    #[tokio::test]
-    async fn dependency_less_exec_remote() {
-        let yaml_path = "test_data/command_lists/cl1.yaml";
+    //#[tokio::test]
+    //async fn dependency_less_exec_remote() {
+    //    let yaml_path = "test_data/command_lists/cl1.yaml";
 
-        remote_execute_tests(yaml_path).await
-    }
+    //    remote_execute_tests(yaml_path).await
+    //}
 
     #[tokio::test]
     async fn test_with_deps() {

@@ -7,7 +7,7 @@ mod telemetry;
 use telemetry::{get_subscriber, init_subscriber};
 
 use std::{
-    net::{SocketAddr, SocketAddrV4},
+    net::SocketAddr,
     str::FromStr,
     sync::{Once, OnceLock},
 };

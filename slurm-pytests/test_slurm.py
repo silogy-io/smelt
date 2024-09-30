@@ -75,7 +75,7 @@ def test_sealed_slurm():
     slurm_port = 9004
     spawn_slurm_server(slurm_port, True)
 
-    # create_sealed("sealed_example", img, test_list)
+    create_sealed("sealed_example", img, test_list)
 
     def init_slurm(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.test_only = True
@@ -95,10 +95,3 @@ def test_sealed_slurm():
     assert (
         observed_failed == expected_tests_failed
     ), f"Expected to see {expected_tests_failed} tasks executed, saw {observed_failed} tests"
-
-
-print("well done son")
-
-spawn_slurm_server(4004, True)
-while True:
-    pass

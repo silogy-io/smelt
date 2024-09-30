@@ -1,16 +1,11 @@
-use futures::{
-    stream::{self, Stream},
-    StreamExt,
-};
+use futures::StreamExt;
 use std::sync::Arc;
 use tokio::{net::TcpListener, sync::mpsc::unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tonic::{transport::Server, Response};
 
 use std::{net::SocketAddr, pin::Pin};
 
 use smelt_data::{
-    event_listener_server::{EventListener, EventListenerServer},
     event_subscriber_server::EventSubscriber,
     Event, ExecutionFinish, ExecutionSubscribe, TaggedResult,
 };
@@ -44,7 +39,7 @@ impl EventSubscriber for GlobalSlurmServer {
         let (send, rcv) = unbounded_channel();
         let _ = self.senders.insert_async(trace_id, send).await;
 
-        let strm: EventStream = Box::pin(UnboundedReceiverStream::new(rcv).map(|val| Ok(val)));
+        let strm: EventStream = Box::pin(UnboundedReceiverStream::new(rcv).map(Ok));
         Ok(tonic::Response::new(strm))
     }
     async fn subscription_complete(
@@ -68,7 +63,7 @@ impl smelt_data::event_listener_server::EventListener for GlobalSlurmServer {
             .senders
             .get(&inner_event.trace_id)
             .map(|val| {
-                tracing::info!("fwding event {inner_event:?}");
+                tracing::trace!("fwding event {inner_event:?}");
                 let _ = val.get().send(inner_event);
                 tonic::Response::new(())
             })
@@ -108,15 +103,15 @@ pub async fn create_server(addr: SocketAddr, nonblocking: bool) -> Option<Socket
     let listener = TcpListener::bind(addr)
         .await
         .expect("Could not bind {addr} for server)");
-    let local_addr = listener.local_addr().ok().clone();
+    let local_addr = listener.local_addr().ok();
     let srv_ftr =
         grpc.serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener));
-    //tracing::info!("Listening on {local_addr:?}");
+    //tracing::trace!("Listening on {local_addr:?}");
     println!("Listening on {local_addr:?}");
     if nonblocking {
-        tokio::spawn(async move { srv_ftr.await });
+        tokio::spawn(srv_ftr);
     } else {
-        let res = srv_ftr.await.expect("failed to serve future");
+        srv_ftr.await.expect("failed to serve future");
     };
     local_addr
 }

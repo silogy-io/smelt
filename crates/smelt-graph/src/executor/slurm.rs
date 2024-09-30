@@ -1,5 +1,5 @@
 use std::{
-    fs::set_permissions, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path, sync::LazyLock,
+    fs::set_permissions, os::unix::fs::PermissionsExt, path::Path,
 };
 use std::{path::PathBuf, sync::Arc};
 
