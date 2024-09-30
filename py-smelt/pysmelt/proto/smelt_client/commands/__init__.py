@@ -36,6 +36,7 @@ class ClientCommand(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SetCommands(betterproto.Message):
     command_content: str = betterproto.string_field(1)
+    maybe_def_path: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -141,6 +142,8 @@ class ServerInfo(betterproto.Message):
     """
 
     hostname: str = betterproto.string_field(1)
+    """this is the hostname used by smelt and all workers, by default"""
+
     port: int = betterproto.uint32_field(2)
     """
     This is port supplied to each worker a. Sometimes you'll have a proxy in
