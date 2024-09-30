@@ -62,7 +62,7 @@ pub async fn upload_file(
     client: &s3::Client,
     creds: &AwsCreds,
     file_path: PathBuf,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<String> {
     let key = format!(
         "{}/{}/artifacts/{}",
         creds.key_base_path,
@@ -148,5 +148,5 @@ pub async fn upload_file(
         .upload_id(upload_id)
         .send()
         .await?;
-    Ok(())
+    Ok(key)
 }

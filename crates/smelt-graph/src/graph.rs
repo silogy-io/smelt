@@ -31,8 +31,8 @@ use smelt_data::{
 use smelt_events::{
     self,
     runtime_support::{
-        GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, SetHostname, SetSmeltCfg, SetTraceId,
-        SetTxChannel,
+        GetCmdDefPath, GetSmeltCfg, GetSmeltRoot, GetTraceId, GetTxChannel, SetCmdDefPath,
+        SetHostname, SetSmeltCfg, SetTraceId, SetTxChannel,
     },
     ClientCommandBundle, Event,
 };
@@ -203,12 +203,11 @@ impl Key for CommandRef {
                 command,
                 workspace_smelt_root.to_string(),
                 command_working_dir.as_path(),
+                ctx.per_transaction_data().get_cmd_def_path(),
             )
             .await
             .inspect_err(|err| {
-                tracing::error!(
-        "Creating the artifact json file failed while creating the workspace with err {err}"
-    )
+                tracing::error!("Creating the artifact json file failed while creating the workspace with err {err}")
             });
 
             return Ok(Arc::new(ExecutedTestResult::Skipped));
@@ -453,6 +452,8 @@ pub struct CommandGraph {
     pub(crate) all_commands: Vec<CommandRef>,
     /// The receiver for all ClientCommands -- these kick off executions of the dice graph
     rx_chan: UnboundedReceiver<ClientCommandBundle>,
+    ///
+    def_path: String,
 }
 
 impl CommandGraph {
@@ -485,6 +486,7 @@ impl CommandGraph {
             dice,
             rx_chan,
             all_commands: vec![],
+            def_path: String::new(),
         };
 
         tracing::trace!("Successfully made graph!");
@@ -537,9 +539,12 @@ impl CommandGraph {
         event_streamer: Sender<Event>,
     ) -> Result<Option<ClientResponses>, SmeltErr> {
         match command {
-            ClientCommands::Setter(SetCommands { command_content }) => {
+            ClientCommands::Setter(SetCommands {
+                command_content,
+                maybe_def_path,
+            }) => {
                 let script = serde_yaml::from_str(&command_content)?;
-                self.set_commands(script).await?;
+                self.set_commands(script, maybe_def_path).await?;
             }
             ClientCommands::Runone(RunOne { command_name }) => {
                 self.run_one_test(command_name, event_streamer).await?;
@@ -565,7 +570,11 @@ impl CommandGraph {
         Ok(None)
     }
 
-    pub async fn set_commands(&mut self, commands: Vec<Command>) -> Result<(), SmeltErr> {
+    pub async fn set_commands(
+        &mut self,
+        commands: Vec<Command>,
+        mut maybe_def_path: String,
+    ) -> Result<(), SmeltErr> {
         let mut ctx = self.dice.updater();
         #[tracing::instrument(name = "checking_names", level = "debug")]
         fn check_unique_outputs_and_names(commands: &Vec<Command>) -> Result<(), SmeltErr> {
@@ -597,8 +606,22 @@ impl CommandGraph {
             .map(|val| CommandRef(Arc::new(val)))
             .collect();
         ctx.add_commands(commands.iter().cloned())?;
+
+        if maybe_def_path.is_empty() {
+            maybe_def_path = ctx
+                .existing_state()
+                .await
+                .global_data()
+                .get_smelt_root()
+                .to_string_lossy()
+                .to_string();
+        }
+
         self.all_commands = commands;
+        self.def_path = maybe_def_path;
+
         let mut ctx = ctx.commit().await;
+
         self.validate_graph(&mut ctx)
             .await
             .map_err(|vals| SmeltErr::CommandSettingFailed {
@@ -617,6 +640,7 @@ impl CommandGraph {
         data.set_hostname();
         data.init_trace_id();
         data.set_tx_channel(tx);
+        data.set_cmd_def_path(self.def_path.clone());
         executor.init_per_tx_state(&mut data).await;
 
         let tx = ctx.commit_with_data(data).await;
@@ -800,6 +824,7 @@ mod tests {
                 dice,
                 rx_chan,
                 all_commands: vec![],
+                def_path: String::new(),
             };
 
             tracing::trace!("Successfully made graph!");
@@ -878,7 +903,7 @@ mod tests {
 
         let _script = script.unwrap();
         graph
-            .set_commands(_script)
+            .set_commands(_script, "".to_string())
             .await
             .expect("Setting commands failed!");
 

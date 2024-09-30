@@ -29,7 +29,7 @@ impl CommandDefPath {
         Self(path)
     }
 
-    pub fn to_path(&self, command_dir_path: &Path, smelt_root: &Path) -> PathBuf {
+    pub fn to_path(&self, command_def_path: &Path, smelt_root: &Path) -> PathBuf {
         let val = replace_smelt_root(
             self.0.as_str(),
             smelt_root.to_string_lossy().to_string().as_str(),
@@ -39,12 +39,12 @@ impl CommandDefPath {
             return val;
         }
 
-        command_dir_path.join(Path::new(self.0.as_str()))
+        command_def_path.join(Path::new(self.0.as_str()))
     }
 }
 
-fn replace_smelt_root(input: &str, replacement: &str) -> PathBuf {
+fn replace_smelt_root(input: &str, actual_smelt_root: &str) -> PathBuf {
     let re = Regex::new(r"\$SMELT_ROOT|\$\{SMELT_ROOT\}").unwrap();
-    let result = re.replace_all(input, replacement);
+    let result = re.replace_all(input, actual_smelt_root);
     PathBuf::from(result.into_owned())
 }

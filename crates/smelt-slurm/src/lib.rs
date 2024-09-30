@@ -94,7 +94,8 @@ pub async fn execute_command(
     let reader = BufReader::new(comm_handle.stdout.take().unwrap());
     let mut lines = reader.lines();
     let _maybe_pid = comm_handle.id();
-    let silent = true;
+    // TODO -- parameterize this
+    let silent = false;
 
     // This is the "control loop" for our runtime
     let cstatus: TestOutputs = loop {
@@ -143,11 +144,22 @@ pub async fn execute_command(
     }
 
     if let Some(awscreds) = maybe_creds {
+        let bucket = awscreds.bucket.clone();
         let upload = handle_artifacts(command_name, working_dir.as_path(), awscreds).await;
         if let Err(err) = upload {
             let _ = stream
                 .send_event(Event::runtime_warn(
-                    format!("Could succesfully upload artifacts to s3 due to {err}"),
+                    format!("Could not succesfully upload artifacts to s3 due to {err}"),
+                    trace_id,
+                ))
+                .await;
+        } else if let Ok(files) = upload {
+            stream
+                .send_event(Event::runtime_warn(
+                    format!(
+                        "Successfully uploaded artifacts to bucket {} at paths {:?}",
+                        bucket, files
+                    ),
                     trace_id,
                 ))
                 .await;
@@ -171,7 +183,7 @@ pub(crate) async fn handle_artifacts(
     command_name: &str,
     working_dir: &Path,
     creds: AwsCreds,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<String>> {
     let artifact_json = working_dir.join(Command::artifacts_json());
     let artifact_map: HashMap<String, String> = tokio::fs::read(artifact_json)
         .await
@@ -180,22 +192,26 @@ pub(crate) async fn handle_artifacts(
         .unwrap_or(default_artifacts(working_dir));
 
     let client = aws::create_s3_client(&creds).await?;
+    let mut artifacts = vec![];
     for artifact in artifact_map.values() {
         let artifactpb = PathBuf::from(artifact);
         if tokio::fs::metadata(&artifactpb)
             .await
             .is_ok_and(|val| val.is_file())
         {
-            let _err = upload_file(command_name, &client, &creds, artifactpb)
+            let upload_path = upload_file(command_name, &client, &creds, artifactpb)
                 .await
                 .inspect_err(|_e| {
                     println!("Failed to upload artifact to s3 at path {artifact} with err {_e}")
                 })
                 .inspect(|_| println!("Sucessfully uploaded {artifact:?}"));
+            if let Ok(path) = upload_path {
+                artifacts.push(path);
+            }
         }
     }
 
-    Ok(())
+    Ok(artifacts)
 }
 
 #[cfg(test)]

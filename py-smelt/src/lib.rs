@@ -167,9 +167,13 @@ impl PyController {
         Ok(PyController { handle })
     }
 
-    pub fn set_graph(&self, graph: String) -> PyResult<()> {
-        let EventStreams { sync_chan, .. } =
-            submit_message(&self.handle.tx_client, ClientCommand::send_graph(graph))?;
+    #[pyo3(signature = (graph, command_def_path = None))]
+    pub fn set_graph(&self, graph: String, command_def_path: Option<String>) -> PyResult<()> {
+        let cmd_def_path = command_def_path.unwrap_or_default();
+        let EventStreams { sync_chan, .. } = submit_message(
+            &self.handle.tx_client,
+            ClientCommand::send_graph(graph, cmd_def_path),
+        )?;
 
         let resp = sync_chan.blocking_recv();
         handle_client_resp(resp).map(|_| ())

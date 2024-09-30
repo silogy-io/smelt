@@ -3,9 +3,10 @@ use self::client_command::ClientCommands;
 tonic::include_proto!("smelt_client.commands");
 
 impl ClientCommand {
-    pub fn send_graph(graph_string: String) -> Self {
+    pub fn send_graph(graph_string: String, def_path: String) -> Self {
         let cc = ClientCommands::Setter(SetCommands {
             command_content: graph_string,
+            maybe_def_path: def_path,
         });
 
         ClientCommand {

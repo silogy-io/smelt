@@ -71,8 +71,10 @@ pub async fn prepare_artifact_file(
     command: &Command,
     root: String,
     command_working_dir: &Path,
+    command_def_path: String,
 ) -> anyhow::Result<()> {
     let working_dir = command.default_target_root(&root)?;
+    let command_def_path = PathBuf::from(command_def_path);
 
     let artifacts_json_file = working_dir.join(Command::artifacts_json());
     tokio::fs::create_dir_all(&working_dir).await?;
@@ -80,7 +82,7 @@ pub async fn prepare_artifact_file(
 
     let mut map = default_artifacts(command_working_dir);
     for output in command.outputs.iter() {
-        let path = output.to_path(command_working_dir, root.as_ref());
+        let path = output.to_path(command_def_path.as_path(), root.as_ref());
         let filename = path.file_name();
         if let Some(filename) = filename {
             map.insert(

@@ -1,3 +1,4 @@
+import pathlib
 import time
 from dataclasses import dataclass
 from typing import Callable, Generator, List, Optional
@@ -200,7 +201,8 @@ class PyGraph:
         """
         commands = self.universe.all_commands
         commands_as_str = yaml.safe_dump([command.to_dict() for command in commands])
-        self.controller.set_graph(commands_as_str)
+        command_def_dir = str(pathlib.Path(self.universe.top_file.to_abs_path()).parent)
+        self.controller.set_graph(commands_as_str, command_def_dir)
 
     @classmethod
     def init(cls, cfg: ConfigureSmelt, universe: SmeltUniverse):
