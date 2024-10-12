@@ -12,7 +12,8 @@ use anyhow::Result;
 use smelt_core::Command;
 use smelt_data::{
     event_listener_client::EventListenerClient,
-    executed_tests::{TestOutputs, TestResult}, Event,
+    executed_tests::{TestOutputs, TestResult},
+    Event,
 };
 use smelt_rt::profile_cmd;
 use tokio::{
@@ -114,6 +115,7 @@ pub async fn execute_command(
         );
     }?;
 
+    // drains any remaining stdout or stderr output
     while let Ok(Some(line)) = lines.next_line().await {
         handle_line(
             command_name,
@@ -125,6 +127,19 @@ pub async fn execute_command(
         )
         .await;
     }
+
+    while let Ok(Some(line)) = stderr_lines.next_line().await {
+        handle_line(
+            command_name,
+            line,
+            trace_id.as_str(),
+            &mut stdout,
+            silent,
+            &mut stream,
+        )
+        .await;
+    }
+
     let res = TestResult {
         test_name: command_name.to_string(),
         outputs: Some(cstatus),
