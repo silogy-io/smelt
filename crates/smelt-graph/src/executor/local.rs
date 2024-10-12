@@ -135,5 +135,17 @@ async fn execute_local_command(
         .await;
     }
 
+    while let Ok(Some(line)) = stderr_lines.next_line().await {
+        handle_line(
+            command,
+            line,
+            trace_id.clone(),
+            &tx_chan,
+            &mut stdout,
+            silent,
+        )
+        .await;
+    }
+
     Ok(cstatus)
 }
