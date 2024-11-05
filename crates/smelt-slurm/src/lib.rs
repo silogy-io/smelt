@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -193,6 +195,38 @@ fn default_artifacts(working_dir: &Path) -> HashMap<String, String> {
             .to_string(),
     )])
 }
+
+/// Adds artifacts under /tmp/artifacts
+fn add_artifact_paths(
+    mut artifact_map: HashMap<String, String>,
+    artifacts_dir: String,
+) -> Pin<Box<dyn Future<Output = std::io::Result<HashMap<String, String>>>>> {
+    Box::pin(async move {
+        // Create a recursive directory walker
+        let mut paths = tokio::fs::read_dir(artifacts_dir).await?;
+
+        // Process each entry in the directory
+        while let Some(entry) = paths.next_entry().await? {
+            let path = entry.path();
+
+            // Skip if it's a directory - we'll handle its contents separately
+            if path.is_dir() {
+                // Recursively process subdirectories
+                artifact_map =
+                    add_artifact_paths(artifact_map, path.to_str().unwrap().to_string()).await?;
+                continue;
+            }
+
+            // Convert path to string, skip if conversion fails
+            if let Some(path_str) = path.to_str() {
+                artifact_map.insert(path_str.to_string(), path_str.to_string());
+            }
+        }
+
+        Ok(artifact_map)
+    })
+}
+
 /// Uploads all of the visible artifacts
 pub(crate) async fn handle_artifacts(
     command_name: &str,
@@ -201,11 +235,20 @@ pub(crate) async fn handle_artifacts(
     stream: &mut EventListenerClient<Channel>,
 ) -> anyhow::Result<Vec<String>> {
     let artifact_json = working_dir.join(Command::artifacts_json());
-    let artifact_map: HashMap<String, String> = tokio::fs::read(artifact_json)
+    // TODO Get rid of artifact_json entirely; it adds unnecessary complexity.
+    //   All artifacts should be handled by simply putting them in /tmp/artifacts.
+    let mut artifact_map: HashMap<String, String> = tokio::fs::read(artifact_json)
         .await
         .map(|bytes| serde_json::from_slice(&bytes).unwrap_or(default_artifacts(working_dir)))
         .inspect_err(|e| println!("failed to deserialize artifact json with err {e}"))
         .unwrap_or(default_artifacts(working_dir));
+
+    artifact_map = add_artifact_paths(artifact_map.clone(), String::from("/tmp/artifacts"))
+        .await
+        .unwrap_or_else(|e| {
+            println!("Failed to scan artifact directory: {e}");
+            artifact_map
+        });
 
     let client = aws::create_s3_client(&creds).await?;
     let mut artifacts = vec![];
