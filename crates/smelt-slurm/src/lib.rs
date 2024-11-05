@@ -1,10 +1,10 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     process::Stdio,
 };
-use std::future::Future;
-use std::pin::Pin;
 
 mod aws;
 use aws::upload_file;
@@ -197,10 +197,10 @@ fn default_artifacts(working_dir: &Path) -> HashMap<String, String> {
 }
 
 /// Adds artifacts under /tmp/artifacts
-fn add_artifact_paths<'a>(
+fn add_artifact_paths(
     mut artifact_map: HashMap<String, String>,
-    artifacts_dir: &'a str,
-) -> Pin<Box<dyn Future<Output = std::io::Result<HashMap<String, String>>> + 'a>> {
+    artifacts_dir: String,
+) -> Pin<Box<dyn Future<Output = std::io::Result<HashMap<String, String>>>>> {
     Box::pin(async move {
         // Create a recursive directory walker
         let mut paths = tokio::fs::read_dir(artifacts_dir).await?;
@@ -212,7 +212,8 @@ fn add_artifact_paths<'a>(
             // Skip if it's a directory - we'll handle its contents separately
             if path.is_dir() {
                 // Recursively process subdirectories
-                artifact_map = add_artifact_paths(artifact_map, path.to_str().unwrap()).await?;
+                artifact_map =
+                    add_artifact_paths(artifact_map, path.to_str().unwrap().to_string()).await?;
                 continue;
             }
 
@@ -242,7 +243,7 @@ pub(crate) async fn handle_artifacts(
         .inspect_err(|e| println!("failed to deserialize artifact json with err {e}"))
         .unwrap_or(default_artifacts(working_dir));
 
-    artifact_map = add_artifact_paths(artifact_map.clone(), "/tmp/artifacts")
+    artifact_map = add_artifact_paths(artifact_map.clone(), String::from("/tmp/artifacts"))
         .await
         .unwrap_or_else(|e| {
             println!("Failed to scan artifact directory: {e}");
