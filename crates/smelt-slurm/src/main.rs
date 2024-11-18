@@ -1,7 +1,6 @@
-use std::path::PathBuf;
-
 use argh::FromArgs;
 use smelt_slurm::{execute_command, AwsCreds};
+use std::path::PathBuf;
 
 #[derive(FromArgs, Debug, Clone)]
 /// Worker args
@@ -81,5 +80,7 @@ fn main() {
         host,
         creds,
     ))
-    .unwrap_or_else(|_| panic!("There was a failure executing the command!\n\ncli args are {dbg_args:?}"));
+    .unwrap_or_else(|e| {
+        panic!("There was a failure executing the command!\n\nError is {e:?}\n\ncli args are {dbg_args:?}")
+    });
 }
