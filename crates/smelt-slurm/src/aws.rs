@@ -1,11 +1,12 @@
-use std::path::PathBuf;
-
 use aws_config::BehaviorVersion;
 use aws_sdk_s3 as s3;
+use std::path::PathBuf;
+use std::time::Duration;
 
 use aws_credential_types::Credentials;
 
 use aws_smithy_types::byte_stream::{ByteStream, Length};
+use aws_smithy_types::timeout::TimeoutConfig;
 use s3::{
     operation::create_multipart_upload::CreateMultipartUploadOutput,
     types::{CompletedMultipartUpload, CompletedPart},
@@ -50,6 +51,7 @@ pub async fn create_s3_client(cred: &AwsCreds) -> Result<s3::Client, s3::Error> 
 
     let shared_config = aws_config::defaults(BehaviorVersion::v2024_03_28())
         .region(AWS_REGION)
+        .timeout_config(TimeoutConfig::builder().connect_timeout(Duration::from_secs(5)).build())
         .credentials_provider(creds)
         .load()
         .await;
