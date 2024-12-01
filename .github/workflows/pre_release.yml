@@ -21,6 +21,6 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --manifest-path py-smelt/Cargo.toml --out dist --find-interpreter
+          args: --manifest-path py-smelt/Cargo.toml --out dist --interpreter 3.8 --interpreter 3.9 --interpreter 3.10 --interpreter 3.11 --interpreter 3.12
           sccache: "true"
           manylinux: auto
