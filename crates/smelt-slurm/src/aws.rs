@@ -14,10 +14,12 @@ use s3::{
 
 const AWS_REGION: &str = "us-west-1";
 
-// these constants are arbitrarily chosen, tbh
-// 1mb chunk size
-const CHUNK_SIZE: u64 = 1024 * 1024;
-// 10gb max artifact size
+
+// The chunk size is arbitrarily chosen, but must be at least 5 MiB.
+// See https://stackoverflow.com/a/19378542 and
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html.
+const CHUNK_SIZE: u64 = 5 * 1024 * 1024;
+// S3-enforced max number of chunks
 const MAX_CHUNKS: u64 = 10000;
 
 /// All of the required data to create an AWS Client and upload artifacts to an s3 bucket
@@ -95,11 +97,19 @@ pub async fn upload_file(
         chunk_count -= 1;
     }
 
-    if file_size == 0 {
-        anyhow::bail!("Bad file size.")
-    }
     if chunk_count > MAX_CHUNKS {
         anyhow::bail!("Too many chunks! Try increasing your chunk size.")
+    }
+
+    if file_size == 0 {
+        // Special case for empty files
+        client.put_object()
+            .key(&key)
+            .bucket(&creds.bucket)
+            .body("".into())
+            .send()
+            .await
+            .map_err(|_| anyhow::anyhow!("Failed to upload empty file"))?;
     }
 
     let mut upload_parts: Vec<aws_sdk_s3::types::CompletedPart> = Vec::new();
