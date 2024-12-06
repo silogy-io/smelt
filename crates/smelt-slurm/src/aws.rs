@@ -106,7 +106,7 @@ pub async fn upload_file(
         client.put_object()
             .key(&key)
             .bucket(&creds.bucket)
-            .body("".into())
+            .body(ByteStream::from_static(&[]))
             .send()
             .await
             .map_err(|_| anyhow::anyhow!("Failed to upload empty file"))?;
