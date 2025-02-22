@@ -147,18 +147,6 @@ pub async fn execute_command(
         outputs: Some(cstatus),
     };
 
-    let _ = stream
-        .send_event(Event::command_finished(
-            res,
-            "test".to_string(),
-            trace_id.clone(),
-        ))
-        .await;
-
-    if let Some(task) = sample_task {
-        task.abort()
-    }
-
     if let Some(awscreds) = maybe_creds {
         let bucket = awscreds.bucket.clone();
         let upload =
@@ -167,7 +155,7 @@ pub async fn execute_command(
             let _ = stream
                 .send_event(Event::runtime_warn(
                     format!("Could not succesfully upload artifacts to s3 due to {err}"),
-                    trace_id,
+                    trace_id.clone(),
                 ))
                 .await;
         } else if let Ok(files) = upload {
@@ -177,10 +165,22 @@ pub async fn execute_command(
                         "Successfully uploaded artifacts to bucket {} at paths {:?}",
                         bucket, files
                     ),
-                    trace_id,
+                    trace_id.clone(),
                 ))
                 .await;
         }
+    }
+
+    let _ = stream
+        .send_event(Event::command_finished(
+            res,
+            "test".to_string(),
+            trace_id,
+        ))
+        .await;
+
+    if let Some(task) = sample_task {
+        task.abort()
     }
 
     Ok(())
