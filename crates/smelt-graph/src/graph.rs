@@ -4,9 +4,10 @@ use allocative::Allocative;
 use async_trait::async_trait;
 use derive_more::Display;
 use dice::{
-    CancellationContext, DetectCycles, Dice, DiceComputations, DiceError, DiceTransaction,
+    CancellationContext, DetectCycles, Dice, DiceComputations, DiceTransaction,
     DiceTransactionUpdater, Key, UserComputationData,
 };
+use dice_error::DiceError;
 use dupe::Dupe;
 use futures::FutureExt;
 use futures::{

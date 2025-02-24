@@ -14,6 +14,7 @@ smelt-rt = { workspace = true }
 smelt-slurm = { path = "../smelt-slurm", artifact = "bin" }
 anyhow = { workspace = true }
 dice = { workspace = true }
+dice_error = {workspace = true}
 allocative = { workspace = true }
 dupe = { workspace = true }
 thiserror = { workspace = true }

@@ -1,5 +1,5 @@
 use allocative::Allocative;
-use dice::DiceError;
+use dice_error::DiceError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::PyErr;
 
@@ -42,7 +42,7 @@ pub enum SmeltErr {
     #[error("Artifact name cannot be parsed out")]
     BadArtifactName,
     #[error("Invalid config: {reason}")]
-    InvalidConfig { reason: String }
+    InvalidConfig { reason: String },
 }
 
 impl Allocative for SmeltErr {
