@@ -8,7 +8,7 @@ use scc::HashMap;
 use smelt_core::{get_target_root, SmeltErr};
 
 use std::io::Write;
-
+use serde_yaml::to_string;
 use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener, task::JoinHandle};
 
 use tokio::sync::{mpsc::Sender, oneshot};
@@ -92,7 +92,9 @@ fn create_slurm_command(
             let sealed_working_dir =
                 command.default_target_root(PathBuf::from(workspace_smelt_root))?;
 
-            let mut arrrggs = vec![
+            let mut args = vec![
+                "--network".to_string(),
+                "host".to_string(),
                 "--command-path".to_string(),
                 sealed_working_dir.to_string_lossy().to_string(),
                 "--command-name".to_string(),
@@ -104,7 +106,7 @@ fn create_slurm_command(
             ];
 
             if let Some(mut aws) = maybe_aws_cli {
-                arrrggs.append(&mut aws);
+                args.append(&mut aws);
             }
 
             let docker_run_args = docker_args.join(" ");
@@ -114,7 +116,7 @@ fn create_slurm_command(
                 docker_run_args,
                 container_name,
                 WORKER_PATH,
-                arrrggs.join(" ")
+                args.join(" ")
             ))
         }
     }
