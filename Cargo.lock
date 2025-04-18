@@ -2634,7 +2634,7 @@ dependencies = [
 
 [[package]]
 name = "pysmelt"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "anyhow",
  "bollard",
@@ -3269,7 +3269,7 @@ checksum = "7fcf8323ef1faaee30a44a340193b1ac6814fd9b7b4e88e9d4519a3e4abe1cfd"
 
 [[package]]
 name = "smelt-core"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "allocative",
  "anyhow",
@@ -3288,7 +3288,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-data"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "allocative",
  "dupe",
@@ -3304,7 +3304,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-events"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "async-trait",
  "derive_more 0.99.19",
@@ -3319,7 +3319,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-graph"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "allocative",
  "anyhow",
@@ -3350,7 +3350,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-rt"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "bollard",
  "chrono",
@@ -3363,7 +3363,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-slurm"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "anyhow",
  "argh",
@@ -3381,7 +3381,7 @@ dependencies = [
 
 [[package]]
 name = "smelt-slurm-server"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "anyhow",
  "futures",
