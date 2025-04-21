@@ -8,7 +8,7 @@ use scc::HashMap;
 use smelt_core::{get_target_root, SmeltErr};
 
 use std::io::Write;
-use serde_yaml::to_string;
+
 use tokio::{fs::File, io::AsyncWriteExt, net::TcpListener, task::JoinHandle};
 
 use tokio::sync::{mpsc::Sender, oneshot};
@@ -93,8 +93,6 @@ fn create_slurm_command(
                 command.default_target_root(PathBuf::from(workspace_smelt_root))?;
 
             let mut args = vec![
-                "--network".to_string(),
-                "host".to_string(),
                 "--command-path".to_string(),
                 sealed_working_dir.to_string_lossy().to_string(),
                 "--command-name".to_string(),
