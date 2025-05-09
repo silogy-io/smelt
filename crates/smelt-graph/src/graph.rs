@@ -497,9 +497,8 @@ impl CommandGraph {
     // This should hopefully never return
     pub async fn eat_commands(&mut self) {
         use tokio::time::timeout;
-        //TODO: maybe this should be configurable
-        //      in practice for most end users, this shouldnt come up
-        let duration = tokio::time::Duration::from_secs(1200);
+
+        let duration = tokio::time::Duration::from_secs(3600 * 24);
         loop {
             let result = timeout(duration, self.rx_chan.recv()).await;
 
@@ -529,7 +528,7 @@ impl CommandGraph {
                 }
                 let _ = oneshot_confirmer.send(rv);
             } else if result.is_err() {
-                tracing::warn!("We have elapsed on our timeout for new commands to come in -- exiting from the eatcommand loop");
+                tracing::warn!("We have elapsed on our timeout for new commands to come in after waiting {duration:?} -- exiting from the eatcommand loop");
             }
         }
     }

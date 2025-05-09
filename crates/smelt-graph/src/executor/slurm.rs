@@ -256,12 +256,16 @@ async fn foward_task(
     host: String,
 ) -> anyhow::Result<()> {
     let mut client = EventSubscriberClient::connect(host).await?;
+
     let stuff = client
         .subscribe_received_events(tonic::Request::new(smelt_data::ExecutionSubscribe {
-            trace_id,
+            trace_id: trace_id.clone(),
         }))
         .await
         .inspect_err(|e| tracing::error!("Failed to subscribe to the server with err {e:?}"))?;
+
+    tracing::info!("Successfully created tunnel to smelt-slurm-server with trace_id {trace_id}");
+
     let mut stream = stuff.into_inner();
     tracing::trace!(
         "Successfully connected -- forwarding messages to the correct place, stream is {stream:?}"
