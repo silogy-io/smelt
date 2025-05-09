@@ -6,8 +6,8 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use std::{net::SocketAddr, pin::Pin};
 
 use smelt_data::{
-    event_subscriber_server::EventSubscriber,
-    Event, ExecutionFinish, ExecutionSubscribe, TaggedResult,
+    event_subscriber_server::EventSubscriber, Event, ExecutionFinish, ExecutionSubscribe,
+    TaggedResult,
 };
 
 use scc::HashMap;
@@ -37,6 +37,7 @@ impl EventSubscriber for GlobalSlurmServer {
     ) -> std::result::Result<tonic::Response<EventStream>, tonic::Status> {
         let trace_id = request.into_inner().trace_id;
         let (send, rcv) = unbounded_channel();
+        tracing::info!("Starting job run for trace id {}", trace_id.clone());
         let _ = self.senders.insert_async(trace_id, send).await;
 
         let strm: EventStream = Box::pin(UnboundedReceiverStream::new(rcv).map(Ok));
@@ -47,6 +48,7 @@ impl EventSubscriber for GlobalSlurmServer {
         request: tonic::Request<ExecutionFinish>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let trace = request.into_inner().trace_id;
+        tracing::info!("Ending subscription for trace {}", trace.clone());
         self.senders.remove_async(&trace).await;
         Ok(tonic::Response::new(()))
     }

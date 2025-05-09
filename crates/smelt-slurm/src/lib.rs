@@ -60,7 +60,8 @@ pub async fn execute_command(
             command_name.to_string(),
             trace_id.clone(),
         ))
-        .await?;
+        .await
+        .inspect_err(|ee| eprintln!("failed to initialize event listener {ee}"))?;
     let stdout = working_dir.join(Command::stdout_file());
     let script_file = working_dir.join(Command::script_file());
 
@@ -172,11 +173,7 @@ pub async fn execute_command(
     }
 
     let _ = stream
-        .send_event(Event::command_finished(
-            res,
-            "test".to_string(),
-            trace_id,
-        ))
+        .send_event(Event::command_finished(res, "test".to_string(), trace_id))
         .await;
 
     if let Some(task) = sample_task {
