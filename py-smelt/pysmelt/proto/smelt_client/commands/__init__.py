@@ -31,6 +31,7 @@ class ClientCommand(betterproto.Message):
     runtype: "RunType" = betterproto.message_field(3, group="ClientCommands")
     runmany: "RunMany" = betterproto.message_field(4, group="ClientCommands")
     getcfg: "GetConfig" = betterproto.message_field(5, group="ClientCommands")
+    getcmds: "GetCommands" = betterproto.message_field(6, group="ClientCommands")
 
 
 @dataclass(eq=False, repr=False)
@@ -50,6 +51,11 @@ class RunMany(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class GetCommands(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class RunType(betterproto.Message):
     typeinfo: str = betterproto.string_field(1)
     """
@@ -65,11 +71,20 @@ class GetConfig(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ClientResp(betterproto.Message):
-    """Responses to the client command"""
+    """Responses to the client commands"""
 
     current_cfg: "ConfigureSmelt" = betterproto.message_field(
         1, group="ClientResponses"
     )
+    json_cmd_list: "SerializedCommandGraph" = betterproto.message_field(
+        2, group="ClientResponses"
+    )
+
+
+@dataclass(eq=False, repr=False)
+class SerializedCommandGraph(betterproto.Message):
+    json_graph_content: str = betterproto.string_field(1)
+    """Just a list of Commands, serialized as json"""
 
 
 @dataclass(eq=False, repr=False)

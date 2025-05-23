@@ -203,8 +203,10 @@ class PyGraph:
             for command in self.universe.all_commands
             if all(tag in command.tags for tag in tags)
         ]
+
         if len(tagged_tests) == 0:
             return 0
+
         listener = self.controller.run_many_tests(tagged_tests)
 
         self.runloop(listener)

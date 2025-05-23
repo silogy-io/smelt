@@ -1,7 +1,7 @@
 from typing import List, Literal, Dict, Any, Optional, Tuple
 from enum import Enum
 from pysmelt.interfaces.runtime import RuntimeRequirements
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 from pysmelt.rc import SmeltRcHolder
@@ -39,7 +39,7 @@ class Command:
     working_dir: str
     on_failure: Optional[CommandRef] = None
     seed: Optional[int] = None
-    tags: List[str] = []
+    tags: List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
@@ -56,7 +56,7 @@ class Command:
         )
         seed = data["seed"] if "seed" in data else None
         runtime = RuntimeRequirements.from_dict(data["runtime"])
-
+        tags = data["tags"] if "tags" in data else []
         return cls(
             name=name,
             target_type=target_type,
@@ -67,6 +67,7 @@ class Command:
             runtime=runtime,
             working_dir=working_dir,
             seed=seed,
+            tags=tags,
         )
 
     def to_dict(self) -> Dict[str, Any]:

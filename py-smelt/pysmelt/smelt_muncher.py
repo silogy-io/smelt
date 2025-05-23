@@ -47,7 +47,7 @@ class PreTarget:
     """
     The seed that is injected into the target via environment variable
     """
-    tags: List[str] = []
+    tags: List[str] = field(default_factory=list)
     """
     tags are a way of grouping and filtering targets
     """
@@ -201,9 +201,9 @@ def create_universe(
     # Parse the "initial" file under consideration and all of the testlists seen to visible files
     targets, commands = parse_smelt(
         starting_file,
-        default_rules_only,
-        file_fetcher=file_fetcher,
         global_seed=global_seed,
+        default_rules_only=default_rules_only,
+        file_fetcher=file_fetcher,
     )
     for comm in commands:
         for dep in comm.dependencies:
