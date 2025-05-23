@@ -566,6 +566,20 @@ impl CommandGraph {
 
                 return Ok(Some(ClientResponses::CurrentCfg(val)));
             }
+
+            ClientCommands::Runtag(RunTagged { tags }) => {
+                self.run_tagged(tags, event_streamer).await?;
+            }
+            ClientCommands::Getcmds(GetCommands {}) => {
+                let rv: Vec<Command> = self
+                    .all_commands
+                    .iter()
+                    .map(|val| val.0.as_ref().clone())
+                    .collect();
+                return Ok(Some(ClientResponses::JsonCmdList(SerializedCommandGraph {
+                    json_graph_content: serde_json::to_string(&rv)?,
+                })));
+            }
         }
         Ok(None)
     }
@@ -712,6 +726,21 @@ impl CommandGraph {
             .compute(&LookupCommand(Arc::new(test_name.into())))
             .await??;
         self.run_tests(vec![command], tx).await
+    }
+
+    pub async fn run_tagged(
+        &self,
+        tags: Vec<String>,
+        event_streamer: Sender<Event>,
+    ) -> Result<(), SmeltErr> {
+        let tx = self.start_tx(event_streamer).await?;
+        let refs = self
+            .all_commands
+            .iter()
+            .filter(|val| val.0.tags.iter().all(|tag| tags.contains(tag)))
+            .cloned()
+            .collect();
+        self.run_tests(refs, tx).await
     }
 
     async fn validate_graph(&self, tx: &mut DiceTransaction) -> Result<(), Vec<SmeltErr>> {

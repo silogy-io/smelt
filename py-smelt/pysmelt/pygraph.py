@@ -232,6 +232,7 @@ def _create_cfg() -> ConfigureSmelt:
 
 def create_graph(
     smelt_test_list: str,
+    global_seed: int,
     cfg_init: Optional[Callable[[ConfigureSmelt], ConfigureSmelt]] = None,
     default_rules_only: bool = False,
     file_fetcher: Optional[SmeltPathFetcher] = None,
@@ -243,14 +244,17 @@ def create_graph(
         SmeltPath.from_str(smelt_test_list),
         default_rules_only=default_rules_only,
         file_fetcher=file_fetcher,
+        global_seed=global_seed,
     )
     rv = PyGraph.init(cfg, universe)
     return rv
 
 
-def create_graph_with_docker(smelt_test_list: str, cfg_docker: CfgDocker) -> PyGraph:
+def create_graph_with_docker(
+    smelt_test_list: str, cfg_docker: CfgDocker, seed: int = 55
+) -> PyGraph:
     def init_docker(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.docker = cfg_docker
         return cfg
 
-    return create_graph(smelt_test_list, cfg_init=init_docker)
+    return create_graph(smelt_test_list, cfg_init=init_docker, global_seed=seed)

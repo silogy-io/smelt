@@ -44,6 +44,8 @@ class Target(ABC):
     """
 
     name: str
+    seed: Optional[int]
+    tags: List[str]
 
     @property
     def ws_path(self) -> str:
@@ -181,6 +183,7 @@ class Target(ABC):
                 dependent_files=dependent_files,
                 outputs=outputs,
                 working_dir=working_dir,
+                seed=self.seed,
             )
 
     def __post_init__(self):

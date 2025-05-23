@@ -30,6 +30,14 @@ impl ClientCommand {
         }
     }
 
+    pub fn run_tagged(tags: Vec<String>) -> Self {
+        let cc = ClientCommands::Runtag(RunTagged { tags });
+
+        ClientCommand {
+            client_commands: Some(cc),
+        }
+    }
+
     pub fn execute_type(typeinfo: String) -> Self {
         let cc = ClientCommands::Runtype(RunType { typeinfo });
 
@@ -40,6 +48,14 @@ impl ClientCommand {
 
     pub fn get_cfg() -> Self {
         let cc = ClientCommands::Getcfg(GetConfig {});
+
+        ClientCommand {
+            client_commands: Some(cc),
+        }
+    }
+
+    pub fn get_cmds() -> Self {
+        let cc = ClientCommands::Getcmds(GetCommands {});
 
         ClientCommand {
             client_commands: Some(cc),

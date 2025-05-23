@@ -33,6 +33,20 @@ pub async fn prepare_workspace(
 
     let stdout = File::create(&stdout_file).await?;
 
+    let buf = _generate_script_content(command, smelt_root.as_path(), command_working_dir)?;
+    file.write_all(&buf).await?;
+    file.flush().await?;
+    Ok(Workspace {
+        script_file,
+        stdout,
+    })
+}
+
+fn _generate_script_content(
+    command: &Command,
+    smelt_root: &Path,
+    command_working_dir: &Path,
+) -> Result<Vec<u8>, std::io::Error> {
     let mut buf: Vec<u8> = Vec::new();
 
     writeln!(buf, "export SMELT_ROOT={}", smelt_root.to_string_lossy())?;
@@ -43,18 +57,16 @@ pub async fn prepare_workspace(
         get_target_root(smelt_root.to_string_lossy(), &command.name)
     )?;
 
+    if let Some(seed) = command.seed {
+        writeln!(buf, "export SMELT_SEED={}", seed)?;
+    }
+
     writeln!(buf, "cd {}", command_working_dir.to_string_lossy())?;
 
     for script_line in &command.script {
         writeln!(buf, "{}", script_line)?;
     }
-
-    file.write_all(&buf).await?;
-    file.flush().await?;
-    Ok(Workspace {
-        script_file,
-        stdout,
-    })
+    Ok(buf)
 }
 
 fn default_artifacts(working_dir: &Path) -> HashMap<String, String> {

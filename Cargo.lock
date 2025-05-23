@@ -3334,6 +3334,7 @@ dependencies = [
  "mach2",
  "rand 0.7.3",
  "scc",
+ "serde_json",
  "serde_yaml",
  "smelt-core",
  "smelt-data",

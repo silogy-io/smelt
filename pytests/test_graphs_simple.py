@@ -261,7 +261,7 @@ def test_profiler():
         )
         return cfg
 
-    graph = create_graph(test_list, init_sampler)
+    graph = create_graph(test_list, global_seed=55, init_sampler)
     graph.additional_listeners.append(ProfileWatcher())
     graph.run_all_typed_commands("test")
     profiler = cast(ProfileWatcher, graph.additional_listeners[0])
@@ -313,7 +313,7 @@ def test_split_build():
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/split_build/test.smelt.yaml"
 
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
 
     expected_passed = 3
 
@@ -326,7 +326,7 @@ def test_split_build():
 
 def test_sanity_procedural():
     test_list = f"{get_git_root()}/test_data/smelt_files/procedural.py"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
     graph.run_all_typed_commands("test")
 
     expected_tests = 5
@@ -344,7 +344,7 @@ def test_simple_graph_smelt():
         cfg.test_only = True
         return cfg
 
-    graph = create_graph(test_list, cfg_init=init_only_test)
+    graph = create_graph(test_list, global_seed=55, cfg_init=init_only_test)
     graph.run_all_typed_commands("test")
 
     expected_tests = 2
@@ -362,7 +362,7 @@ def test_sanity_pygraph_new_build_test_only():
         cfg.test_only = True
         return cfg
 
-    graph = create_graph(test_list, cfg_init=init_only_test)
+    graph = create_graph(test_list, global_seed=55, cfg_init=init_only_test)
     graph.run_all_commands()
 
     # we have 3 commands, 2 of which fail, one of which rebuilds

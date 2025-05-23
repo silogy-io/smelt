@@ -191,14 +191,36 @@ impl PyController {
         self.run_tests(ClientCommand::execute_many(tests))
     }
 
+    pub fn run_tagged(&self, tags: Vec<String>) -> PyResult<PyEventStream> {
+        self.run_tests(ClientCommand::run_tagged(tags))
+    }
+
     pub fn get_current_cfg<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let command = ClientCommand::get_cfg();
         let EventStreams { sync_chan, .. } =
             submit_message(&self.handle.tx_client, command).map_err(client_channel_err)?;
         let resp = sync_chan.blocking_recv();
-        handle_client_resp(resp).map(|val| match val.client_responses.unwrap() {
-            ClientResponses::CurrentCfg(a) => to_bytes(a, py),
+        handle_client_resp(resp).and_then(|val| match val.client_responses {
+            Some(ClientResponses::CurrentCfg(a)) => Ok(to_bytes(a, py)),
+            _ => Err(PyRuntimeError::new_err(
+                "Expected CurrentCfg -- there is a bug in the rust graph that is causing get_current_cfg to return a bad response",
+            )),
         })
+    }
+
+    pub fn get_commands(&self) -> PyResult<String> {
+        let command = ClientCommand::get_cmds();
+        let EventStreams { sync_chan, .. } =
+            submit_message(&self.handle.tx_client, command).map_err(client_channel_err)?;
+        let res = sync_chan.blocking_recv();
+        let rv = handle_client_resp(res).and_then(|val| match val.client_responses {
+            Some(ClientResponses::JsonCmdList(a))=> Ok(a.json_graph_content),
+            _ => Err(PyRuntimeError::new_err(
+                "Expected GetCommands -- there is a bug in the rust graph that is causing get_commands to return a bad response",
+            )),
+        })?;
+
+        Ok(rv)
     }
 }
 

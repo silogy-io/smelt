@@ -38,6 +38,8 @@ class Command:
     runtime: RuntimeRequirements
     working_dir: str
     on_failure: Optional[CommandRef] = None
+    seed: Optional[int] = None
+    tags: List[str] = []
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
@@ -52,7 +54,7 @@ class Command:
             if "working_dir" in data
             else SmeltRcHolder.current_smelt_root()
         )
-
+        seed = data["seed"] if "seed" in data else None
         runtime = RuntimeRequirements.from_dict(data["runtime"])
 
         return cls(
@@ -64,6 +66,7 @@ class Command:
             outputs=outputs,
             runtime=runtime,
             working_dir=working_dir,
+            seed=seed,
         )
 
     def to_dict(self) -> Dict[str, Any]:

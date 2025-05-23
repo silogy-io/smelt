@@ -9,7 +9,7 @@ class run_spi2(Target):
     sanity test -- will move this to examples, eventually
     """
 
-    seed: int
+    spi_seed: int
 
     def gen_script(self) -> List[str]:
         return ['echo "hello world"']

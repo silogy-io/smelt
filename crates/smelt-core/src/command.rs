@@ -28,6 +28,12 @@ impl CommandDependency {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Allocative)]
+
+/// A command is a unit of work that can be executed by the smelt runtime
+///
+/// Unfortuntately, this type is mirrored in the python codebase, so any changes here need to be reflected in the python codebase
+///
+/// See command.py in the python codebase for the mirrored type
 pub struct Command {
     pub name: String,
     pub target_type: TargetType,
@@ -43,6 +49,10 @@ pub struct Command {
     pub working_dir: PathBuf,
     #[serde(default)]
     pub on_failure: Option<CommandDependency>,
+    #[serde(default)]
+    pub seed: Option<u32>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 impl Command {
