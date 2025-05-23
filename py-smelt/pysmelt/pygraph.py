@@ -192,6 +192,24 @@ class PyGraph:
         listener = self.controller.run_many_tests(valid_commands)
         self.runloop(listener)
 
+    def run_tagged(self, tags: List[str]):
+        """
+        returns the number of tests that found to be tagged
+
+        """
+        self.reset()
+        tagged_tests = [
+            command.name
+            for command in self.universe.all_commands
+            if all(tag in command.tags for tag in tags)
+        ]
+        if len(tagged_tests) == 0:
+            return 0
+        listener = self.controller.run_many_tests(tagged_tests)
+
+        self.runloop(listener)
+        return len(tagged_tests)
+
     def set_commands(self):
         """
         Initializes the list of commands that are visible to the smelt runtime

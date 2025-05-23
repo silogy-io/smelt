@@ -191,10 +191,6 @@ impl PyController {
         self.run_tests(ClientCommand::execute_many(tests))
     }
 
-    pub fn run_tagged(&self, tags: Vec<String>) -> PyResult<PyEventStream> {
-        self.run_tests(ClientCommand::run_tagged(tags))
-    }
-
     pub fn get_current_cfg<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let command = ClientCommand::get_cfg();
         let EventStreams { sync_chan, .. } =
