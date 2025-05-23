@@ -199,15 +199,19 @@ class PyGraph:
         """
         self.reset()
         tagged_tests = [
-            command.name
+            command
             for command in self.universe.all_commands
             if all(tag in command.tags for tag in tags)
+        ]
+
+        tagged_tests_only = [
+            command.name for command in tagged_tests if command.target_type == "test"
         ]
 
         if len(tagged_tests) == 0:
             return 0
 
-        listener = self.controller.run_many_tests(tagged_tests)
+        listener = self.controller.run_many_tests(tagged_tests_only)
 
         self.runloop(listener)
         return len(tagged_tests)
