@@ -5,7 +5,6 @@
       - //test_data/smelt_files/split_build/build.smelt.yaml:verilator_build_dummy
     cmds:
       - echo "normal"
-
     debug_cmds:
       - echo "we are re-running now . crazy"
 

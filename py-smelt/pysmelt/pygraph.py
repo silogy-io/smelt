@@ -192,6 +192,26 @@ class PyGraph:
         listener = self.controller.run_many_tests(valid_commands)
         self.runloop(listener)
 
+    def run_tagged(self, tags: List[str]):
+        """
+        returns the number of tests that found to be tagged
+
+        """
+        self.reset()
+        tagged_tests = [
+            command.name
+            for command in self.universe.all_commands
+            if all(tag in command.tags for tag in tags)
+        ]
+
+        if len(tagged_tests) == 0:
+            return 0
+
+        listener = self.controller.run_many_tests(tagged_tests)
+
+        self.runloop(listener)
+        return len(tagged_tests)
+
     def set_commands(self):
         """
         Initializes the list of commands that are visible to the smelt runtime
@@ -232,6 +252,7 @@ def _create_cfg() -> ConfigureSmelt:
 
 def create_graph(
     smelt_test_list: str,
+    global_seed: int,
     cfg_init: Optional[Callable[[ConfigureSmelt], ConfigureSmelt]] = None,
     default_rules_only: bool = False,
     file_fetcher: Optional[SmeltPathFetcher] = None,
@@ -243,14 +264,17 @@ def create_graph(
         SmeltPath.from_str(smelt_test_list),
         default_rules_only=default_rules_only,
         file_fetcher=file_fetcher,
+        global_seed=global_seed,
     )
     rv = PyGraph.init(cfg, universe)
     return rv
 
 
-def create_graph_with_docker(smelt_test_list: str, cfg_docker: CfgDocker) -> PyGraph:
+def create_graph_with_docker(
+    smelt_test_list: str, cfg_docker: CfgDocker, seed: int = 55
+) -> PyGraph:
     def init_docker(cfg: ConfigureSmelt) -> ConfigureSmelt:
         cfg.docker = cfg_docker
         return cfg
 
-    return create_graph(smelt_test_list, cfg_init=init_docker)
+    return create_graph(smelt_test_list, cfg_init=init_docker, global_seed=seed)

@@ -45,7 +45,7 @@ def test_sanity_pygraph():
 def test_get_cfg():
     cmd_def_path_in = "test_data/smelt_files/large_profile.smelt.yaml"
     test_list = f"{get_git_root()}/test_data/smelt_files/large_profile.smelt.yaml"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
 
 
 def test_sanity_pygraph_rerun_nofailing():
@@ -53,7 +53,7 @@ def test_sanity_pygraph_rerun_nofailing():
     Tests the case where no re-run is needed
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
 
     graph.run_all_typed_commands("test")
     # we have 3 tests, 0 of which fail -- so we should rerun no tests
@@ -67,7 +67,7 @@ def test_sanity_pygraph_runone():
     Tests running one test -- we didn't have this path tested, woops
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/tests_only.smelt.yaml"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
 
     graph.run_one_test_interactive("test_example_1")
     # we have 3 tests, 0 of which fail -- so we should rerun no tests
@@ -75,7 +75,7 @@ def test_sanity_pygraph_runone():
 
 def test_sanity_pygraph_rerun_with_failing():
     test_list = f"{get_git_root()}/test_data/smelt_files/failing_tests_only.smelt.yaml"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
     graph.run_all_commands()
 
     # we have 3 tests, 2 of which fail -- when we re-run, we only run those two
@@ -90,7 +90,7 @@ def test_sanity_pygraph_rerun_with_failing():
 
 def test_sanity_pygraph_new_build():
     test_list = f"{get_git_root()}/test_data/smelt_files/rerun_with_newbuild.smelt.yaml"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
     graph.run_all_commands()
 
     # we have 3 tests, 2 of which fail
@@ -240,7 +240,9 @@ def test_smelt_path_fetcher():
     )
 
     graph = create_graph(
-        "/home/user/code/testlist.yml", file_fetcher=mock_storage.fetch_smelt_path
+        "/home/user/code/testlist.yml",
+        file_fetcher=mock_storage.fetch_smelt_path,
+        global_seed=55,
     )
     graph.run_all_commands()
     assert graph.retcode_tracker.total_passed() == 1
@@ -261,7 +263,7 @@ def test_profiler():
         )
         return cfg
 
-    graph = create_graph(test_list, init_sampler)
+    graph = create_graph(test_list, global_seed=55, cfg_init=init_sampler)
     graph.additional_listeners.append(ProfileWatcher())
     graph.run_all_typed_commands("test")
     profiler = cast(ProfileWatcher, graph.additional_listeners[0])
@@ -313,7 +315,7 @@ def test_split_build():
     """
     test_list = f"{get_git_root()}/test_data/smelt_files/split_build/test.smelt.yaml"
 
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
 
     expected_passed = 3
 
@@ -326,7 +328,7 @@ def test_split_build():
 
 def test_sanity_procedural():
     test_list = f"{get_git_root()}/test_data/smelt_files/procedural.py"
-    graph = create_graph(test_list)
+    graph = create_graph(test_list, global_seed=55)
     graph.run_all_typed_commands("test")
 
     expected_tests = 5
@@ -344,7 +346,7 @@ def test_simple_graph_smelt():
         cfg.test_only = True
         return cfg
 
-    graph = create_graph(test_list, cfg_init=init_only_test)
+    graph = create_graph(test_list, global_seed=55, cfg_init=init_only_test)
     graph.run_all_typed_commands("test")
 
     expected_tests = 2
@@ -362,7 +364,7 @@ def test_sanity_pygraph_new_build_test_only():
         cfg.test_only = True
         return cfg
 
-    graph = create_graph(test_list, cfg_init=init_only_test)
+    graph = create_graph(test_list, global_seed=55, cfg_init=init_only_test)
     graph.run_all_commands()
 
     # we have 3 commands, 2 of which fail, one of which rebuilds
@@ -375,4 +377,32 @@ def test_sanity_pygraph_new_build_test_only():
     ), f"Expected to see {expected_failing_tests} tasks executed, saw {observed_reexec} tests"
 
 
-test_simple_graph_smelt()
+def test_seeded_graph():
+    test_list = f"{get_git_root()}/test_data/smelt_files/test_seeded.smelt.yaml"
+    graph = create_graph(test_list, global_seed=55)
+    graph.run_all_commands()
+    assert graph.retcode_tracker.total_executed() == 20
+
+
+def test_tag_filter_seeded_graph():
+    test_list = f"{get_git_root()}/test_data/smelt_files/test_seeded.smelt.yaml"
+    graph = create_graph(test_list, global_seed=55)
+    a = graph.run_tagged(["smart"])
+    assert a == 10
+    assert graph.retcode_tracker.total_executed() == 10
+
+
+def test_thorough_tag_filter():
+    test_list = f"{get_git_root()}/test_data/smelt_files/test_seeded.smelt.yaml"
+    graph = create_graph(test_list, global_seed=55)
+    a = graph.run_tagged(["dumb"])
+    assert a == 10
+    assert graph.retcode_tracker.total_executed() == 10
+
+
+def test_tag_filter_mistmatch():
+    test_list = f"{get_git_root()}/test_data/smelt_files/test_seeded.smelt.yaml"
+    graph = create_graph(test_list, global_seed=55)
+    a = graph.run_tagged(["smsss"])
+    assert a == 0
+    assert graph.retcode_tracker.total_executed() == 0

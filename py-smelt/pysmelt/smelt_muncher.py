@@ -1,6 +1,7 @@
 import pathlib
-from dataclasses import dataclass
-from typing import Dict, Any, Iterable, Optional, Tuple, Type, List
+from dataclasses import dataclass, field
+from typing import Dict, Any, Iterable, Optional, Tuple, Type, List, TypedDict
+import hashlib
 
 import yaml
 from pydantic import BaseModel
@@ -23,8 +24,14 @@ from pysmelt.tracker import ImportTracker
 
 
 class SerYamlTarget(BaseModel):
+    """
+    Class that maps directly to the yaml object in yml files
+    """
+
     name: str
     rule: str
+    num_seeds: Optional[int] = None
+    tags: List[str] = []
     rule_args: Dict[str, Any] = {}
 
 
@@ -32,16 +39,36 @@ class SerYamlTarget(BaseModel):
 class PreTarget:
     target_typ: Type[Target]
     rule_args: Dict[str, Any]
+    """
+    The rule args are the arguments to the target type
+
+    """
+    seed: Optional[int] = None
+    """
+    The seed that is injected into the target via environment variable
+    """
+    tags: List[str] = field(default_factory=list)
+    """
+    tags are a way of grouping and filtering targets
+    """
+
+
+def _target_seed_gen(global_seed: int, local_seed: int) -> int:
+    """
+    returns a consistent random number for a given global seed and local seed -- used to create a unique seed for "seeded" targets
+    """
+    combined = f"{global_seed}:{local_seed}"
+    hash_digest = hashlib.md5(combined.encode()).digest()
+    return int.from_bytes(hash_digest[:4], byteorder="big", signed=False)
 
 
 def populate_rule_args(
     target_name: str,
     rule_payload: SerYamlTarget,
     all_rules: Dict[str, DocumentedTarget],
-) -> PreTarget:
-    rule_payload.rule_args["name"] = target_name
+    global_seed: int,
+) -> List[PreTarget]:
     if rule_payload.rule not in all_rules:
-
         # TODO: make a pretty error that
         #
         # Says that no rule is visible
@@ -49,15 +76,39 @@ def populate_rule_args(
         # Point to the location where end users can create new rules
         raise RuntimeError(f"Rule named {rule_payload.rule} has not been created!")
     target_type = all_rules[rule_payload.rule]["target"]
-    return PreTarget(target_typ=target_type, rule_args=rule_payload.rule_args)
+    if rule_payload.num_seeds is None:
+        rule_payload.rule_args["name"] = target_name
+        return [
+            PreTarget(
+                target_typ=target_type,
+                rule_args=rule_payload.rule_args,
+                tags=rule_payload.tags,
+            )
+        ]
+    else:
+        return [
+            PreTarget(
+                target_typ=target_type,
+                rule_args={
+                    **rule_payload.rule_args,
+                    "name": f"{target_name}_{i}",
+                },
+                seed=_target_seed_gen(global_seed, i),
+                tags=rule_payload.tags,
+            )
+            for i in range(rule_payload.num_seeds)
+        ]
 
 
 def to_target(pre_target: PreTarget) -> Target:
-    return pre_target.target_typ(**pre_target.rule_args)
+    return pre_target.target_typ(
+        **pre_target.rule_args, seed=pre_target.seed, tags=pre_target.tags
+    )
 
 
 def get_targets(
     test_list: SmeltPath,
+    global_seed: int,
     default_rules_only: bool = False,
     file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> Dict[str, Target]:
@@ -79,12 +130,15 @@ def get_targets(
         else:
             yaml_content = file_fetcher(test_list)
         return smelt_contents_to_targets(
-            yaml_content, default_rules_only=default_rules_only
+            yaml_content,
+            global_seed=global_seed,
+            default_rules_only=default_rules_only,
         )
 
 
 def parse_smelt(
     test_list: SmeltPath,
+    global_seed: int,
     default_rules_only: bool = False,
     file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> Tuple[Dict[str, Target], List[Command]]:
@@ -94,7 +148,9 @@ def parse_smelt(
 
     """
     test_list_orig = test_list
-    targets = get_targets(test_list, default_rules_only, file_fetcher=file_fetcher)
+    targets = get_targets(
+        test_list, global_seed, default_rules_only, file_fetcher=file_fetcher
+    )
     ImportTracker.imported_targets[ImportTracker.local_file_alias()] = targets
     ImportTracker.imported_targets[test_list] = targets
 
@@ -132,6 +188,7 @@ class SmeltUniverse:
 
 def create_universe(
     starting_file: SmeltPath,
+    global_seed: int,
     default_rules_only: bool = False,
     file_fetcher: Optional[SmeltPathFetcher] = None,
 ) -> SmeltUniverse:
@@ -143,7 +200,10 @@ def create_universe(
 
     # Parse the "initial" file under consideration and all of the testlists seen to visible files
     targets, commands = parse_smelt(
-        starting_file, default_rules_only, file_fetcher=file_fetcher
+        starting_file,
+        global_seed=global_seed,
+        default_rules_only=default_rules_only,
+        file_fetcher=file_fetcher,
     )
     for comm in commands:
         for dep in comm.dependencies:
@@ -208,6 +268,7 @@ def lower_targets_to_commands(targets: Iterable[Target], path: str) -> List[Comm
 
 def smelt_contents_to_targets(
     smelt_content: str,
+    global_seed: int,
     rc: SmeltRC = SmeltRcHolder.current_rc(),
     default_rules_only: bool = False,
 ) -> Dict[str, Target]:
@@ -220,7 +281,10 @@ def smelt_contents_to_targets(
         all_rules = get_all_targets(rc)
     yaml_targets = [SerYamlTarget(**target) for target in rule_inst]
     pre_targets = {
-        target.name: populate_rule_args(target.name, target, all_rules)
+        inner_target.rule_args["name"]: inner_target
         for target in yaml_targets
+        for inner_target in populate_rule_args(
+            target.name, target, all_rules, global_seed
+        )
     }
     return {name: to_target(pre_target) for name, pre_target in pre_targets.items()}

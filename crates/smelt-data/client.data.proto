@@ -11,12 +11,15 @@ message ClientCommand {
     RunType runtype = 3;
     RunMany runmany = 4;
     GetConfig getcfg = 5;
+    GetCommands getcmds = 6;
   }
 }
 
 message SetCommands { string command_content = 1; string maybe_def_path = 2;}
 message RunOne { string command_name = 1; }
 message RunMany { repeated string command_names = 1; }
+
+message GetCommands {}
 message RunType {
   // Eventually, perhaps we should encode this as info in protobuf
   // not today babey
@@ -24,9 +27,17 @@ message RunType {
 }
 message GetConfig {};
 
-// Responses to the client command
+// Responses to the client commands
 message ClientResp {
-  oneof ClientResponses { ConfigureSmelt current_cfg = 1; }
+  oneof ClientResponses { 
+    ConfigureSmelt current_cfg = 1; 
+    SerializedCommandGraph json_cmd_list= 2;
+    }
+}
+
+message SerializedCommandGraph {
+  // Just a list of Commands, serialized as json 
+  string json_graph_content = 1;
 }
 
 // This configuration is done once, when SMELT is initialized

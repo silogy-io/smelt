@@ -44,6 +44,16 @@ class Target(ABC):
     """
 
     name: str
+    seed: Optional[int]
+    tags: List[str]
+
+    @classmethod
+    def simple(cls, **kwargs) -> "Target":
+        """
+        Convience method to create a simple target with no seed or tags
+
+        """
+        return cls(**kwargs, seed=None, tags=[])
 
     @property
     def ws_path(self) -> str:
@@ -104,6 +114,7 @@ class Target(ABC):
         dependent_files = self.get_dependent_files()
         rerun_command = self.to_rerun_command(working_dir)
         outputs = list(map(lambda path: str(path), self.get_outputs().values()))
+        tags = self.tags
         return Command(
             name=name,
             target_type=target_type,
@@ -114,6 +125,7 @@ class Target(ABC):
             outputs=outputs,
             working_dir=working_dir,
             on_failure=f"{rerun_command.name}" if rerun_command else None,
+            tags=tags,
         )
 
     def to_command(self, working_dir: str) -> Command:
@@ -181,6 +193,7 @@ class Target(ABC):
                 dependent_files=dependent_files,
                 outputs=outputs,
                 working_dir=working_dir,
+                seed=self.seed,
             )
 
     def __post_init__(self):

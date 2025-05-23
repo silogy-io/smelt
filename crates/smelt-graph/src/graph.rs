@@ -566,6 +566,17 @@ impl CommandGraph {
 
                 return Ok(Some(ClientResponses::CurrentCfg(val)));
             }
+
+            ClientCommands::Getcmds(GetCommands {}) => {
+                let rv: Vec<Command> = self
+                    .all_commands
+                    .iter()
+                    .map(|val| val.0.as_ref().clone())
+                    .collect();
+                return Ok(Some(ClientResponses::JsonCmdList(SerializedCommandGraph {
+                    json_graph_content: serde_json::to_string(&rv)?,
+                })));
+            }
         }
         Ok(None)
     }

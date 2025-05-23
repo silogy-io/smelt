@@ -17,6 +17,7 @@ from pysmelt.templates.template_rule import create_rule_target_from_template
 from pysmelt.pysmelt import create_worker_binary
 
 app = typer.Typer()
+IGNORE_SEED = 0x4DAD5
 
 
 TlPath = Annotated[
@@ -103,6 +104,9 @@ def execute(
         help="If set, we will prepare the workspace for a distributed run -- Only build commands will run, and test commands will only create shell scripts.",
         is_flag=True,
     ),
+    global_seed: int = typer.Option(
+        0xDEADBEEF, "--global-seed", help="Global seed for the run"
+    ),
 ):
     if jobs:
         SmeltRcHolder.set_jobs(jobs)
@@ -112,7 +116,11 @@ def execute(
         cfg.prepare_workspace = prepare_workspace
         return cfg
 
-    graph = create_graph(str(smelt_file), cfg_init=configure_cb)
+    graph = create_graph(
+        str(smelt_file),
+        cfg_init=configure_cb,
+        global_seed=global_seed,
+    )
     if target_name:
         graph.run_one_test_interactive(target_name)
     else:
@@ -155,7 +163,11 @@ def execute_docker(
         cfg.docker.additional_mounts = {}
         return cfg
 
-    graph = create_graph(str(smelt_file), cfg_init=configure_cb)
+    graph = create_graph(
+        str(smelt_file),
+        cfg_init=configure_cb,
+        global_seed=IGNORE_SEED,
+    )
     if target_name:
         graph.run_one_test_interactive(target_name)
     elif tt:
@@ -171,7 +183,7 @@ def validate(
     smelt_file: TlPath,
 ):
 
-    graph = create_graph(str(smelt_file))
+    graph = create_graph(str(smelt_file), global_seed=IGNORE_SEED)
     smelt_console.print(f"[green] {smelt_file.name} is valid")
     pretty_print_tests(graph)
 

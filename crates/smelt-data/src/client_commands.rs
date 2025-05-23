@@ -45,4 +45,12 @@ impl ClientCommand {
             client_commands: Some(cc),
         }
     }
+
+    pub fn get_cmds() -> Self {
+        let cc = ClientCommands::Getcmds(GetCommands {});
+
+        ClientCommand {
+            client_commands: Some(cc),
+        }
+    }
 }

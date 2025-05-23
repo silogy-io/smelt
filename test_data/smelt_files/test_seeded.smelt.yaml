@@ -1,0 +1,17 @@
+- name: test_example
+  num_seeds: 10
+  rule: raw_bash 
+  rule_args:
+    cmds:
+      - echo "SMELT_SEED is $SMELT_SEED"
+  tags:
+    - dumb
+
+- name: test_smart
+  num_seeds: 10
+  rule: raw_bash 
+  rule_args:
+    cmds:
+      - echo "SMELT_SEED is $SMELT_SEED"
+  tags:
+    - smart
