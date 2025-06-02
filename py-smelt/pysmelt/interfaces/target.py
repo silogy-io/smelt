@@ -115,6 +115,7 @@ class Target(ABC):
         rerun_command = self.to_rerun_command(working_dir)
         outputs = list(map(lambda path: str(path), self.get_outputs().values()))
         tags = self.tags
+        seed = self.seed
         return Command(
             name=name,
             target_type=target_type,
@@ -126,6 +127,7 @@ class Target(ABC):
             working_dir=working_dir,
             on_failure=f"{rerun_command.name}" if rerun_command else None,
             tags=tags,
+            seed=self.seed,
         )
 
     def to_command(self, working_dir: str) -> Command:
@@ -164,6 +166,7 @@ class Target(ABC):
                 dependent_files=dependent_files,
                 outputs=outputs,
                 working_dir=working_dir,
+                seed=self.seed,
             )
 
     def default_rebuild_command(self, working_dir: str) -> Optional[Command]:
